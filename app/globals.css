@@ -1,3 +1,5 @@
+@import "tailwindcss";
+
 :root {
   color-scheme: light;
   --bg: #0b1020;
@@ -11,11 +13,6 @@
   --danger: #f87171;
 }
 
-* {
-  box-sizing: border-box;
-  padding: 0;
-  margin: 0;
-}
 
 body {
   font-family: "Space Grotesk", system-ui, -apple-system, sans-serif;

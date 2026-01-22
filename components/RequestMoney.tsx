@@ -103,7 +103,7 @@ export default function RequestMoney() {
             {/* <span className="text-4xl font-bold mr-1"></span> */}
             <input
               type="text"
-              value={`₦${amount}`}
+              value={amount}
               onChange={(e) => setAmount(Number(e.target.value))}
               className="text-4xl text-center font-bold bg-transparent border-none outline-none w-full max-w-[200px]"
               placeholder="0.00"
