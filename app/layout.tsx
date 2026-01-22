@@ -3,7 +3,6 @@ import type { ReactNode } from 'react';
 import { Space_Grotesk } from 'next/font/google';
 import './globals.css';
 import InstallPrompt from '@/components/InstallPrompt';
-import ConnectivityStatus from '@/components/ConnectivityStatus';
 
 const spaceGrotesk = Space_Grotesk({
   subsets: ['latin'],
@@ -37,7 +36,6 @@ export default function RootLayout({
   return (
     <html lang="en" className={spaceGrotesk.className}>
       <body>
-        <ConnectivityStatus />
         <InstallPrompt />
         {children}
       </body>
