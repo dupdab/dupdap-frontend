@@ -70,10 +70,10 @@ export default function Dashboard() {
               <Eye className="text-[#141414] stroke-current" />
             </div>
             <div className="grid grid-cols-2 gap-[1rem] mt-[2rem] text-[#303030] font-bold">
-              <div className="w-full rounded-full flex justify-center gap-[0.5rem]  bg-[#FFFFFF14] border border-[#FFFFFF] px-[0.5rem] py-[0.25rem]">
+              <Link href="/add-money" className="w-full rounded-full flex justify-center gap-[0.5rem]  bg-[#FFFFFF14] border border-[#FFFFFF] px-[0.5rem] py-[0.25rem] hover:bg-[#FFFFFF24] transition-colors">
                 <MoveDown />
                 <h3>Add</h3>
-              </div>
+              </Link>
               <div className="w-full rounded-full flex gap-[0.5rem]  bg-[#FFFFFF14] border border-[#FFFFFF] px-[0.5rem] py-[0.25rem] justify-center">
                 <MoveUp />
                 <h3>Withdraw</h3>
