@@ -57,7 +57,7 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="card w-full max-w-sm">
         <div className="p-6 border-b border-gray-100 text-center">
-          <p className="text-sm text-gray-500 font-medium">CheesePay</p>
+          <p className="text-sm text-gray-500 font-medium">DupDub</p>
           <h1 className="text-3xl font-bold mt-1">{formatUsd(payment.amountUsd)}</h1>
           {payment.description && <p className="text-sm text-gray-500 mt-1">{payment.description}</p>}
         </div>
@@ -78,7 +78,7 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
                 <p className="text-blue-800">1) approve(escrow_contract, amount)</p>
                 <p className="text-blue-800">2) deposit()</p>
                 <p className="text-blue-700 mt-1">
-                  Your wallet signs both steps. No private keys are shared with CheesePay.
+                  Your wallet signs both steps. No private keys are shared with DupDub.
                 </p>
               </div>
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs">

@@ -28,9 +28,9 @@ export default function WaitlistPage() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="card w-full max-w-md p-8">
         <div className="text-center mb-6">
-          <Link href="/" className="font-bold text-xl text-brand-600">CheesePay</Link>
+          <Link href="/" className="font-bold text-xl text-brand-600">DupDub</Link>
           <h2 className="text-2xl font-bold mt-4 mb-2">Join the waitlist</h2>
-          <p className="text-gray-500 text-sm">Be first to access CheesePay when we launch</p>
+          <p className="text-gray-500 text-sm">Be first to access DupDub when we launch</p>
         </div>
 
         {joined ? (

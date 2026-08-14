@@ -29,6 +29,6 @@ export const useAuthStore = create<AuthState>()(
         set({ token: null, merchant: null });
       },
     }),
-    { name: 'cheesepay-auth' },
+    { name: 'dupdub-auth' },
   ),
 );

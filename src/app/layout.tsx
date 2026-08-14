@@ -6,7 +6,7 @@ import './globals.css';
 const inter = Inter({ subsets: ['latin'] });
 
 export const metadata: Metadata = {
-  title: 'CheesePay — Crypto-to-Fiat Settlement',
+  title: 'DupDub — Crypto-to-Fiat Settlement',
   description: 'Accept crypto payments, receive fiat settlements instantly',
 };
 

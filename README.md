@@ -1,6 +1,6 @@
-# CheesePay Frontend
+# DupDub Frontend
 
-> Merchant dashboard and customer payment portal for the CheesePay/DupDub crypto-to-fiat settlement platform.
+> Merchant dashboard and customer payment portal for the DupDub crypto-to-fiat settlement platform.
 
 This is the Next.js app merchants use to manage payments and settlements, and the page customers land on to pay a merchant with USDC on Stellar. It talks exclusively to the [`dupdap-backend`](../dupdap-backend) REST API — there is no direct on-chain write path from the frontend itself beyond what the customer's wallet signs.
 
@@ -44,7 +44,7 @@ The customer-facing payment flow here is built around Stellar, not a generic mul
   - a request interceptor that attaches `Authorization: Bearer <token>` from `localStorage`
   - a response interceptor that clears the token and redirects to `/auth/login` on `401`
   - grouped API helpers (`authApi`, `paymentsApi`, …) rather than ad-hoc fetches scattered through components
-- **`src/lib/store.ts`** — Zustand + `persist` for auth state (`token`, `merchant`), persisted to `localStorage` under the `cheesepay-auth` key. This is the only global client state; everything else (payment lists, analytics, etc.) is fetched per-page through `api.ts`.
+- **`src/lib/store.ts`** — Zustand + `persist` for auth state (`token`, `merchant`), persisted to `localStorage` under the `dupdub-auth` key. This is the only global client state; everything else (payment lists, analytics, etc.) is fetched per-page through `api.ts`.
 - **`src/lib/utils.ts`** — shared formatting/className helpers (`clsx` + `tailwind-merge`).
 
 ### Customer payment flow (`/pay/[paymentId]`)
@@ -115,7 +115,7 @@ That's the only required variable today. `next.config.js` also falls back to `ht
 If you're pointing this at a deployed backend, set it to that backend's public URL including the `/api/v1` prefix, e.g.:
 
 ```bash
-NEXT_PUBLIC_API_URL=https://api.dabdub.xyz/api/v1
+NEXT_PUBLIC_API_URL=https://api.dupdub.xyz/api/v1
 ```
 
 ## API integration

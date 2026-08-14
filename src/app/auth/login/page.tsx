@@ -31,7 +31,7 @@ export default function LoginPage() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="card w-full max-w-md p-8">
         <div className="text-center mb-8">
-          <h1 className="text-2xl font-bold text-brand-600 mb-1">CheesePay</h1>
+          <h1 className="text-2xl font-bold text-brand-600 mb-1">DupDub</h1>
           <p className="text-gray-500 text-sm">Sign in to your merchant account</p>
         </div>
 

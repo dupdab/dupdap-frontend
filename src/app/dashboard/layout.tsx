@@ -40,7 +40,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       {/* Sidebar */}
       <aside className="w-64 bg-white border-r border-gray-200 flex flex-col">
         <div className="p-6 border-b border-gray-100">
-          <span className="font-bold text-brand-600 text-lg">CheesePay</span>
+          <span className="font-bold text-brand-600 text-lg">DupDub</span>
           <p className="text-xs text-gray-500 mt-1 truncate">{merchant.businessName}</p>
         </div>
 

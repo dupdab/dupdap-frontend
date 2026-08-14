@@ -7,7 +7,7 @@ export default function LandingPage() {
       {/* Nav */}
       <nav className="border-b border-gray-100">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <span className="font-bold text-xl text-brand-600">CheesePay</span>
+          <span className="font-bold text-xl text-brand-600">DupDub</span>
           <div className="flex items-center gap-4">
             <Link href="/auth/login" className="text-sm text-gray-600 hover:text-gray-900">
               Login
@@ -29,7 +29,7 @@ export default function LandingPage() {
           Accept crypto,<br />receive fiat — instantly
         </h1>
         <p className="text-xl text-gray-500 max-w-2xl mx-auto mb-10">
-          CheesePay bridges Web3 payments with traditional banking. Merchants receive NGN/USD settlements
+          DupDub bridges Web3 payments with traditional banking. Merchants receive NGN/USD settlements
           while customers pay with USDC on Stellar.
         </p>
         <div className="flex items-center justify-center gap-4">
@@ -45,7 +45,7 @@ export default function LandingPage() {
       {/* Features */}
       <section className="bg-gray-50 border-y border-gray-100">
         <div className="max-w-6xl mx-auto px-6 py-20">
-          <h2 className="text-3xl font-bold text-center mb-12">Why CheesePay?</h2>
+          <h2 className="text-3xl font-bold text-center mb-12">Why DupDub?</h2>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
             {[
               {
@@ -114,7 +114,7 @@ export default function LandingPage() {
       </section>
 
       <footer className="border-t border-gray-100 py-8 text-center text-sm text-gray-400">
-        © 2025 CheesePay. Built with Stellar.
+        © 2025 DupDub. Built with Stellar.
       </footer>
     </div>
   );
