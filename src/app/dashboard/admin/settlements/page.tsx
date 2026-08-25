@@ -210,7 +210,58 @@ export default function AdminSettlementsPage() {
 
       {/* Settlements Table */}
       <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Mobile card layout */}
+        <div className="md:hidden divide-y divide-gray-200">
+          {loading ? (
+            <div className="px-4 py-8 text-center text-gray-500">Loading settlements...</div>
+          ) : settlements.length === 0 ? (
+            <div className="px-4 py-8 text-center text-gray-500">No settlements found</div>
+          ) : (
+            settlements.map((settlement) => {
+              const StatusIcon = statusIcons[settlement.status];
+              return (
+                <div key={settlement.id} className="px-4 py-3 space-y-1">
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm font-medium text-gray-900">{settlement.id.slice(0, 8)}...</span>
+                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${statusColors[settlement.status]}`}>
+                      <StatusIcon className="w-3 h-3" />
+                      {settlement.status.replace('_', ' ')}
+                    </span>
+                  </div>
+                  <div className="text-sm text-gray-900">{settlement.merchant?.businessName || 'Unknown'}</div>
+                  <div className="text-sm font-medium text-gray-900">{formatCurrency(settlement.netAmountUsd)}</div>
+                  <div className="text-xs text-gray-500">Fee: {formatCurrency(settlement.feeAmountUsd)}</div>
+                  <div className="text-xs text-gray-500">{formatDate(settlement.createdAt)}</div>
+                  {settlement.failureReason && (
+                    <div className="text-xs text-red-600">{settlement.failureReason}</div>
+                  )}
+                  <div className="flex items-center gap-2 pt-1">
+                    {settlement.status === 'failed' && (
+                      <button
+                        onClick={() => handleRetry(settlement.id)}
+                        disabled={actionLoading === settlement.id}
+                        className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:opacity-50"
+                      >
+                        {actionLoading === settlement.id ? 'Retrying...' : 'Retry'}
+                      </button>
+                    )}
+                    {settlement.status === 'pending_approval' && (
+                      <button
+                        onClick={() => handleApprove(settlement.id)}
+                        disabled={actionLoading === settlement.id}
+                        className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 disabled:opacity-50"
+                      >
+                        {actionLoading === settlement.id ? 'Approving...' : 'Approve'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>

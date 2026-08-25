@@ -137,7 +137,34 @@ export default function PaymentsPage() {
 
       {/* Payments Table */}
       <div className="card">
-        <div className="overflow-x-auto">
+        {/* Mobile card layout */}
+        <div className="md:hidden divide-y divide-gray-50">
+          {loading ? (
+            <div className="px-6 py-8 text-center text-gray-400">Loading...</div>
+          ) : payments.length === 0 ? (
+            <div className="px-6 py-8 text-center text-gray-400">No payments yet</div>
+          ) : (
+            payments.map((p) => (
+              <div key={p.id} className="px-6 py-4 space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-xs text-gray-500">{p.reference}</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${PAYMENT_STATUS_COLORS[p.status]}`}>
+                    {p.status}
+                  </span>
+                </div>
+                <div className="font-semibold">{formatUsd(p.amountUsd)}</div>
+                <div className="text-xs text-gray-500">{formatDate(p.createdAt)}</div>
+                {p.status === 'pending' && (
+                  <button onClick={() => setSelectedPayment(p)} className="text-brand-600 text-xs hover:underline">
+                    Show QR
+                  </button>
+                )}
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
