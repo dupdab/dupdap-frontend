@@ -1,9 +1,35 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ArrowRight, Zap, Shield, Globe, QrCode } from 'lucide-react';
+
+export const metadata: Metadata = {
+  title: 'DupDub — Accept Crypto, Receive Fiat Instantly',
+  description:
+    'DupDub bridges Web3 payments with traditional banking. Merchants receive NGN/USD settlements while customers pay with USDC on Stellar.',
+  openGraph: {
+    title: 'DupDub — Accept Crypto, Receive Fiat Instantly',
+    description:
+      'DupDub bridges Web3 payments with traditional banking. Merchants receive NGN/USD settlements while customers pay with USDC on Stellar.',
+    images: ['/og-image.png'],
+    type: 'website',
+  },
+};
+
+const jsonLd = {
+  '@context': 'https://schema.org',
+  '@type': 'Organization',
+  name: 'DupDub',
+  description: 'Crypto-to-fiat settlement platform bridging Web3 payments with traditional banking.',
+  url: 'https://dupdub.com',
+};
 
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-white">
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
       {/* Nav */}
       <nav className="border-b border-gray-100">
         <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
