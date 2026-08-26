@@ -70,13 +70,15 @@ export default function SettingsPage() {
             { key: 'businessName', label: 'Business Name' },
             { key: 'country', label: 'Country' },
             { key: 'bankName', label: 'Bank Name' },
-            { key: 'bankCode', label: 'Bank Code' },
-            { key: 'bankAccountNumber', label: 'Bank Account Number' },
-          ].map(({ key, label }) => (
+            { key: 'bankCode', label: 'Bank Code', inputMode: 'numeric' as const, pattern: '[0-9]{3,6}' },
+            { key: 'bankAccountNumber', label: 'Bank Account Number', inputMode: 'numeric' as const, pattern: '[0-9]{6,17}' },
+          ].map(({ key, label, inputMode, pattern }) => (
             <div key={key}>
               <label className="label">{label}</label>
               <input
                 className="input"
+                inputMode={inputMode}
+                pattern={pattern}
                 value={form[key as keyof typeof form]}
                 onChange={(e) => setForm({ ...form, [key]: e.target.value })}
               />
