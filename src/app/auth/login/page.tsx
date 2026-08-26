@@ -57,7 +57,7 @@ export default function LoginPage() {
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
               />
             </div>
-            <button type="submit" disabled={loading} className="btn-primary w-full">
+            <button data-testid="login-submit-button" type="submit" disabled={loading} className="btn-primary w-full">
               {loading ? 'Signing in...' : 'Sign in'}
             </button>
           </fieldset>

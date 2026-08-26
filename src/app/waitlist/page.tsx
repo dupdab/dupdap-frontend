@@ -59,7 +59,7 @@ export default function WaitlistPage() {
                   />
                 </div>
               ))}
-              <button type="submit" disabled={loading} className="btn-primary w-full">
+              <button data-testid="waitlist-submit-button" type="submit" disabled={loading} className="btn-primary w-full">
                 {loading ? 'Joining...' : 'Join waitlist'}
               </button>
             </fieldset>

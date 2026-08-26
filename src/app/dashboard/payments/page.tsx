@@ -66,14 +66,14 @@ export default function PaymentsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Payments</h1>
           <p className="text-sm text-gray-500 mt-1">{total} total payments</p>
         </div>
-        <button onClick={() => setShowCreate(true)} className="btn-primary flex items-center gap-2">
+        <button data-testid="new-payment-button" onClick={() => setShowCreate(true)} className="btn-primary flex items-center gap-2">
           <Plus className="w-4 h-4" /> New Payment
         </button>
       </div>
 
       {/* Create Modal */}
       {showCreate && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+        <div data-testid="create-payment-modal" className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="card w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="font-semibold text-lg">Create Payment</h2>
@@ -112,7 +112,7 @@ export default function PaymentsPage() {
 
       {/* QR Modal */}
       {selectedPayment && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+        <div data-testid="payment-qr-modal" className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="card w-full max-w-sm p-6 text-center">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold">Payment QR Code</h2>
@@ -157,18 +157,18 @@ export default function PaymentsPage() {
                 <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-400">No payments yet</td></tr>
               ) : (
                 payments.map((p) => (
-                  <tr key={p.id} className="hover:bg-gray-50">
+                  <tr key={p.id} data-testid={`payment-row-${p.id}`} className="hover:bg-gray-50">
                     <td className="px-6 py-4 font-mono text-xs">{p.reference}</td>
                     <td className="px-6 py-4 font-semibold">{formatUsd(p.amountUsd)}</td>
                     <td className="px-6 py-4">
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${PAYMENT_STATUS_COLORS[p.status]}`}>
+                      <span data-testid="payment-status-badge" className={`text-xs px-2 py-0.5 rounded-full font-medium ${PAYMENT_STATUS_COLORS[p.status]}`}>
                         {p.status}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-gray-500">{formatDate(p.createdAt)}</td>
                     <td className="px-6 py-4">
                       {p.status === 'pending' && (
-                        <button onClick={() => setSelectedPayment(p)} className="text-brand-600 text-xs hover:underline">
+                        <button data-testid={`show-qr-button-${p.id}`} onClick={() => setSelectedPayment(p)} className="text-brand-600 text-xs hover:underline">
                           Show QR
                         </button>
                       )}

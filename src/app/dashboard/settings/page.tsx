@@ -83,7 +83,7 @@ export default function SettingsPage() {
                 />
               </div>
             ))}
-            <button type="submit" disabled={saving} className="btn-primary">
+            <button data-testid="settings-save-button" type="submit" disabled={saving} className="btn-primary">
               {saving ? 'Saving...' : 'Save changes'}
             </button>
           </fieldset>

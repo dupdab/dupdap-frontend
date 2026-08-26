@@ -59,7 +59,7 @@ export default function RegisterPage() {
             {field('email', 'Email', 'email')}
             {field('password', 'Password', 'password')}
             {field('country', 'Country (optional)', 'text', false)}
-            <button type="submit" disabled={loading} className="btn-primary w-full">
+            <button data-testid="register-submit-button" type="submit" disabled={loading} className="btn-primary w-full">
               {loading ? 'Creating account...' : 'Create account'}
             </button>
           </fieldset>

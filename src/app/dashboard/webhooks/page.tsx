@@ -53,13 +53,13 @@ export default function WebhooksPage() {
           <h1 className="text-2xl font-bold text-gray-900">Webhooks</h1>
           <p className="text-sm text-gray-500 mt-1">Get notified when payment events occur</p>
         </div>
-        <button onClick={() => setShowCreate(true)} className="btn-primary flex items-center gap-2">
+        <button data-testid="new-webhook-button" onClick={() => setShowCreate(true)} className="btn-primary flex items-center gap-2">
           <Plus className="w-4 h-4" /> Add Webhook
         </button>
       </div>
 
       {showCreate && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+        <div data-testid="create-webhook-modal" className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="card w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold">New Webhook</h2>
@@ -83,7 +83,7 @@ export default function WebhooksPage() {
                     ))}
                   </div>
                 </div>
-                <button type="submit" disabled={creating} className="btn-primary w-full">
+                <button data-testid="webhook-submit-button" type="submit" disabled={creating} className="btn-primary w-full">
                   {creating ? 'Creating...' : 'Create Webhook'}
                 </button>
               </fieldset>
@@ -97,7 +97,7 @@ export default function WebhooksPage() {
           <div className="card p-8 text-center text-gray-400 text-sm">No webhooks configured</div>
         ) : (
           webhooks.map((w) => (
-            <div key={w.id} className="card p-5 flex items-start justify-between">
+            <div key={w.id} data-testid={`webhook-row-${w.id}`} className="card p-5 flex items-start justify-between">
               <div>
                 <p className="font-mono text-sm font-medium break-all">{w.url}</p>
                 <div className="flex flex-wrap gap-1 mt-2">
