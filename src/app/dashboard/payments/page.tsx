@@ -80,29 +80,31 @@ export default function PaymentsPage() {
               <button onClick={() => setShowCreate(false)}><X className="w-5 h-5 text-gray-400" /></button>
             </div>
             <form onSubmit={createPayment} className="space-y-4">
-              <div>
-                <label className="label">Amount (USD)</label>
-                <input className="input" type="number" step="0.01" min="0.01" required value={form.amountUsd}
-                  onChange={(e) => setForm({ ...form, amountUsd: e.target.value })} />
-              </div>
-              <div>
-                <label className="label">Description (optional)</label>
-                <input className="input" value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })} />
-              </div>
-              <div>
-                <label className="label">Customer Email (optional)</label>
-                <input className="input" type="email" value={form.customerEmail}
-                  onChange={(e) => setForm({ ...form, customerEmail: e.target.value })} />
-              </div>
-              <div>
-                <label className="label">Expires in (minutes)</label>
-                <input className="input" type="number" min="5" max="1440" value={form.expiryMinutes}
-                  onChange={(e) => setForm({ ...form, expiryMinutes: e.target.value })} />
-              </div>
-              <button type="submit" disabled={creating} className="btn-primary w-full">
-                {creating ? 'Creating...' : 'Create Payment'}
-              </button>
+              <fieldset disabled={creating} className="space-y-4">
+                <div>
+                  <label className="label">Amount (USD)</label>
+                  <input className="input" type="number" step="0.01" min="0.01" required value={form.amountUsd}
+                    onChange={(e) => setForm({ ...form, amountUsd: e.target.value })} />
+                </div>
+                <div>
+                  <label className="label">Description (optional)</label>
+                  <input className="input" value={form.description}
+                    onChange={(e) => setForm({ ...form, description: e.target.value })} />
+                </div>
+                <div>
+                  <label className="label">Customer Email (optional)</label>
+                  <input className="input" type="email" value={form.customerEmail}
+                    onChange={(e) => setForm({ ...form, customerEmail: e.target.value })} />
+                </div>
+                <div>
+                  <label className="label">Expires in (minutes)</label>
+                  <input className="input" type="number" min="5" max="1440" value={form.expiryMinutes}
+                    onChange={(e) => setForm({ ...form, expiryMinutes: e.target.value })} />
+                </div>
+                <button type="submit" disabled={creating} className="btn-primary w-full">
+                  {creating ? 'Creating...' : 'Create Payment'}
+                </button>
+              </fieldset>
             </form>
           </div>
         </div>

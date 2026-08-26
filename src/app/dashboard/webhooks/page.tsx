@@ -66,25 +66,27 @@ export default function WebhooksPage() {
               <button onClick={() => setShowCreate(false)}><X className="w-5 h-5 text-gray-400" /></button>
             </div>
             <form onSubmit={create} className="space-y-4">
-              <div>
-                <label className="label">Endpoint URL</label>
-                <input className="input" type="url" required placeholder="https://your-server.com/webhook"
-                  value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} />
-              </div>
-              <div>
-                <label className="label">Events</label>
-                <div className="space-y-2 mt-1">
-                  {WEBHOOK_EVENTS.map((evt) => (
-                    <label key={evt} className="flex items-center gap-2 text-sm cursor-pointer">
-                      <input type="checkbox" checked={form.events.includes(evt)} onChange={() => toggleEvent(evt)} />
-                      <code className="text-xs">{evt}</code>
-                    </label>
-                  ))}
+              <fieldset disabled={creating} className="space-y-4">
+                <div>
+                  <label className="label">Endpoint URL</label>
+                  <input className="input" type="url" required placeholder="https://your-server.com/webhook"
+                    value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} />
                 </div>
-              </div>
-              <button type="submit" disabled={creating} className="btn-primary w-full">
-                {creating ? 'Creating...' : 'Create Webhook'}
-              </button>
+                <div>
+                  <label className="label">Events</label>
+                  <div className="space-y-2 mt-1">
+                    {WEBHOOK_EVENTS.map((evt) => (
+                      <label key={evt} className="flex items-center gap-2 text-sm cursor-pointer">
+                        <input type="checkbox" checked={form.events.includes(evt)} onChange={() => toggleEvent(evt)} />
+                        <code className="text-xs">{evt}</code>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+                <button type="submit" disabled={creating} className="btn-primary w-full">
+                  {creating ? 'Creating...' : 'Create Webhook'}
+                </button>
+              </fieldset>
             </form>
           </div>
         </div>

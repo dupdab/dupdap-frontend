@@ -41,26 +41,28 @@ export default function WaitlistPage() {
           </div>
         ) : (
           <form onSubmit={submit} className="space-y-4">
-            {[
-              { key: 'email', label: 'Email', type: 'email', required: true },
-              { key: 'username', label: 'Username (optional)', type: 'text', required: false },
-              { key: 'businessName', label: 'Business Name (optional)', type: 'text', required: false },
-              { key: 'country', label: 'Country (optional)', type: 'text', required: false },
-            ].map(({ key, label, type, required }) => (
-              <div key={key}>
-                <label className="label">{label}</label>
-                <input
-                  className="input"
-                  type={type}
-                  required={required}
-                  value={form[key as keyof typeof form]}
-                  onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-                />
-              </div>
-            ))}
-            <button type="submit" disabled={loading} className="btn-primary w-full">
-              {loading ? 'Joining...' : 'Join waitlist'}
-            </button>
+            <fieldset disabled={loading} className="space-y-4">
+              {[
+                { key: 'email', label: 'Email', type: 'email', required: true },
+                { key: 'username', label: 'Username (optional)', type: 'text', required: false },
+                { key: 'businessName', label: 'Business Name (optional)', type: 'text', required: false },
+                { key: 'country', label: 'Country (optional)', type: 'text', required: false },
+              ].map(({ key, label, type, required }) => (
+                <div key={key}>
+                  <label className="label">{label}</label>
+                  <input
+                    className="input"
+                    type={type}
+                    required={required}
+                    value={form[key as keyof typeof form]}
+                    onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+                  />
+                </div>
+              ))}
+              <button type="submit" disabled={loading} className="btn-primary w-full">
+                {loading ? 'Joining...' : 'Join waitlist'}
+              </button>
+            </fieldset>
           </form>
         )}
       </div>

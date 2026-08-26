@@ -66,25 +66,27 @@ export default function SettingsPage() {
       <div className="card p-6 mb-6">
         <h2 className="font-semibold mb-4">Business Profile</h2>
         <form onSubmit={save} className="space-y-4">
-          {[
-            { key: 'businessName', label: 'Business Name' },
-            { key: 'country', label: 'Country' },
-            { key: 'bankName', label: 'Bank Name' },
-            { key: 'bankCode', label: 'Bank Code' },
-            { key: 'bankAccountNumber', label: 'Bank Account Number' },
-          ].map(({ key, label }) => (
-            <div key={key}>
-              <label className="label">{label}</label>
-              <input
-                className="input"
-                value={form[key as keyof typeof form]}
-                onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-              />
-            </div>
-          ))}
-          <button type="submit" disabled={saving} className="btn-primary">
-            {saving ? 'Saving...' : 'Save changes'}
-          </button>
+          <fieldset disabled={saving} className="space-y-4">
+            {[
+              { key: 'businessName', label: 'Business Name' },
+              { key: 'country', label: 'Country' },
+              { key: 'bankName', label: 'Bank Name' },
+              { key: 'bankCode', label: 'Bank Code' },
+              { key: 'bankAccountNumber', label: 'Bank Account Number' },
+            ].map(({ key, label }) => (
+              <div key={key}>
+                <label className="label">{label}</label>
+                <input
+                  className="input"
+                  value={form[key as keyof typeof form]}
+                  onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+                />
+              </div>
+            ))}
+            <button type="submit" disabled={saving} className="btn-primary">
+              {saving ? 'Saving...' : 'Save changes'}
+            </button>
+          </fieldset>
         </form>
       </div>
 
