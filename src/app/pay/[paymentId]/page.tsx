@@ -6,6 +6,15 @@ import { Clock, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { paymentsApi } from '@/lib/api';
 import { formatUsd } from '@/lib/utils';
 
+export async function generateMetadata({ params }: { params: { paymentId: string } }) {
+  try {
+    const { data } = await paymentsApi.getByReference(params.paymentId);
+    return { title: `Pay ${formatUsd(data.amountUsd)} — DupDub` };
+  } catch {
+    return { title: 'Pay — DupDub' };
+  }
+}
+
 const STATUS_ICONS: Record<string, React.ReactNode> = {
   pending: <Clock className="w-8 h-8 text-yellow-500" />,
   confirmed: <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />,
