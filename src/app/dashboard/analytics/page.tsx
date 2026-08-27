@@ -35,7 +35,7 @@ export default function AnalyticsPage() {
         <div className="text-center py-12 text-gray-400">Loading...</div>
       ) : (
         <div className="space-y-6">
-          <div className="grid grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             <div className="card p-6">
               <p className="text-sm text-gray-500 mb-1">Total Volume</p>
               <p className="text-3xl font-bold">{formatUsd(totalVolume)}</p>
