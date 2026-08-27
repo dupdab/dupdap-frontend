@@ -32,7 +32,32 @@ export default function SettlementsPage() {
       </div>
 
       <div className="card">
-        <div className="overflow-x-auto">
+        {/* Mobile card layout */}
+        <div className="md:hidden divide-y divide-gray-50">
+          {loading ? (
+            <div className="px-6 py-8 text-center text-gray-400">Loading...</div>
+          ) : settlements.length === 0 ? (
+            <div className="px-6 py-8 text-center text-gray-400">No settlements yet</div>
+          ) : (
+            settlements.map((s) => (
+              <div key={s.id} className="px-6 py-4 space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-xs text-gray-500">{s.id.slice(0, 8)}...</span>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[s.status]}`}>
+                    {s.status}
+                  </span>
+                </div>
+                <div className="font-semibold text-green-700">{formatUsd(s.netAmountUsd)}</div>
+                <div className="text-xs text-gray-500">
+                  Gross {formatUsd(s.totalAmountUsd)} · Fee -{formatUsd(s.feeAmountUsd)}
+                </div>
+                <div className="text-xs text-gray-500">{formatDate(s.createdAt)}</div>
+              </div>
+            ))
+          )}
+        </div>
+
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
