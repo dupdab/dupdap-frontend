@@ -36,29 +36,31 @@ export default function LoginPage() {
         </div>
 
         <form onSubmit={submit} className="space-y-4">
-          <div>
-            <label className="label">Email</label>
-            <input
-              className="input"
-              type="email"
-              required
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-            />
-          </div>
-          <div>
-            <label className="label">Password</label>
-            <input
-              className="input"
-              type="password"
-              required
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-            />
-          </div>
-          <button type="submit" disabled={loading} className="btn-primary w-full">
-            {loading ? 'Signing in...' : 'Sign in'}
-          </button>
+          <fieldset disabled={loading} className="space-y-4">
+            <div>
+              <label className="label">Email</label>
+              <input
+                className="input"
+                type="email"
+                required
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="label">Password</label>
+              <input
+                className="input"
+                type="password"
+                required
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+              />
+            </div>
+            <button data-testid="login-submit-button" type="submit" disabled={loading} className="btn-primary w-full">
+              {loading ? 'Signing in...' : 'Sign in'}
+            </button>
+          </fieldset>
         </form>
 
         <p className="text-center text-sm text-gray-500 mt-6">

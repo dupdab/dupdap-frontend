@@ -66,43 +66,45 @@ export default function PaymentsPage() {
           <h1 className="text-2xl font-bold text-gray-900">Payments</h1>
           <p className="text-sm text-gray-500 mt-1">{total} total payments</p>
         </div>
-        <button onClick={() => setShowCreate(true)} className="btn-primary flex items-center gap-2">
+        <button data-testid="new-payment-button" onClick={() => setShowCreate(true)} className="btn-primary flex items-center gap-2">
           <Plus className="w-4 h-4" /> New Payment
         </button>
       </div>
 
       {/* Create Modal */}
       {showCreate && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+        <div data-testid="create-payment-modal" className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="card w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-6">
               <h2 className="font-semibold text-lg">Create Payment</h2>
               <button onClick={() => setShowCreate(false)}><X className="w-5 h-5 text-gray-400" /></button>
             </div>
             <form onSubmit={createPayment} className="space-y-4">
-              <div>
-                <label className="label">Amount (USD)</label>
-                <input className="input" type="number" step="0.01" min="0.01" required value={form.amountUsd}
-                  onChange={(e) => setForm({ ...form, amountUsd: e.target.value })} />
-              </div>
-              <div>
-                <label className="label">Description (optional)</label>
-                <input className="input" value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })} />
-              </div>
-              <div>
-                <label className="label">Customer Email (optional)</label>
-                <input className="input" type="email" value={form.customerEmail}
-                  onChange={(e) => setForm({ ...form, customerEmail: e.target.value })} />
-              </div>
-              <div>
-                <label className="label">Expires in (minutes)</label>
-                <input className="input" type="number" min="5" max="1440" value={form.expiryMinutes}
-                  onChange={(e) => setForm({ ...form, expiryMinutes: e.target.value })} />
-              </div>
-              <button type="submit" disabled={creating} className="btn-primary w-full">
-                {creating ? 'Creating...' : 'Create Payment'}
-              </button>
+              <fieldset disabled={creating} className="space-y-4">
+                <div>
+                  <label className="label">Amount (USD)</label>
+                  <input className="input" type="number" step="0.01" min="0.01" required value={form.amountUsd}
+                    onChange={(e) => setForm({ ...form, amountUsd: e.target.value })} />
+                </div>
+                <div>
+                  <label className="label">Description (optional)</label>
+                  <input className="input" value={form.description}
+                    onChange={(e) => setForm({ ...form, description: e.target.value })} />
+                </div>
+                <div>
+                  <label className="label">Customer Email (optional)</label>
+                  <input className="input" type="email" value={form.customerEmail}
+                    onChange={(e) => setForm({ ...form, customerEmail: e.target.value })} />
+                </div>
+                <div>
+                  <label className="label">Expires in (minutes)</label>
+                  <input className="input" type="number" min="5" max="1440" value={form.expiryMinutes}
+                    onChange={(e) => setForm({ ...form, expiryMinutes: e.target.value })} />
+                </div>
+                <button type="submit" disabled={creating} className="btn-primary w-full">
+                  {creating ? 'Creating...' : 'Create Payment'}
+                </button>
+              </fieldset>
             </form>
           </div>
         </div>
@@ -110,7 +112,7 @@ export default function PaymentsPage() {
 
       {/* QR Modal */}
       {selectedPayment && (
-        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
+        <div data-testid="payment-qr-modal" className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
           <div className="card w-full max-w-sm p-6 text-center">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold">Payment QR Code</h2>
@@ -182,18 +184,18 @@ export default function PaymentsPage() {
                 <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-400">No payments yet</td></tr>
               ) : (
                 payments.map((p) => (
-                  <tr key={p.id} className="hover:bg-gray-50">
+                  <tr key={p.id} data-testid={`payment-row-${p.id}`} className="hover:bg-gray-50">
                     <td className="px-6 py-4 font-mono text-xs">{p.reference}</td>
                     <td className="px-6 py-4 font-semibold">{formatUsd(p.amountUsd)}</td>
                     <td className="px-6 py-4">
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${PAYMENT_STATUS_COLORS[p.status]}`}>
+                      <span data-testid="payment-status-badge" className={`text-xs px-2 py-0.5 rounded-full font-medium ${PAYMENT_STATUS_COLORS[p.status]}`}>
                         {p.status}
                       </span>
                     </td>
                     <td className="px-6 py-4 text-gray-500">{formatDate(p.createdAt)}</td>
                     <td className="px-6 py-4">
                       {p.status === 'pending' && (
-                        <button onClick={() => setSelectedPayment(p)} className="text-brand-600 text-xs hover:underline">
+                        <button data-testid={`show-qr-button-${p.id}`} onClick={() => setSelectedPayment(p)} className="text-brand-600 text-xs hover:underline">
                           Show QR
                         </button>
                       )}

@@ -54,13 +54,15 @@ export default function RegisterPage() {
         </div>
 
         <form onSubmit={submit} className="space-y-4">
-          {field('businessName', 'Business Name')}
-          {field('email', 'Email', 'email')}
-          {field('password', 'Password', 'password')}
-          {field('country', 'Country (optional)', 'text', false)}
-          <button type="submit" disabled={loading} className="btn-primary w-full">
-            {loading ? 'Creating account...' : 'Create account'}
-          </button>
+          <fieldset disabled={loading} className="space-y-4">
+            {field('businessName', 'Business Name')}
+            {field('email', 'Email', 'email')}
+            {field('password', 'Password', 'password')}
+            {field('country', 'Country (optional)', 'text', false)}
+            <button data-testid="register-submit-button" type="submit" disabled={loading} className="btn-primary w-full">
+              {loading ? 'Creating account...' : 'Create account'}
+            </button>
+          </fieldset>
         </form>
 
         <p className="text-center text-sm text-gray-500 mt-6">
