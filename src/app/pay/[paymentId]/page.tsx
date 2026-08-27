@@ -5,6 +5,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { Clock, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { paymentsApi } from '@/lib/api';
 import { formatUsd } from '@/lib/utils';
+import type { Payment } from '@/lib/types';
 
 export async function generateMetadata({ params }: { params: { paymentId: string } }) {
   try {
@@ -25,7 +26,7 @@ const STATUS_ICONS: Record<string, React.ReactNode> = {
 };
 
 export default function PayPage({ params }: { params: { paymentId: string } }) {
-  const [payment, setPayment] = useState<any>(null);
+  const [payment, setPayment] = useState<Payment | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

@@ -4,11 +4,12 @@ import { useEffect, useState } from 'react';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
 import { paymentsApi } from '@/lib/api';
 import { formatUsd } from '@/lib/utils';
+import type { PaymentStats } from '@/lib/types';
 
 const COLORS = ['#eab308', '#22c55e', '#3b82f6', '#a855f7', '#ef4444', '#6b7280'];
 
 export default function AnalyticsPage() {
-  const [stats, setStats] = useState<any[]>([]);
+  const [stats, setStats] = useState<PaymentStats[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

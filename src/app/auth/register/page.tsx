@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { authApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
+import { FormField } from '@/components/FormField';
+import { getErrorMessage } from '@/lib/errors';
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -25,25 +27,12 @@ export default function RegisterPage() {
       const { data } = await authApi.register(form);
       setAuth(data.accessToken, data.merchant);
       router.push('/dashboard');
-    } catch (err: any) {
-      toast.error(err.response?.data?.message ?? 'Registration failed');
+    } catch (err) {
+      toast.error(getErrorMessage(err) ?? 'Registration failed');
     } finally {
       setLoading(false);
     }
   };
-
-  const field = (key: keyof typeof form, label: string, type = 'text', required = true) => (
-    <div>
-      <label className="label">{label}</label>
-      <input
-        className="input"
-        type={type}
-        required={required}
-        value={form[key]}
-        onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-      />
-    </div>
-  );
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -55,10 +44,14 @@ export default function RegisterPage() {
 
         <form onSubmit={submit} className="space-y-4">
           <fieldset disabled={loading} className="space-y-4">
-            {field('businessName', 'Business Name')}
-            {field('email', 'Email', 'email')}
-            {field('password', 'Password', 'password')}
-            {field('country', 'Country (optional)', 'text', false)}
+            <FormField label="Business Name" value={form.businessName}
+              onChange={(e) => setForm({ ...form, businessName: e.target.value })} />
+            <FormField label="Email" type="email" value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })} />
+            <FormField label="Password" type="password" value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })} />
+            <FormField label="Country (optional)" type="text" required={false} value={form.country}
+              onChange={(e) => setForm({ ...form, country: e.target.value })} />
             <button data-testid="register-submit-button" type="submit" disabled={loading} className="btn-primary w-full">
               {loading ? 'Creating account...' : 'Create account'}
             </button>

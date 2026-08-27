@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
+import { STATUS_COLORS } from '@/lib/utils';
 
 interface Settlement {
   id: string;
@@ -42,14 +43,6 @@ interface SettlementsResponse {
   limit: number;
   totalPages: number;
 }
-
-const statusColors = {
-  pending: 'bg-yellow-100 text-yellow-800',
-  pending_approval: 'bg-orange-100 text-orange-800',
-  processing: 'bg-blue-100 text-blue-800',
-  completed: 'bg-green-100 text-green-800',
-  failed: 'bg-red-100 text-red-800',
-};
 
 const statusIcons = {
   pending: Clock,
@@ -223,7 +216,7 @@ export default function AdminSettlementsPage() {
                 <div key={settlement.id} className="px-4 py-3 space-y-1">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-gray-900">{settlement.id.slice(0, 8)}...</span>
-                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${statusColors[settlement.status]}`}>
+                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[settlement.status]}`}>
                       <StatusIcon className="w-3 h-3" />
                       {settlement.status.replace('_', ' ')}
                     </span>
@@ -319,7 +312,7 @@ export default function AdminSettlementsPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${statusColors[settlement.status]}`}>
+                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[settlement.status]}`}>
                           <StatusIcon className="w-3 h-3" />
                           {settlement.status.replace('_', ' ')}
                         </span>

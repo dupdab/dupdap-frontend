@@ -5,9 +5,10 @@ import { Plus, Trash2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { webhooksApi } from '@/lib/api';
 import { WEBHOOK_EVENTS, formatDate } from '@/lib/utils';
+import type { Webhook } from '@/lib/types';
 
 export default function WebhooksPage() {
-  const [webhooks, setWebhooks] = useState<any[]>([]);
+  const [webhooks, setWebhooks] = useState<Webhook[]>([]);
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({ url: '', events: [] as string[] });
   const [creating, setCreating] = useState(false);

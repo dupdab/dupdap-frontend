@@ -1,4 +1,14 @@
 import axios from 'axios';
+import type {
+  AuthResponse,
+  Merchant,
+  Payment,
+  PaymentListResponse,
+  PaymentStats,
+  SettlementListResponse,
+  Webhook,
+  ApiKey,
+} from './types';
 
 const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000/api/v1',
@@ -28,32 +38,33 @@ export { api };
 
 export const authApi = {
   register: (data: { email: string; password: string; businessName: string; country?: string }) =>
-    api.post('/auth/register', data),
-  login: (data: { email: string; password: string }) => api.post('/auth/login', data),
+    api.post<AuthResponse>('/auth/register', data),
+  login: (data: { email: string; password: string }) => api.post<AuthResponse>('/auth/login', data),
 };
 
 export const paymentsApi = {
   create: (data: { amountUsd: number; description?: string; customerEmail?: string; expiryMinutes?: number }) =>
-    api.post('/payments', data),
-  list: (page = 1, limit = 20) => api.get(`/payments?page=${page}&limit=${limit}`),
-  get: (id: string) => api.get(`/payments/${id}`),
-  stats: () => api.get('/payments/stats'),
-  getByReference: (ref: string) => api.get(`/pay/${ref}`),
+    api.post<Payment>('/payments', data),
+  list: (page = 1, limit = 20) => api.get<PaymentListResponse>(`/payments?page=${page}&limit=${limit}`),
+  get: (id: string) => api.get<Payment>(`/payments/${id}`),
+  stats: () => api.get<PaymentStats[]>('/payments/stats'),
+  getByReference: (ref: string) => api.get<Payment>(`/pay/${ref}`),
 };
 
 export const settlementsApi = {
-  list: (page = 1, limit = 20) => api.get(`/settlements?page=${page}&limit=${limit}`),
+  list: (page = 1, limit = 20) =>
+    api.get<SettlementListResponse>(`/settlements?page=${page}&limit=${limit}`),
 };
 
 export const merchantApi = {
-  profile: () => api.get('/merchants/me'),
-  update: (data: Record<string, string>) => api.patch('/merchants/me', data),
-  generateApiKey: (scopes?: string[]) => api.post('/merchants/api-keys', { scopes }),
+  profile: () => api.get<Merchant>('/merchants/me'),
+  update: (data: Record<string, string>) => api.patch<Merchant>('/merchants/me', data),
+  generateApiKey: (scopes?: string[]) => api.post<ApiKey>('/merchants/api-keys', { scopes }),
 };
 
 export const webhooksApi = {
-  list: () => api.get('/webhooks'),
-  create: (data: { url: string; events: string[]; secret?: string }) => api.post('/webhooks', data),
+  list: () => api.get<Webhook[]>('/webhooks'),
+  create: (data: { url: string; events: string[]; secret?: string }) => api.post<Webhook>('/webhooks', data),
   remove: (id: string) => api.delete(`/webhooks/${id}`),
 };
 

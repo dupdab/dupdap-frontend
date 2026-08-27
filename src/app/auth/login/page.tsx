@@ -6,6 +6,8 @@ import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { authApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
+import { FormField } from '@/components/FormField';
+import { getErrorMessage } from '@/lib/errors';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -20,8 +22,8 @@ export default function LoginPage() {
       const { data } = await authApi.login(form);
       setAuth(data.accessToken, data.merchant);
       router.push('/dashboard');
-    } catch (err: any) {
-      toast.error(err.response?.data?.message ?? 'Login failed');
+    } catch (err) {
+      toast.error(getErrorMessage(err) ?? 'Login failed');
     } finally {
       setLoading(false);
     }
@@ -37,26 +39,10 @@ export default function LoginPage() {
 
         <form onSubmit={submit} className="space-y-4">
           <fieldset disabled={loading} className="space-y-4">
-            <div>
-              <label className="label">Email</label>
-              <input
-                className="input"
-                type="email"
-                required
-                value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })}
-              />
-            </div>
-            <div>
-              <label className="label">Password</label>
-              <input
-                className="input"
-                type="password"
-                required
-                value={form.password}
-                onChange={(e) => setForm({ ...form, password: e.target.value })}
-              />
-            </div>
+            <FormField label="Email" type="email" required value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })} />
+            <FormField label="Password" type="password" required value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })} />
             <button data-testid="login-submit-button" type="submit" disabled={loading} className="btn-primary w-full">
               {loading ? 'Signing in...' : 'Sign in'}
             </button>

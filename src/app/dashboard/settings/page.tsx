@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { merchantApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
+import { FormField } from '@/components/FormField';
 
 export default function SettingsPage() {
   const { merchant } = useAuthStore();
@@ -73,16 +74,10 @@ export default function SettingsPage() {
             { key: 'bankCode', label: 'Bank Code', inputMode: 'numeric' as const, pattern: '[0-9]{3,6}' },
             { key: 'bankAccountNumber', label: 'Bank Account Number', inputMode: 'numeric' as const, pattern: '[0-9]{6,17}' },
           ].map(({ key, label, inputMode, pattern }) => (
-            <div key={key}>
-              <label className="label">{label}</label>
-              <input
-                className="input"
-                inputMode={inputMode}
-                pattern={pattern}
-                value={form[key as keyof typeof form]}
-                onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-              />
-            </div>
+            <FormField key={key} label={label} inputMode={inputMode} pattern={pattern}
+              value={form[key as keyof typeof form]}
+              onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+            />
           ))}
           <button type="submit" disabled={saving} className="btn-primary">
             {saving ? 'Saving...' : 'Save changes'}

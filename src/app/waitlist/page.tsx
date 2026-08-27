@@ -5,6 +5,8 @@ import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { CheckCircle } from 'lucide-react';
 import { waitlistApi } from '@/lib/api';
+import { FormField } from '@/components/FormField';
+import { getErrorMessage } from '@/lib/errors';
 
 export const metadata = {
   title: 'Join the waitlist — DupDub',
@@ -22,8 +24,8 @@ export default function WaitlistPage() {
     try {
       await waitlistApi.join(form);
       setJoined(true);
-    } catch (err: any) {
-      toast.error(err.response?.data?.message ?? 'Failed to join waitlist');
+    } catch (err) {
+      toast.error(getErrorMessage(err) ?? 'Failed to join waitlist');
     } finally {
       setLoading(false);
     }
@@ -47,23 +49,14 @@ export default function WaitlistPage() {
         ) : (
           <form onSubmit={submit} className="space-y-4">
             <fieldset disabled={loading} className="space-y-4">
-              {[
-                { key: 'email', label: 'Email', type: 'email', required: true },
-                { key: 'username', label: 'Username (optional)', type: 'text', required: false },
-                { key: 'businessName', label: 'Business Name (optional)', type: 'text', required: false },
-                { key: 'country', label: 'Country (optional)', type: 'text', required: false },
-              ].map(({ key, label, type, required }) => (
-                <div key={key}>
-                  <label className="label">{label}</label>
-                  <input
-                    className="input"
-                    type={type}
-                    required={required}
-                    value={form[key as keyof typeof form]}
-                    onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-                  />
-                </div>
-              ))}
+              <FormField label="Email" type="email" required value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })} />
+              <FormField label="Username (optional)" type="text" required={false} value={form.username}
+                onChange={(e) => setForm({ ...form, username: e.target.value })} />
+              <FormField label="Business Name (optional)" type="text" required={false} value={form.businessName}
+                onChange={(e) => setForm({ ...form, businessName: e.target.value })} />
+              <FormField label="Country (optional)" type="text" required={false} value={form.country}
+                onChange={(e) => setForm({ ...form, country: e.target.value })} />
               <button data-testid="waitlist-submit-button" type="submit" disabled={loading} className="btn-primary w-full">
                 {loading ? 'Joining...' : 'Join waitlist'}
               </button>
