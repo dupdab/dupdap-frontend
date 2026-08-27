@@ -55,19 +55,19 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
-      <div className="card w-full max-w-sm">
-        <div className="p-6 border-b border-gray-100 text-center">
+      <div className="card w-full max-w-[92vw] xs:max-w-sm">
+        <div className="p-4 xs:p-6 border-b border-gray-100 text-center">
           <p className="text-sm text-gray-500 font-medium">DupDub</p>
           <h1 className="text-3xl font-bold mt-1">{formatUsd(payment.amountUsd)}</h1>
           {payment.description && <p className="text-sm text-gray-500 mt-1">{payment.description}</p>}
         </div>
 
-        <div className="p-6">
+        <div className="p-4 xs:p-6">
           {payment.status === 'pending' ? (
             <>
               <div className="flex justify-center mb-4">
                 <div className="bg-white p-3 rounded-xl border border-gray-200">
-                  <QRCodeSVG value={stellarUri} size={180} />
+                  <QRCodeSVG value={stellarUri} size={160} />
                 </div>
               </div>
               <p className="text-center text-xs text-gray-500 mb-4">
