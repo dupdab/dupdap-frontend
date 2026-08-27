@@ -5,6 +5,7 @@ import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { CheckCircle } from 'lucide-react';
 import { waitlistApi } from '@/lib/api';
+import { getErrorMessage } from '@/lib/utils';
 
 export const metadata = {
   title: 'Join the waitlist — DupDub',
@@ -23,7 +24,7 @@ export default function WaitlistPage() {
       await waitlistApi.join(form);
       setJoined(true);
     } catch (err: any) {
-      toast.error(err.response?.data?.message ?? 'Failed to join waitlist');
+      toast.error(getErrorMessage(err, 'Failed to join waitlist'));
     } finally {
       setLoading(false);
     }

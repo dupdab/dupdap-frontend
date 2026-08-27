@@ -9,6 +9,14 @@ export function formatUsd(amount: number): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
 }
 
+export function getErrorMessage(err: unknown, fallback: string): string {
+  if (err && typeof err === 'object' && 'response' in err) {
+    const message = (err as { response?: { data?: { message?: unknown } } }).response?.data?.message;
+    if (typeof message === 'string') return message;
+  }
+  return fallback;
+}
+
 export function formatDate(date: string | Date): string {
   return new Intl.DateTimeFormat('en-US', {
     year: 'numeric',

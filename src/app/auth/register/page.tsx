@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { authApi } from '@/lib/api';
+import { getErrorMessage } from '@/lib/utils';
 import { useAuthStore } from '@/lib/store';
 
 export default function RegisterPage() {
@@ -26,7 +27,7 @@ export default function RegisterPage() {
       setAuth(data.accessToken, data.merchant);
       router.push('/dashboard');
     } catch (err: any) {
-      toast.error(err.response?.data?.message ?? 'Registration failed');
+      toast.error(getErrorMessage(err, 'Registration failed'));
     } finally {
       setLoading(false);
     }
