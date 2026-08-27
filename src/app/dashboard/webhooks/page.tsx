@@ -5,12 +5,15 @@ import { Plus, Trash2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { webhooksApi } from '@/lib/api';
 import { WEBHOOK_EVENTS, formatDate } from '@/lib/utils';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 export default function WebhooksPage() {
   const [webhooks, setWebhooks] = useState<any[]>([]);
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({ url: '', events: [] as string[] });
   const [creating, setCreating] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const load = () => webhooksApi.list().then(({ data }) => setWebhooks(data));
 
@@ -34,9 +37,17 @@ export default function WebhooksPage() {
   };
 
   const remove = async (id: string) => {
-    await webhooksApi.remove(id);
-    toast.success('Webhook removed');
-    load();
+    setDeleting(true);
+    try {
+      await webhooksApi.remove(id);
+      toast.success('Webhook removed');
+      setDeletingId(null);
+      load();
+    } catch {
+      toast.error('Failed to remove webhook');
+    } finally {
+      setDeleting(false);
+    }
   };
 
   const toggleEvent = (e: string) => {
@@ -107,13 +118,28 @@ export default function WebhooksPage() {
                 </div>
                 <p className="text-xs text-gray-400 mt-2">Created {formatDate(w.createdAt)}</p>
               </div>
-              <button onClick={() => remove(w.id)} className="text-red-400 hover:text-red-600 ml-4">
+              <button
+                data-testid={`delete-webhook-${w.id}`}
+                onClick={() => setDeletingId(w.id)}
+                className="text-red-400 hover:text-red-600 ml-4"
+              >
                 <Trash2 className="w-4 h-4" />
               </button>
             </div>
           ))
         )}
       </div>
+
+      <ConfirmDialog
+        open={deletingId !== null}
+        title="Delete webhook?"
+        message="This will permanently remove the webhook and stop all future event notifications. This action cannot be undone."
+        confirmLabel="Delete"
+        danger
+        loading={deleting}
+        onConfirm={() => deletingId && remove(deletingId)}
+        onCancel={() => !deleting && setDeletingId(null)}
+      />
     </div>
   );
 }
