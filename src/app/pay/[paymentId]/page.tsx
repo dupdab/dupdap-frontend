@@ -17,15 +17,6 @@ interface Payment {
   stellarMemo: string;
 }
 
-export async function generateMetadata({ params }: { params: { paymentId: string } }) {
-  try {
-    const { data } = await paymentsApi.getByReference(params.paymentId);
-    return { title: `Pay ${formatUsd(data.amountUsd)} — DupDub` };
-  } catch {
-    return { title: 'Pay — DupDub' };
-  }
-}
-
 const STATUS_ICONS: Record<string, React.ReactNode> = {
   pending: <Clock className="w-8 h-8 text-yellow-500" />,
   confirmed: <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />,
@@ -146,7 +137,11 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
               )}
 
               <div className="flex justify-center mb-4">
-                <div className="bg-white p-3 rounded-xl border border-gray-200">
+                <div
+                  className="bg-white p-3 rounded-xl border border-gray-200"
+                  role="img"
+                  aria-label={`Stellar payment QR code for ${formatUsd(payment.amountUsd)}`}
+                >
                   <QRCodeSVG value={stellarUri} size={160} />
                 </div>
               </div>

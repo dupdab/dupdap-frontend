@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { webhooksApi } from '@/lib/api';
 import { WEBHOOK_EVENTS, formatDate } from '@/lib/utils';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import Modal from '@/components/Modal';
 
 export default function WebhooksPage() {
   const [webhooks, setWebhooks] = useState<Webhook[]>([]);
@@ -123,6 +124,7 @@ export default function WebhooksPage() {
               <button
                 data-testid={`delete-webhook-${w.id}`}
                 onClick={() => setDeletingId(w.id)}
+                aria-label="Remove webhook"
                 className="text-red-400 hover:text-red-600 ml-4"
               >
                 <Trash2 className="w-4 h-4" />
