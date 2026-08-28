@@ -37,15 +37,21 @@ const STATUS_ICONS: Record<string, React.ReactNode> = {
 export default function PayPage({ params }: { params: { paymentId: string } }) {
   const [payment, setPayment] = useState<Payment | null>(null);
   const [loading, setLoading] = useState(true);
+  const [pollWarning, setPollWarning] = useState('');
 
   useEffect(() => {
     paymentsApi.getByReference(params.paymentId).then(({ data }) => setPayment(data)).finally(() => setLoading(false));
 
     const interval = setInterval(() => {
-      paymentsApi.getByReference(params.paymentId).then(({ data }) => {
-        setPayment(data);
-        if (['settled', 'failed', 'expired'].includes(data.status)) clearInterval(interval);
-      });
+      paymentsApi.getByReference(params.paymentId)
+        .then(({ data }) => {
+          setPollWarning('');
+          setPayment(data);
+          if (['settled', 'failed', 'expired'].includes(data.status)) clearInterval(interval);
+        })
+        .catch(() => {
+          setPollWarning('We are having trouble checking your payment status right now.');
+        });
     }, 5000);
 
     return () => clearInterval(interval);
@@ -105,6 +111,11 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
                 <code className="text-amber-900 font-bold text-sm">{payment.stellarMemo}</code>
                 <p className="text-amber-700 mt-1">Payment will not be detected without the memo.</p>
               </div>
+              {pollWarning ? (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-xs text-yellow-800 mt-4">
+                  {pollWarning}
+                </div>
+              ) : null}
             </>
           ) : (
             <div className="text-center py-4">
