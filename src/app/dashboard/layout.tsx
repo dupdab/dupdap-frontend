@@ -13,8 +13,10 @@ import {
   BarChart3,
   Menu,
   X,
+  Shield,
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
+import { isAdmin } from '@/lib/auth';
 import { cn } from '@/lib/utils';
 
 export const metadata = {
@@ -28,6 +30,7 @@ const navItems = [
   { href: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },
   { href: '/dashboard/webhooks', label: 'Webhooks', icon: Webhook },
   { href: '/dashboard/settings', label: 'Settings', icon: Settings },
+  { href: '/dashboard/admin/settlements', label: 'Admin Settlements', icon: Shield, adminOnly: true },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -46,6 +49,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   if (!merchant) return null;
 
+  const visibleNavItems = navItems.filter((item) => !item.adminOnly || isAdmin(merchant));
+
   const sidebarContent = (
     <>
       <div className="p-6 border-b border-gray-100 flex items-center justify-between">
@@ -63,7 +68,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
 
       <nav className="flex-1 p-4 space-y-1">
-        {navItems.map(({ href, label, icon: Icon, exact }) => {
+        {visibleNavItems.map(({ href, label, icon: Icon, exact }) => {
           const active = exact ? pathname === href : pathname.startsWith(href);
           return (
             <Link

@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { getApiUrl } from './env';
 import type {
   AuthResponse,
   Merchant,
@@ -11,7 +12,7 @@ import type {
 } from './types';
 
 const api = axios.create({
-  baseURL: process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000/api/v1',
+  baseURL: getApiUrl(),
 });
 
 api.interceptors.request.use((config) => {

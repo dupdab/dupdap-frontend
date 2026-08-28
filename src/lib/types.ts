@@ -6,11 +6,14 @@ export type PaymentStatus =
   | 'failed'
   | 'expired';
 
+export type MerchantRole = 'merchant' | 'admin' | 'staff';
+
 export interface Merchant {
   id: string;
   email: string;
   businessName: string;
   status: string;
+  role?: MerchantRole;
   country?: string;
   bankAccountNumber?: string;
   bankCode?: string;
