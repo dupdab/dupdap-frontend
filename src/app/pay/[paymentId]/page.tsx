@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Clock, CheckCircle, XCircle, Loader2 } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, Loader2, Copy, Check, AlertTriangle } from 'lucide-react';
 import { paymentsApi } from '@/lib/api';
 import { formatUsd } from '@/lib/utils';
+import type { Payment } from '@/lib/types';
 
 interface Payment {
   amountUsd: number;
@@ -34,10 +35,27 @@ const STATUS_ICONS: Record<string, React.ReactNode> = {
   expired: <XCircle className="w-8 h-8 text-gray-400" />,
 };
 
+function computeExpiresAt(payment: any): Date | null {
+  if (payment?.expiresAt) return new Date(payment.expiresAt);
+  if (payment?.expiryMinutes && payment?.createdAt) {
+    return new Date(new Date(payment.createdAt).getTime() + payment.expiryMinutes * 60_000);
+  }
+  return null;
+}
+
+function formatRemaining(ms: number): string {
+  if (ms <= 0) return 'Expired';
+  const total = Math.floor(ms / 1000);
+  const minutes = Math.floor(total / 60);
+  const seconds = total % 60;
+  return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
 export default function PayPage({ params }: { params: { paymentId: string } }) {
   const [payment, setPayment] = useState<Payment | null>(null);
   const [loading, setLoading] = useState(true);
-  const [pollWarning, setPollWarning] = useState('');
+  const [now, setNow] = useState(Date.now());
+  const [copied, setCopied] = useState<string | null>(null);
 
   useEffect(() => {
     let pollAttempts = 0;
@@ -63,6 +81,27 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
 
     return () => clearInterval(interval);
   }, [params.paymentId]);
+
+  const expiresAt = payment ? computeExpiresAt(payment) : null;
+  const isPending = payment?.status === 'pending';
+  const remainingMs = expiresAt ? expiresAt.getTime() - now : 0;
+  const isExpiredByClock = isPending && expiresAt ? remainingMs <= 0 : false;
+
+  useEffect(() => {
+    if (!isPending || !expiresAt) return;
+    const tick = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(tick);
+  }, [isPending, expiresAt]);
+
+  const copy = async (text: string, key: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(key);
+      setTimeout(() => setCopied((c) => (c === key ? null : c)), 2000);
+    } catch {
+      /* clipboard unavailable */
+    }
+  };
 
   if (loading) {
     return (
@@ -95,8 +134,17 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
         </div>
 
         <div className="p-4 xs:p-6">
-          {payment.status === 'pending' ? (
+          {isPending ? (
             <>
+              {expiresAt && (
+                <div className={`flex items-center justify-center gap-2 rounded-lg p-3 mb-4 text-sm font-semibold ${
+                  isExpiredByClock ? 'bg-red-50 text-red-700 border border-red-200' : remainingMs < 60_000 ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-gray-100 text-gray-700 border border-gray-200'
+                }`}>
+                  {isExpiredByClock ? <AlertTriangle className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
+                  {isExpiredByClock ? 'This payment request has expired' : <>Expires in {formatRemaining(remainingMs)}</>}
+                </div>
+              )}
+
               <div className="flex justify-center mb-4">
                 <div className="bg-white p-3 rounded-xl border border-gray-200">
                   <QRCodeSVG value={stellarUri} size={160} />
@@ -113,9 +161,33 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
                   Your wallet signs both steps. No private keys are shared with DupDub.
                 </p>
               </div>
+
+              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs mb-3">
+                <p className="text-xs text-gray-500 mb-1">Deposit address (exact)</p>
+                <div className="flex items-center gap-2">
+                  <code className="text-sm font-mono font-bold break-all flex-1 text-gray-900">{payment.stellarDepositAddress}</code>
+                  <button
+                    onClick={() => copy(payment.stellarDepositAddress, 'address')}
+                    aria-label="Copy deposit address"
+                    className="shrink-0"
+                  >
+                    {copied === 'address' ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4 text-gray-400" />}
+                  </button>
+                </div>
+              </div>
+
               <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs">
                 <p className="font-semibold text-amber-800 mb-1">Important: Include memo</p>
-                <code className="text-amber-900 font-bold text-sm">{payment.stellarMemo}</code>
+                <div className="flex items-center gap-2">
+                  <code className="text-amber-900 font-bold text-sm break-all flex-1">{payment.stellarMemo}</code>
+                  <button
+                    onClick={() => copy(payment.stellarMemo, 'memo')}
+                    aria-label="Copy memo"
+                    className="shrink-0"
+                  >
+                    {copied === 'memo' ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4 text-amber-600" />}
+                  </button>
+                </div>
                 <p className="text-amber-700 mt-1">Payment will not be detected without the memo.</p>
               </div>
               {pollWarning ? (

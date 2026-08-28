@@ -5,11 +5,12 @@ import { TrendingUp, CreditCard, Banknote, Clock } from 'lucide-react';
 import { paymentsApi, settlementsApi } from '@/lib/api';
 import { formatUsd, formatDate, PAYMENT_STATUS_COLORS } from '@/lib/utils';
 import { useAuthStore } from '@/lib/store';
+import type { Payment, PaymentStats } from '@/lib/types';
 
 export default function DashboardPage() {
   const { merchant } = useAuthStore();
-  const [payments, setPayments] = useState<any[]>([]);
-  const [stats, setStats] = useState<any[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [stats, setStats] = useState<PaymentStats[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -21,12 +22,15 @@ export default function DashboardPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const statMap = stats.reduce((acc: any, s: any) => {
-    acc[s.status] = { count: parseInt(s.count), total: parseFloat(s.totalUsd ?? 0) };
-    return acc;
-  }, {});
+  const statMap = stats.reduce(
+    (acc: Record<string, { count: number; total: number }>, s) => {
+      acc[s.status] = { count: parseInt(s.count), total: parseFloat(s.totalUsd ?? 0) };
+      return acc;
+    },
+    {},
+  );
 
-  const totalVolume = stats.reduce((acc: any, s: any) => acc + parseFloat(s.totalUsd ?? 0), 0);
+  const totalVolume = stats.reduce((acc, s) => acc + parseFloat(s.totalUsd ?? 0), 0);
   const settledCount = statMap.settled?.count ?? 0;
   const pendingCount = statMap.pending?.count ?? 0;
 
