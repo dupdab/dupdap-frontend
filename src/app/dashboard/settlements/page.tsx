@@ -16,11 +16,15 @@ export default function SettlementsPage() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     settlementsApi.list(page, 20).then(({ data }) => {
+      setError('');
       setSettlements(data.settlements);
       setTotal(data.total);
+    }).catch(() => {
+      setError("Couldn't load settlements.");
     }).finally(() => setLoading(false));
   }, [page]);
 
@@ -32,6 +36,7 @@ export default function SettlementsPage() {
       </div>
 
       <div className="card">
+        {error ? <div className="px-6 py-4 text-sm text-red-500">{error}</div> : null}
         {/* Mobile card layout */}
         <div className="md:hidden divide-y divide-gray-50">
           {loading ? (
