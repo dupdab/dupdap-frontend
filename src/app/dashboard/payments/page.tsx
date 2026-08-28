@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { QRCodeSVG } from 'qrcode.react';
 import { paymentsApi } from '@/lib/api';
 import { formatUsd, formatDate, PAYMENT_STATUS_COLORS } from '@/lib/utils';
+import { SkeletonList, SkeletonTableRows } from '@/components/Skeleton';
 
 export default function PaymentsPage() {
   const [payments, setPayments] = useState<any[]>([]);
@@ -142,7 +143,7 @@ export default function PaymentsPage() {
         {/* Mobile card layout */}
         <div className="md:hidden divide-y divide-gray-50">
           {loading ? (
-            <div className="px-6 py-8 text-center text-gray-400">Loading...</div>
+            <SkeletonList rows={6} />
           ) : payments.length === 0 ? (
             <div className="px-6 py-8 text-center text-gray-400">No payments yet</div>
           ) : (
@@ -179,7 +180,7 @@ export default function PaymentsPage() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading ? (
-                <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-400">Loading...</td></tr>
+                <SkeletonTableRows rows={6} cols={5} />
               ) : payments.length === 0 ? (
                 <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-400">No payments yet</td></tr>
               ) : (

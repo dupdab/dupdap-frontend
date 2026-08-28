@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
+import { SkeletonList, SkeletonTableRows } from '@/components/Skeleton';
 
 interface Settlement {
   id: string;
@@ -213,7 +214,7 @@ export default function AdminSettlementsPage() {
         {/* Mobile card layout */}
         <div className="md:hidden divide-y divide-gray-200">
           {loading ? (
-            <div className="px-4 py-8 text-center text-gray-500">Loading settlements...</div>
+            <SkeletonList rows={6} className="px-4 py-3" />
           ) : settlements.length === 0 ? (
             <div className="px-4 py-8 text-center text-gray-500">No settlements found</div>
           ) : (
@@ -276,11 +277,7 @@ export default function AdminSettlementsPage() {
             </thead>
             <tbody className="divide-y divide-gray-200">
               {loading ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
-                    Loading settlements...
-                  </td>
-                </tr>
+                <SkeletonTableRows rows={6} cols={7} cellClassName="px-4 py-3" />
               ) : settlements.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
