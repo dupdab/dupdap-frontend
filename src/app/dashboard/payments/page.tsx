@@ -153,7 +153,7 @@ export default function PaymentsPage() {
         {/* Mobile card layout */}
         <div className="md:hidden divide-y divide-gray-50">
           {loading ? (
-            <div className="px-6 py-8 text-center text-gray-400">Loading...</div>
+            <SkeletonList rows={6} />
           ) : payments.length === 0 ? (
             <a href="#" data-testid="new-payment-button" className="text-blue-600 hover:underline">No payments yet</a>
           ) : (

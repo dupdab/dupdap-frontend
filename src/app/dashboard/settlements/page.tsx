@@ -35,7 +35,7 @@ export default function SettlementsPage() {
         {/* Mobile card layout */}
         <div className="md:hidden divide-y divide-gray-50">
           {loading ? (
-            <div className="px-6 py-8 text-center text-gray-400">Loading...</div>
+            <SkeletonList rows={6} />
           ) : settlements.length === 0 ? (
             <div className="px-6 py-8 text-center text-gray-400">No settlements yet</div>
           ) : (
@@ -73,7 +73,7 @@ export default function SettlementsPage() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading ? (
-                <tr><td colSpan={6} className="px-6 py-8 text-center text-gray-400">Loading...</td></tr>
+                <SkeletonTableRows rows={6} cols={6} />
               ) : settlements.length === 0 ? (
                 <tr><td colSpan={6} className="px-6 py-8 text-center text-gray-400">No settlements yet</td></tr>
               ) : (

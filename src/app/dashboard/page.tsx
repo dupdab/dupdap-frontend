@@ -64,7 +64,11 @@ export default function DashboardPage() {
               <span className="text-sm text-gray-500">{label}</span>
               <Icon className={`w-5 h-5 ${color}`} />
             </div>
-            <div className="text-2xl font-bold text-gray-900">{loading ? '—' : value}</div>
+            {loading ? (
+              <Skeleton className="h-8 w-24" />
+            ) : (
+              <div className="text-2xl font-bold text-gray-900">{value}</div>
+            )}
           </div>
         ))}
       </div>
@@ -79,7 +83,7 @@ export default function DashboardPage() {
             <div className="px-6 py-8 text-center text-red-500 text-sm">{error}</div>
           ) : null}
           {loading ? (
-            <div className="px-6 py-8 text-center text-gray-400 text-sm">Loading...</div>
+            <SkeletonList rows={5} />
           ) : payments.length === 0 ? (
             <div className="px-6 py-8 text-center text-gray-400 text-sm">No payments yet</div>
           ) : (
