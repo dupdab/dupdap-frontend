@@ -11,13 +11,16 @@ export default function DashboardPage() {
   const [payments, setPayments] = useState<any[]>([]);
   const [stats, setStats] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     Promise.all([paymentsApi.list(1, 5), paymentsApi.stats()])
       .then(([p, s]) => {
+        setError('');
         setPayments(p.data.payments);
         setStats(s.data);
       })
+      .catch(() => setError("Couldn't load your dashboard right now."))
       .finally(() => setLoading(false));
   }, []);
 
@@ -63,6 +66,9 @@ export default function DashboardPage() {
           <h2 className="font-semibold text-gray-900">Recent Payments</h2>
         </div>
         <div className="divide-y divide-gray-50">
+          {error ? (
+            <div className="px-6 py-8 text-center text-red-500 text-sm">{error}</div>
+          ) : null}
           {loading ? (
             <div className="px-6 py-8 text-center text-gray-400 text-sm">Loading...</div>
           ) : payments.length === 0 ? (
