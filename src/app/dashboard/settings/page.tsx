@@ -17,6 +17,7 @@ export default function SettingsPage() {
   useEffect(() => {
     merchantApi.profile()
       .then(({ data }) => {
+        const apiKeyScopes = data.apiKeyScopes ?? [];
         setForm({
           businessName: data.businessName ?? '',
           country: data.country ?? '',
@@ -24,7 +25,8 @@ export default function SettingsPage() {
           bankCode: data.bankCode ?? '',
           bankName: data.bankName ?? '',
         });
-        setCurrentScopes(data.apiKeyScopes ?? []);
+        setCurrentScopes(apiKeyScopes);
+        setSelectedScopes(apiKeyScopes.length > 0 ? apiKeyScopes : ['payments:read', 'settlements:read']);
       })
       .catch(() => {
         toast.error("Couldn't load your profile");
