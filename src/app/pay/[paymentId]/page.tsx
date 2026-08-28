@@ -40,9 +40,16 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
   const [pollWarning, setPollWarning] = useState('');
 
   useEffect(() => {
+    let pollAttempts = 0;
     paymentsApi.getByReference(params.paymentId).then(({ data }) => setPayment(data)).finally(() => setLoading(false));
 
     const interval = setInterval(() => {
+      pollAttempts += 1;
+      if (pollAttempts >= 24) {
+        setPollWarning('Status checks are taking longer than expected.');
+        clearInterval(interval);
+        return;
+      }
       paymentsApi.getByReference(params.paymentId)
         .then(({ data }) => {
           setPollWarning('');
