@@ -57,6 +57,11 @@ export default function WebhooksPage() {
     }));
   };
 
+  const closeCreateModal = () => {
+    setShowCreate(false);
+    setForm({ url: '', events: [] });
+  };
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">

@@ -17,16 +17,22 @@ export default function SettingsPage() {
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    merchantApi.profile().then(({ data }) => {
-      setForm({
-        businessName: data.businessName ?? '',
-        country: data.country ?? '',
-        bankAccountNumber: data.bankAccountNumber ?? '',
-        bankCode: data.bankCode ?? '',
-        bankName: data.bankName ?? '',
+    merchantApi.profile()
+      .then(({ data }) => {
+        const apiKeyScopes = data.apiKeyScopes ?? [];
+        setForm({
+          businessName: data.businessName ?? '',
+          country: data.country ?? '',
+          bankAccountNumber: data.bankAccountNumber ?? '',
+          bankCode: data.bankCode ?? '',
+          bankName: data.bankName ?? '',
+        });
+        setCurrentScopes(apiKeyScopes);
+        setSelectedScopes(apiKeyScopes.length > 0 ? apiKeyScopes : ['payments:read', 'settlements:read']);
+      })
+      .catch(() => {
+        toast.error("Couldn't load your profile");
       });
-      setCurrentScopes(data.apiKeyScopes ?? []);
-    });
   }, []);
 
   const save = async (e: React.FormEvent) => {
