@@ -41,10 +41,18 @@ The customer-facing payment flow here is built around Stellar, not a generic mul
 ### State & data flow
 
 - **`src/lib/api.ts`** — a single Axios instance (`NEXT_PUBLIC_API_URL`, default `http://localhost:3000/api/v1`) with:
-  - a request interceptor that attaches `Authorization: Bearer <token>` from `localStorage`
-  - a response interceptor that clears the token and redirects to `/auth/login` on `401`
+  - a request interceptor that attaches `Authorization: Bearer <token>` from the Zustand auth store (single source of truth)
+  - a response interceptor that calls `logout()` on the auth store and redirects to `/auth/login` on `401`
   - grouped API helpers (`authApi`, `paymentsApi`, …) rather than ad-hoc fetches scattered through components
 - **`src/lib/store.ts`** — Zustand + `persist` for auth state (`token`, `merchant`), persisted to `localStorage` under the `dupdub-auth` key. This is the only global client state; everything else (payment lists, analytics, etc.) is fetched per-page through `api.ts`.
+
+### Auth token security
+
+The access token is persisted in `localStorage` via Zustand. Any XSS vector can read it synchronously. Mitigations in this repo:
+
+- **Single storage key** — the Axios client reads from `useAuthStore`, not a duplicate `access_token` key, so 401 logout and UI auth state stay in sync.
+- **CSP headers** — `next.config.js` sets a restrictive Content-Security-Policy (plus `X-Frame-Options`, `Referrer-Policy`) to reduce XSS blast radius.
+- **Recommended long-term fix** — move to an `httpOnly`, `SameSite=Strict` session cookie issued by `dupdap-backend`, with the frontend never handling the raw JWT.
 - **`src/lib/utils.ts`** — shared formatting/className helpers (`clsx` + `tailwind-merge`).
 
 ### Customer payment flow (`/pay/[paymentId]`)
