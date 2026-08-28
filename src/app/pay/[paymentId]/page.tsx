@@ -24,6 +24,8 @@ const STATUS_ICONS: Record<string, React.ReactNode> = {
   expired: <XCircle className="w-8 h-8 text-gray-400" />,
 };
 
+const DEFAULT_STATUS_ICON = <Loader2 className="w-8 h-8 text-gray-400 animate-spin" />;
+
 export default function PayPage({ params }: { params: { paymentId: string } }) {
   const [payment, setPayment] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -98,7 +100,7 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
             </>
           ) : (
             <div className="text-center py-4">
-              <div className="flex justify-center mb-3">{STATUS_ICONS[payment.status]}</div>
+              <div className="flex justify-center mb-3">{STATUS_ICONS[payment.status] ?? DEFAULT_STATUS_ICON}</div>
               <p className="font-semibold text-gray-900 capitalize">{payment.status}</p>
               <p className="text-sm text-gray-500 mt-1">
                 {payment.status === 'settled' && 'Payment complete. Thank you!'}
@@ -106,6 +108,7 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
                 {payment.status === 'settling' && 'Converting to fiat and transferring...'}
                 {payment.status === 'failed' && 'Payment failed. Please contact the merchant.'}
                 {payment.status === 'expired' && 'This payment request has expired.'}
+                {!['settled', 'confirmed', 'settling', 'failed', 'expired'].includes(payment.status) && 'Checking payment status...'}
               </p>
             </div>
           )}
