@@ -1,27 +1,25 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { settlementsApi } from '@/lib/api';
-import { formatUsd, formatDate } from '@/lib/utils';
-import { SkeletonList, SkeletonTableRows } from '@/components/Skeleton';
-
-const STATUS_COLORS: Record<string, string> = {
-  pending: 'bg-yellow-100 text-yellow-800',
-  processing: 'bg-blue-100 text-blue-800',
-  completed: 'bg-green-100 text-green-800',
-  failed: 'bg-red-100 text-red-800',
-};
+import { formatUsd, formatDate, STATUS_COLORS } from '@/lib/utils';
+import type { Settlement } from '@/lib/types';
 
 export default function SettlementsPage() {
-  const [settlements, setSettlements] = useState<any[]>([]);
+  const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
+  const [error, setError] = useState('');
 
   useEffect(() => {
     settlementsApi.list(page, 20).then(({ data }) => {
+      setError('');
       setSettlements(data.settlements);
       setTotal(data.total);
+    }).catch(() => {
+      setError("Couldn't load settlements.");
     }).finally(() => setLoading(false));
   }, [page]);
 
@@ -33,6 +31,7 @@ export default function SettlementsPage() {
       </div>
 
       <div className="card">
+        {error ? <div className="px-6 py-4 text-sm text-red-500">{error}</div> : null}
         {/* Mobile card layout */}
         <div className="md:hidden divide-y divide-gray-50">
           {loading ? (
@@ -43,7 +42,9 @@ export default function SettlementsPage() {
             settlements.map((s) => (
               <div key={s.id} className="px-6 py-4 space-y-1">
                 <div className="flex items-center justify-between">
-                  <span className="font-mono text-xs text-gray-500">{s.id.slice(0, 8)}...</span>
+                  <Link href={`/dashboard/settlements/${s.id}`} className="font-mono text-xs text-gray-500 hover:text-brand-700 hover:underline">
+                    {s.id.slice(0, 8)}...
+                  </Link>
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[s.status]}`}>
                     {s.status}
                   </span>
@@ -77,8 +78,12 @@ export default function SettlementsPage() {
                 <tr><td colSpan={6} className="px-6 py-8 text-center text-gray-400">No settlements yet</td></tr>
               ) : (
                 settlements.map((s) => (
-                  <tr key={s.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 font-mono text-xs text-gray-500">{s.id.slice(0, 8)}...</td>
+                   <tr key={s.id} className="hover:bg-gray-50">
+                    <td className="px-6 py-4 font-mono text-xs text-gray-500">
+                      <Link href={`/dashboard/settlements/${s.id}`} className="hover:text-brand-700 hover:underline">
+                        {s.id.slice(0, 8)}...
+                      </Link>
+                    </td>
                     <td className="px-6 py-4">{formatUsd(s.totalAmountUsd)}</td>
                     <td className="px-6 py-4 text-red-600">-{formatUsd(s.feeAmountUsd)}</td>
                     <td className="px-6 py-4 font-semibold text-green-700">{formatUsd(s.netAmountUsd)}</td>
@@ -94,7 +99,7 @@ export default function SettlementsPage() {
             </tbody>
           </table>
         </div>
-        {total > 20 && (
+        {total > 20 || page > 1 && (
           <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
             <span className="text-sm text-gray-500">Page {page} of {Math.ceil(total / 20)}</span>
             <div className="flex gap-2">

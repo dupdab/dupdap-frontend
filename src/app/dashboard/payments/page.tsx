@@ -1,20 +1,24 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus, X, Copy, Check } from 'lucide-react';
+import { Plus, Copy, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { QRCodeSVG } from 'qrcode.react';
 import { paymentsApi } from '@/lib/api';
 import { formatUsd, formatDate, PAYMENT_STATUS_COLORS } from '@/lib/utils';
-import { SkeletonList, SkeletonTableRows } from '@/components/Skeleton';
+import { FormField } from '@/components/FormField';
+import { getErrorMessage } from '@/lib/errors';
+import type { Payment, PaymentListResponse } from '@/lib/types';
+
+const PAYMENT_TABLE_COLUMNS = 5;
 
 export default function PaymentsPage() {
-  const [payments, setPayments] = useState<any[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
-  const [selectedPayment, setSelectedPayment] = useState<any>(null);
+  const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [form, setForm] = useState({ amountUsd: '', description: '', customerEmail: '', expiryMinutes: '30' });
   const [creating, setCreating] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -36,28 +40,38 @@ export default function PaymentsPage() {
     e.preventDefault();
     setCreating(true);
     try {
+      const amountUsd = parseFloat(form.amountUsd);
+      if (Number.isNaN(amountUsd) || amountUsd <= 0) {
+        toast.error('Enter a valid amount');
+        return;
+      }
       const { data } = await paymentsApi.create({
-        amountUsd: parseFloat(form.amountUsd),
+        amountUsd,
         description: form.description || undefined,
         customerEmail: form.customerEmail || undefined,
-        expiryMinutes: parseInt(form.expiryMinutes),
+        expiryMinutes: parseInt(form.expiryMinutes, 10),
       });
       setSelectedPayment(data);
       setShowCreate(false);
       setForm({ amountUsd: '', description: '', customerEmail: '', expiryMinutes: '30' });
+      setPage(1);
       load(1);
       toast.success('Payment created');
-    } catch (err: any) {
-      toast.error(err.response?.data?.message ?? 'Failed to create payment');
+    } catch (err) {
+      toast.error(getErrorMessage(err) ?? 'Failed to create payment');
     } finally {
       setCreating(false);
     }
   };
 
-  const copyMemo = (memo: string) => {
-    navigator.clipboard.writeText(memo);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const copyMemo = async (memo: string) => {
+    try {
+      await navigator.clipboard.writeText(memo);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error('Failed to copy memo');
+    }
   };
 
   return (
@@ -73,35 +87,29 @@ export default function PaymentsPage() {
       </div>
 
       {/* Create Modal */}
-      {showCreate && (
-        <div data-testid="create-payment-modal" className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="card w-full max-w-md p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="font-semibold text-lg">Create Payment</h2>
-              <button onClick={() => setShowCreate(false)}><X className="w-5 h-5 text-gray-400" /></button>
+      <Modal
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+        title="Create Payment"
+        testId="create-payment-modal"
+      >
+        <form onSubmit={createPayment} className="space-y-4">
+          <fieldset disabled={creating} className="space-y-4">
+            <div>
+              <label className="label">Amount (USD)</label>
+              <input className="input" type="number" step="0.01" min="0.01" required value={form.amountUsd}
+                onChange={(e) => setForm({ ...form, amountUsd: e.target.value })} />
             </div>
             <form onSubmit={createPayment} className="space-y-4">
               <fieldset disabled={creating} className="space-y-4">
-                <div>
-                  <label className="label">Amount (USD)</label>
-                  <input className="input" type="number" step="0.01" min="0.01" required value={form.amountUsd}
-                    onChange={(e) => setForm({ ...form, amountUsd: e.target.value })} />
-                </div>
-                <div>
-                  <label className="label">Description (optional)</label>
-                  <input className="input" value={form.description}
-                    onChange={(e) => setForm({ ...form, description: e.target.value })} />
-                </div>
-                <div>
-                  <label className="label">Customer Email (optional)</label>
-                  <input className="input" type="email" value={form.customerEmail}
-                    onChange={(e) => setForm({ ...form, customerEmail: e.target.value })} />
-                </div>
-                <div>
-                  <label className="label">Expires in (minutes)</label>
-                  <input className="input" type="number" min="5" max="1440" value={form.expiryMinutes}
-                    onChange={(e) => setForm({ ...form, expiryMinutes: e.target.value })} />
-                </div>
+                <FormField label="Amount (USD)" type="number" step="0.01" min="0.01" required value={form.amountUsd}
+                  onChange={(e) => setForm({ ...form, amountUsd: e.target.value })} />
+                <FormField label="Description (optional)" type="text" required={false} value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })} />
+                <FormField label="Customer Email (optional)" type="email" required={false} value={form.customerEmail}
+                  onChange={(e) => setForm({ ...form, customerEmail: e.target.value })} />
+                <FormField label="Expires in (minutes)" type="number" min="5" max="1440" value={form.expiryMinutes}
+                  onChange={(e) => setForm({ ...form, expiryMinutes: e.target.value })} />
                 <button type="submit" disabled={creating} className="btn-primary w-full">
                   {creating ? 'Creating...' : 'Create Payment'}
                 </button>
@@ -112,13 +120,15 @@ export default function PaymentsPage() {
       )}
 
       {/* QR Modal */}
-      {selectedPayment && (
-        <div data-testid="payment-qr-modal" className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="card w-full max-w-sm p-6 text-center">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold">Payment QR Code</h2>
-              <button onClick={() => setSelectedPayment(null)}><X className="w-5 h-5 text-gray-400" /></button>
-            </div>
+      <Modal
+        open={!!selectedPayment}
+        onClose={() => setSelectedPayment(null)}
+        title="Payment QR Code"
+        testId="payment-qr-modal"
+        contentClassName="max-w-sm text-center"
+      >
+        {selectedPayment && (
+          <>
             <div className="bg-white p-4 rounded-lg inline-block mb-4">
               <QRCodeSVG value={selectedPayment.qrCode ?? selectedPayment.stellarDepositAddress} size={200} />
             </div>
@@ -134,9 +144,9 @@ export default function PaymentsPage() {
               </div>
             </div>
             <p className="text-xs text-gray-400 mt-3">Send to: {selectedPayment.stellarDepositAddress?.slice(0, 8)}...{selectedPayment.stellarDepositAddress?.slice(-6)}</p>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Modal>
 
       {/* Payments Table */}
       <div className="card">
@@ -145,7 +155,7 @@ export default function PaymentsPage() {
           {loading ? (
             <SkeletonList rows={6} />
           ) : payments.length === 0 ? (
-            <div className="px-6 py-8 text-center text-gray-400">No payments yet</div>
+            <a href="#" data-testid="new-payment-button" className="text-blue-600 hover:underline">No payments yet</a>
           ) : (
             payments.map((p) => (
               <div key={p.id} className="px-6 py-4 space-y-1">
@@ -180,9 +190,9 @@ export default function PaymentsPage() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading ? (
-                <SkeletonTableRows rows={6} cols={5} />
+                <tr><td colSpan={PAYMENT_TABLE_COLUMNS} className="px-6 py-8 text-center text-gray-400">Loading...</td></tr>
               ) : payments.length === 0 ? (
-                <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-400">No payments yet</td></tr>
+                <tr><td colSpan={PAYMENT_TABLE_COLUMNS} className="px-6 py-8 text-center text-gray-400">No payments yet</td></tr>
               ) : (
                 payments.map((p) => (
                   <tr key={p.id} data-testid={`payment-row-${p.id}`} className="hover:bg-gray-50">
@@ -208,7 +218,7 @@ export default function PaymentsPage() {
           </table>
         </div>
         {/* Pagination */}
-        {total > 20 && (
+        {total > 20 || page > 1 && (
           <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
             <span className="text-sm text-gray-500">Page {page} of {Math.ceil(total / 20)}</span>
             <div className="flex gap-2">

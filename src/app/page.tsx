@@ -140,7 +140,7 @@ export default function LandingPage() {
       </section>
 
       <footer className="border-t border-gray-100 py-8 text-center text-sm text-gray-400">
-        © 2025 DupDub. Built with Stellar.
+        © {new Date().getFullYear()} DupDub. Built with Stellar.
       </footer>
     </div>
   );
