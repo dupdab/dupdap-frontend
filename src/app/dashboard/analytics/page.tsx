@@ -11,9 +11,16 @@ const COLORS = ['#eab308', '#22c55e', '#3b82f6', '#a855f7', '#ef4444', '#6b7280'
 export default function AnalyticsPage() {
   const [stats, setStats] = useState<PaymentStats[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   useEffect(() => {
-    paymentsApi.stats().then(({ data }) => setStats(data)).finally(() => setLoading(false));
+    paymentsApi.stats()
+      .then(({ data }) => {
+        setError('');
+        setStats(data);
+      })
+      .catch(() => setError("Couldn't load analytics."))
+      .finally(() => setLoading(false));
   }, []);
 
   const pieData = stats.map((s) => ({
@@ -34,6 +41,8 @@ export default function AnalyticsPage() {
 
       {loading ? (
         <div className="text-center py-12 text-gray-400">Loading...</div>
+      ) : error ? (
+        <div className="text-center py-12 text-red-500">{error}</div>
       ) : (
         <div className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -52,7 +61,16 @@ export default function AnalyticsPage() {
               <h2 className="font-semibold mb-4">Payment Count by Status</h2>
               <ResponsiveContainer width="100%" height={250}>
                 <PieChart>
-                  <Pie data={pieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label={({ name, value }) => `${name}: ${value}`}>
+                  <Pie
+                    data={pieData}
+                    dataKey="value"
+                    nameKey="name"
+                    cx="50%"
+                    cy="50%"
+                    outerRadius={80}
+                    minAngle={8}
+                    label={({ name, value, percent }) => (percent && percent > 0.08 ? `${name}: ${value}` : '')}
+                  >
                     {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
                   </Pie>
                   <Tooltip />

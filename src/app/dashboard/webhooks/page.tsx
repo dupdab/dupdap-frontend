@@ -43,8 +43,8 @@ export default function WebhooksPage() {
       toast.success('Webhook removed');
       setDeletingId(null);
       load();
-    } catch {
-      toast.error('Failed to remove webhook');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message ?? 'Failed to remove webhook');
     } finally {
       setDeleting(false);
     }
