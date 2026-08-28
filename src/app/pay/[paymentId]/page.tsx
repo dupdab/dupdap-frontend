@@ -7,6 +7,16 @@ import { paymentsApi } from '@/lib/api';
 import { formatUsd } from '@/lib/utils';
 import type { Payment } from '@/lib/types';
 
+interface Payment {
+  amountUsd: number;
+  amountXlm: number | string;
+  description?: string;
+  reference: string;
+  status: string;
+  stellarDepositAddress: string;
+  stellarMemo: string;
+}
+
 export async function generateMetadata({ params }: { params: { paymentId: string } }) {
   try {
     const { data } = await paymentsApi.getByReference(params.paymentId);
@@ -48,13 +58,25 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
   const [copied, setCopied] = useState<string | null>(null);
 
   useEffect(() => {
+    let pollAttempts = 0;
     paymentsApi.getByReference(params.paymentId).then(({ data }) => setPayment(data)).finally(() => setLoading(false));
 
     const interval = setInterval(() => {
-      paymentsApi.getByReference(params.paymentId).then(({ data }) => {
-        setPayment(data);
-        if (['settled', 'failed', 'expired'].includes(data.status)) clearInterval(interval);
-      });
+      pollAttempts += 1;
+      if (pollAttempts >= 24) {
+        setPollWarning('Status checks are taking longer than expected.');
+        clearInterval(interval);
+        return;
+      }
+      paymentsApi.getByReference(params.paymentId)
+        .then(({ data }) => {
+          setPollWarning('');
+          setPayment(data);
+          if (['settled', 'failed', 'expired'].includes(data.status)) clearInterval(interval);
+        })
+        .catch(() => {
+          setPollWarning('We are having trouble checking your payment status right now.');
+        });
     }, 5000);
 
     return () => clearInterval(interval);
@@ -100,7 +122,7 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
     );
   }
 
-  const stellarUri = `web+stellar:pay?destination=${payment.stellarDepositAddress}&amount=${payment.amountXlm}&memo=${payment.stellarMemo}&memo_type=text`;
+  const stellarUri = `web+stellar:pay?destination=${encodeURIComponent(payment.stellarDepositAddress)}&amount=${encodeURIComponent(String(payment.amountXlm))}&memo=${encodeURIComponent(payment.stellarMemo)}&memo_type=text`;
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -168,6 +190,11 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
                 </div>
                 <p className="text-amber-700 mt-1">Payment will not be detected without the memo.</p>
               </div>
+              {pollWarning ? (
+                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-xs text-yellow-800 mt-4">
+                  {pollWarning}
+                </div>
+              ) : null}
             </>
           ) : (
             <div className="text-center py-4">
