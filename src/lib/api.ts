@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { useAuthStore } from './store';
 import type {
   AuthResponse,
   Merchant,
@@ -26,7 +27,7 @@ api.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 401 && typeof window !== 'undefined') {
-      localStorage.removeItem('access_token');
+      useAuthStore.getState().logout();
       window.location.href = '/auth/login';
     }
     return Promise.reject(err);
