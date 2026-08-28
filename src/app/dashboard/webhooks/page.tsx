@@ -57,6 +57,11 @@ export default function WebhooksPage() {
     }));
   };
 
+  const closeCreateModal = () => {
+    setShowCreate(false);
+    setForm({ url: '', events: [] });
+  };
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
@@ -74,7 +79,7 @@ export default function WebhooksPage() {
           <div className="card w-full max-w-md p-6">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-semibold">New Webhook</h2>
-              <button onClick={() => setShowCreate(false)}><X className="w-5 h-5 text-gray-400" /></button>
+              <button onClick={closeCreateModal}><X className="w-5 h-5 text-gray-400" /></button>
             </div>
             <form onSubmit={create} className="space-y-4">
               <fieldset disabled={creating} className="space-y-4">
