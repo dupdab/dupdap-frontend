@@ -72,7 +72,8 @@ export default function LandingPage() {
       <section className="bg-gray-50 border-y border-gray-100">
         <div className="max-w-6xl mx-auto px-6 py-20">
           <h2 className="text-3xl font-bold text-center mb-12">Why DupDub?</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          {/* ul/li gives screen readers "list of N items" grouping context (#155) */}
+          <ul className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 list-none p-0 m-0">
             {[
               {
                 icon: QrCode,
@@ -95,15 +96,15 @@ export default function LandingPage() {
                 desc: 'Accept global payments, settle in local currency. Perfect for emerging markets.',
               },
             ].map(({ icon: Icon, title, desc }) => (
-              <div key={title} className="card p-6">
+              <li key={title} className="card p-6">
                 <div className="w-10 h-10 bg-brand-100 rounded-lg flex items-center justify-center mb-4">
                   <Icon className="w-5 h-5 text-brand-600" />
                 </div>
                 <h3 className="font-semibold mb-2">{title}</h3>
                 <p className="text-sm text-gray-500">{desc}</p>
-              </div>
+              </li>
             ))}
-          </div>
+          </ul>
         </div>
       </section>
 
@@ -111,21 +112,22 @@ export default function LandingPage() {
       <section className="max-w-6xl mx-auto px-6 py-20">
         <h2 className="text-3xl font-bold text-center mb-4">How it works</h2>
         <p className="text-gray-500 text-center mb-12">Three steps to your first settlement</p>
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+        {/* ul/li gives screen readers "list of N items" grouping context (#155) */}
+        <ul className="grid grid-cols-1 md:grid-cols-3 gap-8 list-none p-0 m-0">
           {[
             { step: '01', title: 'Create payment', desc: 'Enter amount in USD. We generate a QR code with your Stellar deposit address.' },
             { step: '02', title: 'Customer approves + deposits', desc: 'Customer scans QR, approves USDC allowance for escrow, then calls deposit from their Stellar wallet.' },
             { step: '03', title: 'Receive fiat', desc: 'We detect the payment, convert to fiat, and transfer to your bank account automatically.' },
           ].map(({ step, title, desc }) => (
-            <div key={step} className="text-center">
+            <li key={step} className="text-center">
               <div className="w-12 h-12 bg-brand-500 text-white rounded-full flex items-center justify-center font-bold mx-auto mb-4">
                 {step}
               </div>
               <h3 className="font-semibold text-lg mb-2">{title}</h3>
               <p className="text-gray-500 text-sm">{desc}</p>
-            </div>
+            </li>
           ))}
-        </div>
+        </ul>
       </section>
 
       {/* CTA */}

@@ -93,31 +93,30 @@ export default function PaymentsPage() {
         title="Create Payment"
         testId="create-payment-modal"
       >
-        <form onSubmit={createPayment} className="space-y-4">
+        <form onSubmit={createPayment} className="space-y-4" aria-busy={creating}>
+          {/* Visually-hidden live region announces submit outcomes to screen readers (#158) */}
+          <p className="sr-only" aria-live="polite" aria-atomic="true">
+            {creating ? 'Creating payment, please wait…' : ''}
+          </p>
           <fieldset disabled={creating} className="space-y-4">
             <div>
-              <label className="label">Amount (USD)</label>
-              <input className="input" type="number" step="0.01" min="0.01" required value={form.amountUsd}
+              {/* id derived from field key so htmlFor/id are always in sync (#157) */}
+              <label htmlFor="amount-usd" className="label">Amount (USD)</label>
+              <input id="amount-usd" className="input" type="number" step="0.01" min="0.01" required value={form.amountUsd}
                 onChange={(e) => setForm({ ...form, amountUsd: e.target.value })} />
             </div>
-            <form onSubmit={createPayment} className="space-y-4">
-              <fieldset disabled={creating} className="space-y-4">
-                <FormField label="Amount (USD)" type="number" step="0.01" min="0.01" required value={form.amountUsd}
-                  onChange={(e) => setForm({ ...form, amountUsd: e.target.value })} />
-                <FormField label="Description (optional)" type="text" required={false} value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })} />
-                <FormField label="Customer Email (optional)" type="email" required={false} value={form.customerEmail}
-                  onChange={(e) => setForm({ ...form, customerEmail: e.target.value })} />
-                <FormField label="Expires in (minutes)" type="number" min="5" max="1440" value={form.expiryMinutes}
-                  onChange={(e) => setForm({ ...form, expiryMinutes: e.target.value })} />
-                <button type="submit" disabled={creating} className="btn-primary w-full">
-                  {creating ? 'Creating...' : 'Create Payment'}
-                </button>
-              </fieldset>
-            </form>
-          </div>
-        </div>
-      )}
+            <FormField label="Description (optional)" type="text" required={false} value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })} />
+            <FormField label="Customer Email (optional)" type="email" required={false} value={form.customerEmail}
+              onChange={(e) => setForm({ ...form, customerEmail: e.target.value })} />
+            <FormField label="Expires in (minutes)" type="number" min="5" max="1440" value={form.expiryMinutes}
+              onChange={(e) => setForm({ ...form, expiryMinutes: e.target.value })} />
+            <button data-testid="create-payment-submit-button" type="submit" disabled={creating} className="btn-primary w-full">
+              {creating ? 'Creating...' : 'Create Payment'}
+            </button>
+          </fieldset>
+        </form>
+      </Modal>
 
       {/* QR Modal */}
       <Modal

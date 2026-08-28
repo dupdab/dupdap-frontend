@@ -47,7 +47,11 @@ export default function WaitlistPage() {
             <p className="text-gray-500 text-sm mt-2">We&apos;ll reach out when your account is ready.</p>
           </div>
         ) : (
-          <form onSubmit={submit} className="space-y-4">
+          <form onSubmit={submit} className="space-y-4" aria-busy={loading}>
+            {/* Visually-hidden live region announces submit outcomes to screen readers (#158) */}
+            <p className="sr-only" aria-live="polite" aria-atomic="true">
+              {loading ? 'Submitting, please wait…' : ''}
+            </p>
             <fieldset disabled={loading} className="space-y-4">
               <FormField label="Email" type="email" required value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })} />
