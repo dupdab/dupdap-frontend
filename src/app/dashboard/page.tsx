@@ -6,6 +6,11 @@ import { paymentsApi, settlementsApi } from '@/lib/api';
 import { formatUsd, formatDate, PAYMENT_STATUS_COLORS } from '@/lib/utils';
 import { useAuthStore } from '@/lib/store';
 
+const toSafeInt = (value: unknown) => {
+  const parsed = parseInt(String(value ?? 0), 10);
+  return Number.isNaN(parsed) ? 0 : parsed;
+};
+
 export default function DashboardPage() {
   const { merchant } = useAuthStore();
   const [payments, setPayments] = useState<any[]>([]);
@@ -25,11 +30,12 @@ export default function DashboardPage() {
   }, []);
 
   const statMap = stats.reduce((acc: any, s: any) => {
-    acc[s.status] = { count: parseInt(s.count), total: parseFloat(s.totalUsd ?? 0) };
+    acc[s.status] = { count: toSafeInt(s.count), total: parseFloat(s.totalUsd ?? 0) };
     return acc;
   }, {});
 
   const totalVolume = stats.reduce((acc: any, s: any) => acc + parseFloat(s.totalUsd ?? 0), 0);
+  const totalPayments = stats.reduce((acc: number, s: any) => acc + toSafeInt(s.count), 0);
   const settledCount = statMap.settled?.count ?? 0;
   const pendingCount = statMap.pending?.count ?? 0;
 
@@ -48,7 +54,7 @@ export default function DashboardPage() {
           { label: 'Total Volume', value: formatUsd(totalVolume), icon: TrendingUp, color: 'text-blue-600' },
           { label: 'Settled Payments', value: settledCount, icon: Banknote, color: 'text-green-600' },
           { label: 'Pending Payments', value: pendingCount, icon: Clock, color: 'text-yellow-600' },
-          { label: 'Total Payments', value: stats.reduce((a, s) => a + parseInt(s.count), 0), icon: CreditCard, color: 'text-purple-600' },
+          { label: 'Total Payments', value: totalPayments, icon: CreditCard, color: 'text-purple-600' },
         ].map(({ label, value, icon: Icon, color }) => (
           <div key={label} className="card p-5">
             <div className="flex items-center justify-between mb-3">
