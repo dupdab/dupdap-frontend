@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus, X, Copy, Check } from 'lucide-react';
+import { Plus, Copy, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { QRCodeSVG } from 'qrcode.react';
 import { paymentsApi } from '@/lib/api';
@@ -75,12 +75,18 @@ export default function PaymentsPage() {
       </div>
 
       {/* Create Modal */}
-      {showCreate && (
-        <div data-testid="create-payment-modal" className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="card w-full max-w-md p-6">
-            <div className="flex items-center justify-between mb-6">
-              <h2 className="font-semibold text-lg">Create Payment</h2>
-              <button onClick={() => setShowCreate(false)}><X className="w-5 h-5 text-gray-400" /></button>
+      <Modal
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+        title="Create Payment"
+        testId="create-payment-modal"
+      >
+        <form onSubmit={createPayment} className="space-y-4">
+          <fieldset disabled={creating} className="space-y-4">
+            <div>
+              <label className="label">Amount (USD)</label>
+              <input className="input" type="number" step="0.01" min="0.01" required value={form.amountUsd}
+                onChange={(e) => setForm({ ...form, amountUsd: e.target.value })} />
             </div>
             <form onSubmit={createPayment} className="space-y-4">
               <fieldset disabled={creating} className="space-y-4">
@@ -102,13 +108,15 @@ export default function PaymentsPage() {
       )}
 
       {/* QR Modal */}
-      {selectedPayment && (
-        <div data-testid="payment-qr-modal" className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="card w-full max-w-sm p-6 text-center">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold">Payment QR Code</h2>
-              <button onClick={() => setSelectedPayment(null)}><X className="w-5 h-5 text-gray-400" /></button>
-            </div>
+      <Modal
+        open={!!selectedPayment}
+        onClose={() => setSelectedPayment(null)}
+        title="Payment QR Code"
+        testId="payment-qr-modal"
+        contentClassName="max-w-sm text-center"
+      >
+        {selectedPayment && (
+          <>
             <div className="bg-white p-4 rounded-lg inline-block mb-4">
               <QRCodeSVG value={selectedPayment.qrCode ?? selectedPayment.stellarDepositAddress} size={200} />
             </div>
@@ -124,9 +132,9 @@ export default function PaymentsPage() {
               </div>
             </div>
             <p className="text-xs text-gray-400 mt-3">Send to: {selectedPayment.stellarDepositAddress?.slice(0, 8)}...{selectedPayment.stellarDepositAddress?.slice(-6)}</p>
-          </div>
-        </div>
-      )}
+          </>
+        )}
+      </Modal>
 
       {/* Payments Table */}
       <div className="card">

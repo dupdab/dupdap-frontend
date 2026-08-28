@@ -124,6 +124,7 @@ This app is a pure client of [`dupdap-backend`](../dupdap-backend)'s REST API �
 
 - `authApi` — register/login
 - `paymentsApi` — create/list/get/stats for payments
+- `adminApi` — list/retry/approve settlements (admin views)
 
 Extend `api.ts` with additional grouped helpers (e.g. `settlementsApi`, `webhooksApi`, `merchantsApi`) as dashboard pages need them, rather than calling `api.get(...)` directly from components, to keep endpoint paths in one place.
 

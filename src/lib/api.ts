@@ -68,6 +68,13 @@ export const webhooksApi = {
   remove: (id: string) => api.delete(`/webhooks/${id}`),
 };
 
+export const adminApi = {
+  listSettlements: (query = '') =>
+    api.get(`/admin/settlements${query ? `?${query}` : ''}`),
+  retrySettlement: (id: string) => api.post(`/admin/settlements/${id}/retry`, {}),
+  approveSettlement: (id: string) => api.post(`/admin/settlements/${id}/approve`, {}),
+};
+
 export const waitlistApi = {
   join: (data: { email: string; username?: string; businessName?: string; country?: string }) =>
     api.post('/waitlist/join', data),

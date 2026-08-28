@@ -75,10 +75,7 @@ export default function AdminSettlementsPage() {
         ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v)),
       });
 
-      const response = await api.get<SettlementsResponse>(
-        `/api/v1/admin/settlements?${params}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const response = await adminApi.listSettlements(params.toString());
 
       setSettlements(response.data.data);
       setTotal(response.data.total);
@@ -96,11 +93,7 @@ export default function AdminSettlementsPage() {
   const handleRetry = async (settlementId: string) => {
     try {
       setActionLoading(settlementId);
-      await api.post(
-        `/api/v1/admin/settlements/${settlementId}/retry`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await adminApi.retrySettlement(settlementId);
       await fetchSettlements();
     } catch (error) {
       console.error('Failed to retry settlement:', error);
@@ -112,34 +105,13 @@ export default function AdminSettlementsPage() {
   const handleApprove = async (settlementId: string) => {
     try {
       setActionLoading(settlementId);
-      await api.post(
-        `/api/v1/admin/settlements/${settlementId}/approve`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await adminApi.approveSettlement(settlementId);
       await fetchSettlements();
     } catch (error) {
       console.error('Failed to approve settlement:', error);
     } finally {
       setActionLoading(null);
     }
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
   };
 
   return (
@@ -222,8 +194,8 @@ export default function AdminSettlementsPage() {
                     </span>
                   </div>
                   <div className="text-sm text-gray-900">{settlement.merchant?.businessName || 'Unknown'}</div>
-                  <div className="text-sm font-medium text-gray-900">{formatCurrency(settlement.netAmountUsd)}</div>
-                  <div className="text-xs text-gray-500">Fee: {formatCurrency(settlement.feeAmountUsd)}</div>
+                  <div className="text-sm font-medium text-gray-900">{formatUsd(settlement.netAmountUsd)}</div>
+                  <div className="text-xs text-gray-500">Fee: {formatUsd(settlement.feeAmountUsd)}</div>
                   <div className="text-xs text-gray-500">{formatDate(settlement.createdAt)}</div>
                   {settlement.failureReason && (
                     <div className="text-xs text-red-600">{settlement.failureReason}</div>
@@ -305,10 +277,10 @@ export default function AdminSettlementsPage() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="text-sm font-medium text-gray-900">
-                          {formatCurrency(settlement.netAmountUsd)}
+                          {formatUsd(settlement.netAmountUsd)}
                         </div>
                         <div className="text-xs text-gray-500">
-                          Fee: {formatCurrency(settlement.feeAmountUsd)}
+                          Fee: {formatUsd(settlement.feeAmountUsd)}
                         </div>
                       </td>
                       <td className="px-4 py-3">
