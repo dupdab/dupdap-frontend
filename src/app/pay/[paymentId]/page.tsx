@@ -70,7 +70,7 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
     );
   }
 
-  const stellarUri = `web+stellar:pay?destination=${payment.stellarDepositAddress}&amount=${payment.amountXlm}&memo=${payment.stellarMemo}&memo_type=text`;
+  const stellarUri = `web+stellar:pay?destination=${encodeURIComponent(payment.stellarDepositAddress)}&amount=${encodeURIComponent(String(payment.amountXlm))}&memo=${encodeURIComponent(payment.stellarMemo)}&memo_type=text`;
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
