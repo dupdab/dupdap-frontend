@@ -1,6 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 import { ArrowRight, Zap, Shield, Globe, QrCode } from 'lucide-react';
+import { LandingNav } from '@/components/LandingNav';
 
 export const metadata: Metadata = {
   title: 'DupDub — Accept Crypto, Receive Fiat Instantly',
@@ -30,20 +31,7 @@ export default function LandingPage() {
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      {/* Nav */}
-      <nav className="border-b border-gray-100">
-        <div className="max-w-6xl mx-auto px-6 h-16 flex items-center justify-between">
-          <span className="font-bold text-xl text-brand-600">DupDub</span>
-          <div className="flex items-center gap-4">
-            <Link href="/auth/login" className="text-sm text-gray-600 hover:text-gray-900">
-              Login
-            </Link>
-            <Link href="/auth/register" className="btn-primary text-sm">
-              Get Started
-            </Link>
-          </div>
-        </div>
-      </nav>
+      <LandingNav />
 
       {/* Hero */}
       <section className="max-w-6xl mx-auto px-6 py-24 text-center">

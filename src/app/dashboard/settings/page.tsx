@@ -1,10 +1,16 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { Copy, Check, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { merchantApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { FormField } from '@/components/FormField';
+
+function maskApiKey(key: string): string {
+  if (key.length <= 8) return '••••••••';
+  return `${key.slice(0, 4)}${'•'.repeat(Math.min(key.length - 8, 24))}${key.slice(-4)}`;
+}
 
 export default function SettingsPage() {
   const { merchant } = useAuthStore();
@@ -13,6 +19,8 @@ export default function SettingsPage() {
   const [selectedScopes, setSelectedScopes] = useState<string[]>(['payments:read', 'settlements:read']);
   const [saving, setSaving] = useState(false);
   const [apiKey, setApiKey] = useState<string | null>(null);
+  const [keyRevealed, setKeyRevealed] = useState(false);
+  const [keyCopied, setKeyCopied] = useState(false);
   const [generatingKey, setGeneratingKey] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
@@ -72,12 +80,31 @@ export default function SettingsPage() {
     try {
       const { data } = await merchantApi.generateApiKey(selectedScopes);
       setApiKey(data.apiKey);
+      setKeyRevealed(false);
+      setKeyCopied(false);
       toast.success('API key generated — save it now, it won\'t be shown again');
     } catch {
       toast.error('Failed to generate API key');
     } finally {
       setGeneratingKey(false);
     }
+  };
+
+  const copyApiKey = async () => {
+    if (!apiKey) return;
+    try {
+      await navigator.clipboard.writeText(apiKey);
+      setKeyCopied(true);
+      setTimeout(() => setKeyCopied(false), 2000);
+    } catch {
+      toast.error('Failed to copy API key');
+    }
+  };
+
+  const dismissApiKey = () => {
+    setApiKey(null);
+    setKeyRevealed(false);
+    setKeyCopied(false);
   };
 
   return (
@@ -152,8 +179,38 @@ export default function SettingsPage() {
         </div>
 
         {apiKey ? (
-          <div className="bg-gray-900 text-green-400 font-mono text-sm p-3 rounded-lg break-all mb-3">
-            {apiKey}
+          <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-4">
+            <p className="text-sm font-medium text-amber-900 mb-2">
+              Save this key now — it won&apos;t be shown again
+            </p>
+            <div className="flex items-center gap-2 bg-gray-900 text-green-400 font-mono text-sm p-3 rounded-lg">
+              <code className="flex-1 break-all">
+                {keyRevealed ? apiKey : maskApiKey(apiKey)}
+              </code>
+              <button
+                type="button"
+                onClick={() => setKeyRevealed((current) => !current)}
+                className="shrink-0 p-1 text-gray-400 hover:text-gray-200"
+                aria-label={keyRevealed ? 'Hide API key' : 'Reveal API key'}
+              >
+                {keyRevealed ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+              <button
+                type="button"
+                onClick={copyApiKey}
+                className="shrink-0 p-1 text-gray-400 hover:text-gray-200"
+                aria-label="Copy API key"
+              >
+                {keyCopied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+              </button>
+            </div>
+            <button
+              type="button"
+              onClick={dismissApiKey}
+              className="mt-3 text-sm font-medium text-brand-600 hover:underline"
+            >
+              I&apos;ve saved it, dismiss
+            </button>
           </div>
         ) : null}
         <button onClick={() => window.confirm("Are you sure you want to generate a new API key? This will invalidate your current key.") && generateKey()} disabled={generatingKey} className="btn-secondary">
