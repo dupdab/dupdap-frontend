@@ -35,8 +35,13 @@ export default function PaymentsPage() {
     e.preventDefault();
     setCreating(true);
     try {
+      const amountUsd = parseFloat(form.amountUsd);
+      if (Number.isNaN(amountUsd) || amountUsd <= 0) {
+        toast.error('Enter a valid amount');
+        return;
+      }
       const { data } = await paymentsApi.create({
-        amountUsd: parseFloat(form.amountUsd),
+        amountUsd,
         description: form.description || undefined,
         customerEmail: form.customerEmail || undefined,
         expiryMinutes: parseInt(form.expiryMinutes),
