@@ -14,6 +14,7 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [generatingKey, setGeneratingKey] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
     merchantApi.profile().then(({ data }) => {
@@ -31,11 +32,24 @@ export default function SettingsPage() {
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
+    setFieldErrors({});
     try {
       await merchantApi.update(form);
       toast.success('Profile updated');
-    } catch {
-      toast.error('Failed to update profile');
+    } catch (err: any) {
+      const data = err?.response?.data;
+      const errors = data?.errors;
+      if (errors && typeof errors === 'object') {
+        const normalized: Record<string, string> = {};
+        for (const [field, msg] of Object.entries(errors)) {
+          normalized[field] = Array.isArray(msg) ? msg.join(', ') : String(msg);
+        }
+        setFieldErrors(normalized);
+        const first = Object.values(normalized)[0];
+        toast.error(first ?? data?.message ?? 'Failed to update profile');
+      } else {
+        toast.error(data?.message ?? 'Failed to update profile');
+      }
     } finally {
       setSaving(false);
     }
@@ -74,10 +88,19 @@ export default function SettingsPage() {
             { key: 'bankCode', label: 'Bank Code', inputMode: 'numeric' as const, pattern: '[0-9]{3,6}' },
             { key: 'bankAccountNumber', label: 'Bank Account Number', inputMode: 'numeric' as const, pattern: '[0-9]{6,17}' },
           ].map(({ key, label, inputMode, pattern }) => (
-            <FormField key={key} label={label} inputMode={inputMode} pattern={pattern}
-              value={form[key as keyof typeof form]}
-              onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-            />
+            <div key={key}>
+              <label className="label">{label}</label>
+              <input
+                className={`input ${fieldErrors[key] ? 'border-red-400 focus:border-red-400' : ''}`}
+                inputMode={inputMode}
+                pattern={pattern}
+                value={form[key as keyof typeof form]}
+                onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+              />
+              {fieldErrors[key] && (
+                <p className="text-xs text-red-500 mt-1">{fieldErrors[key]}</p>
+              )}
+            </div>
           ))}
           <button type="submit" disabled={saving} className="btn-primary">
             {saving ? 'Saving...' : 'Save changes'}
@@ -127,7 +150,7 @@ export default function SettingsPage() {
             {apiKey}
           </div>
         ) : null}
-        <button onClick={generateKey} disabled={generatingKey} className="btn-secondary">
+        <button onClick={() => window.confirm("Are you sure you want to generate a new API key? This will invalidate your current key.") && generateKey()} disabled={generatingKey} className="btn-secondary">
           {generatingKey ? 'Generating...' : 'Generate new API key'}
         </button>
         <p className="text-xs text-red-500 mt-2">Generating a new key will invalidate the previous one.</p>

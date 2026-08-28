@@ -52,8 +52,8 @@ export const paymentsApi = {
 };
 
 export const settlementsApi = {
-  list: (page = 1, limit = 20) =>
-    api.get<SettlementListResponse>(`/settlements?page=${page}&limit=${limit}`),
+  list: (page = 1, limit = 20) => api.get(`/settlements?page=${page}&limit=${limit}`),
+  get: (id: string) => api.get(`/settlements/${id}`),
 };
 
 export const merchantApi = {
