@@ -56,10 +56,14 @@ export default function PaymentsPage() {
     }
   };
 
-  const copyMemo = (memo: string) => {
-    navigator.clipboard.writeText(memo);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  const copyMemo = async (memo: string) => {
+    try {
+      await navigator.clipboard.writeText(memo);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast.error('Failed to copy memo');
+    }
   };
 
   return (
