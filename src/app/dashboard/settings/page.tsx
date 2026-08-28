@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { merchantApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
+import { FormField } from '@/components/FormField';
 
 export default function SettingsPage() {
   const { merchant } = useAuthStore();
@@ -13,28 +14,48 @@ export default function SettingsPage() {
   const [saving, setSaving] = useState(false);
   const [apiKey, setApiKey] = useState<string | null>(null);
   const [generatingKey, setGeneratingKey] = useState(false);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
   useEffect(() => {
-    merchantApi.profile().then(({ data }) => {
-      setForm({
-        businessName: data.businessName ?? '',
-        country: data.country ?? '',
-        bankAccountNumber: data.bankAccountNumber ?? '',
-        bankCode: data.bankCode ?? '',
-        bankName: data.bankName ?? '',
+    merchantApi.profile()
+      .then(({ data }) => {
+        const apiKeyScopes = data.apiKeyScopes ?? [];
+        setForm({
+          businessName: data.businessName ?? '',
+          country: data.country ?? '',
+          bankAccountNumber: data.bankAccountNumber ?? '',
+          bankCode: data.bankCode ?? '',
+          bankName: data.bankName ?? '',
+        });
+        setCurrentScopes(apiKeyScopes);
+        setSelectedScopes(apiKeyScopes.length > 0 ? apiKeyScopes : ['payments:read', 'settlements:read']);
+      })
+      .catch(() => {
+        toast.error("Couldn't load your profile");
       });
-      setCurrentScopes(data.apiKeyScopes ?? []);
-    });
   }, []);
 
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
+    setFieldErrors({});
     try {
       await merchantApi.update(form);
       toast.success('Profile updated');
-    } catch {
-      toast.error('Failed to update profile');
+    } catch (err: any) {
+      const data = err?.response?.data;
+      const errors = data?.errors;
+      if (errors && typeof errors === 'object') {
+        const normalized: Record<string, string> = {};
+        for (const [field, msg] of Object.entries(errors)) {
+          normalized[field] = Array.isArray(msg) ? msg.join(', ') : String(msg);
+        }
+        setFieldErrors(normalized);
+        const first = Object.values(normalized)[0];
+        toast.error(first ?? data?.message ?? 'Failed to update profile');
+      } else {
+        toast.error(data?.message ?? 'Failed to update profile');
+      }
     } finally {
       setSaving(false);
     }
@@ -76,12 +97,15 @@ export default function SettingsPage() {
             <div key={key}>
               <label className="label">{label}</label>
               <input
-                className="input"
+                className={`input ${fieldErrors[key] ? 'border-red-400 focus:border-red-400' : ''}`}
                 inputMode={inputMode}
                 pattern={pattern}
                 value={form[key as keyof typeof form]}
                 onChange={(e) => setForm({ ...form, [key]: e.target.value })}
               />
+              {fieldErrors[key] && (
+                <p className="text-xs text-red-500 mt-1">{fieldErrors[key]}</p>
+              )}
             </div>
           ))}
           <button type="submit" disabled={saving} className="btn-primary">
@@ -132,7 +156,7 @@ export default function SettingsPage() {
             {apiKey}
           </div>
         ) : null}
-        <button onClick={generateKey} disabled={generatingKey} className="btn-secondary">
+        <button onClick={() => window.confirm("Are you sure you want to generate a new API key? This will invalidate your current key.") && generateKey()} disabled={generatingKey} className="btn-secondary">
           {generatingKey ? 'Generating...' : 'Generate new API key'}
         </button>
         <p className="text-xs text-red-500 mt-2">Generating a new key will invalidate the previous one.</p>

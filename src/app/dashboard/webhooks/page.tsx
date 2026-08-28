@@ -1,14 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { Plus, Trash2, X } from 'lucide-react';
+import { Plus, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { webhooksApi } from '@/lib/api';
 import { WEBHOOK_EVENTS, formatDate } from '@/lib/utils';
 import ConfirmDialog from '@/components/ConfirmDialog';
 
 export default function WebhooksPage() {
-  const [webhooks, setWebhooks] = useState<any[]>([]);
+  const [webhooks, setWebhooks] = useState<Webhook[]>([]);
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({ url: '', events: [] as string[] });
   const [creating, setCreating] = useState(false);
@@ -29,8 +29,8 @@ export default function WebhooksPage() {
       setShowCreate(false);
       setForm({ url: '', events: [] });
       load();
-    } catch {
-      toast.error('Failed to create webhook');
+    } catch (err) {
+      toast.error(getErrorMessage(err, 'Failed to create webhook'));
     } finally {
       setCreating(false);
     }
@@ -43,8 +43,8 @@ export default function WebhooksPage() {
       toast.success('Webhook removed');
       setDeletingId(null);
       load();
-    } catch {
-      toast.error('Failed to remove webhook');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message ?? 'Failed to remove webhook');
     } finally {
       setDeleting(false);
     }
@@ -55,6 +55,11 @@ export default function WebhooksPage() {
       ...f,
       events: f.events.includes(e) ? f.events.filter((x) => x !== e) : [...f.events, e],
     }));
+  };
+
+  const closeCreateModal = () => {
+    setShowCreate(false);
+    setForm({ url: '', events: [] });
   };
 
   return (
@@ -69,39 +74,36 @@ export default function WebhooksPage() {
         </button>
       </div>
 
-      {showCreate && (
-        <div data-testid="create-webhook-modal" className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-          <div className="card w-full max-w-md p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="font-semibold">New Webhook</h2>
-              <button onClick={() => setShowCreate(false)}><X className="w-5 h-5 text-gray-400" /></button>
+      <Modal
+        open={showCreate}
+        onClose={() => setShowCreate(false)}
+        title="New Webhook"
+        testId="create-webhook-modal"
+      >
+        <form onSubmit={create} className="space-y-4">
+          <fieldset disabled={creating} className="space-y-4">
+            <div>
+              <label className="label">Endpoint URL</label>
+              <input className="input" type="url" required placeholder="https://your-server.com/webhook"
+                value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} />
             </div>
-            <form onSubmit={create} className="space-y-4">
-              <fieldset disabled={creating} className="space-y-4">
-                <div>
-                  <label className="label">Endpoint URL</label>
-                  <input className="input" type="url" required placeholder="https://your-server.com/webhook"
-                    value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} />
-                </div>
-                <div>
-                  <label className="label">Events</label>
-                  <div className="space-y-2 mt-1">
-                    {WEBHOOK_EVENTS.map((evt) => (
-                      <label key={evt} className="flex items-center gap-2 text-sm cursor-pointer">
-                        <input type="checkbox" checked={form.events.includes(evt)} onChange={() => toggleEvent(evt)} />
-                        <code className="text-xs">{evt}</code>
-                      </label>
-                    ))}
-                  </div>
-                </div>
-                <button data-testid="webhook-submit-button" type="submit" disabled={creating} className="btn-primary w-full">
-                  {creating ? 'Creating...' : 'Create Webhook'}
-                </button>
-              </fieldset>
-            </form>
-          </div>
-        </div>
-      )}
+            <div>
+              <label className="label">Events</label>
+              <div className="space-y-2 mt-1">
+                {WEBHOOK_EVENTS.map((evt) => (
+                  <label key={evt} className="flex items-center gap-2 text-sm cursor-pointer">
+                    <input type="checkbox" checked={form.events.includes(evt)} onChange={() => toggleEvent(evt)} />
+                    <code className="text-xs">{evt}</code>
+                  </label>
+                ))}
+              </div>
+            </div>
+            <button data-testid="webhook-submit-button" type="submit" disabled={creating} className="btn-primary w-full">
+              {creating ? 'Creating...' : 'Create Webhook'}
+            </button>
+          </fieldset>
+        </form>
+      </Modal>
 
       <div className="space-y-3">
         {webhooks.length === 0 ? (

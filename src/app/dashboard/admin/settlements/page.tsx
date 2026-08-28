@@ -11,6 +11,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
+import { STATUS_COLORS } from '@/lib/utils';
 
 interface Settlement {
   id: string;
@@ -43,14 +44,6 @@ interface SettlementsResponse {
   totalPages: number;
 }
 
-const statusColors = {
-  pending: 'bg-yellow-100 text-yellow-800',
-  pending_approval: 'bg-orange-100 text-orange-800',
-  processing: 'bg-blue-100 text-blue-800',
-  completed: 'bg-green-100 text-green-800',
-  failed: 'bg-red-100 text-red-800',
-};
-
 const statusIcons = {
   pending: Clock,
   pending_approval: AlertCircle,
@@ -82,10 +75,7 @@ export default function AdminSettlementsPage() {
         ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v)),
       });
 
-      const response = await api.get<SettlementsResponse>(
-        `/api/v1/admin/settlements?${params}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      const response = await adminApi.listSettlements(params.toString());
 
       setSettlements(response.data.data);
       setTotal(response.data.total);
@@ -103,11 +93,7 @@ export default function AdminSettlementsPage() {
   const handleRetry = async (settlementId: string) => {
     try {
       setActionLoading(settlementId);
-      await api.post(
-        `/api/v1/admin/settlements/${settlementId}/retry`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await adminApi.retrySettlement(settlementId);
       await fetchSettlements();
     } catch (error) {
       console.error('Failed to retry settlement:', error);
@@ -119,34 +105,13 @@ export default function AdminSettlementsPage() {
   const handleApprove = async (settlementId: string) => {
     try {
       setActionLoading(settlementId);
-      await api.post(
-        `/api/v1/admin/settlements/${settlementId}/approve`,
-        {},
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
+      await adminApi.approveSettlement(settlementId);
       await fetchSettlements();
     } catch (error) {
       console.error('Failed to approve settlement:', error);
     } finally {
       setActionLoading(null);
     }
-  };
-
-  const formatCurrency = (amount: number) => {
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-    }).format(amount);
-  };
-
-  const formatDate = (dateString: string) => {
-    return new Date(dateString).toLocaleDateString('en-US', {
-      year: 'numeric',
-      month: 'short',
-      day: 'numeric',
-      hour: '2-digit',
-      minute: '2-digit',
-    });
   };
 
   return (
@@ -213,7 +178,7 @@ export default function AdminSettlementsPage() {
         {/* Mobile card layout */}
         <div className="md:hidden divide-y divide-gray-200">
           {loading ? (
-            <div className="px-4 py-8 text-center text-gray-500">Loading settlements...</div>
+            <SkeletonList rows={6} className="px-4 py-3" />
           ) : settlements.length === 0 ? (
             <div className="px-4 py-8 text-center text-gray-500">No settlements found</div>
           ) : (
@@ -223,14 +188,14 @@ export default function AdminSettlementsPage() {
                 <div key={settlement.id} className="px-4 py-3 space-y-1">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-gray-900">{settlement.id.slice(0, 8)}...</span>
-                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${statusColors[settlement.status]}`}>
+                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[settlement.status]}`}>
                       <StatusIcon className="w-3 h-3" />
                       {settlement.status.replace('_', ' ')}
                     </span>
                   </div>
                   <div className="text-sm text-gray-900">{settlement.merchant?.businessName || 'Unknown'}</div>
-                  <div className="text-sm font-medium text-gray-900">{formatCurrency(settlement.netAmountUsd)}</div>
-                  <div className="text-xs text-gray-500">Fee: {formatCurrency(settlement.feeAmountUsd)}</div>
+                  <div className="text-sm font-medium text-gray-900">{formatUsd(settlement.netAmountUsd)}</div>
+                  <div className="text-xs text-gray-500">Fee: {formatUsd(settlement.feeAmountUsd)}</div>
                   <div className="text-xs text-gray-500">{formatDate(settlement.createdAt)}</div>
                   {settlement.failureReason && (
                     <div className="text-xs text-red-600">{settlement.failureReason}</div>
@@ -238,7 +203,7 @@ export default function AdminSettlementsPage() {
                   <div className="flex items-center gap-2 pt-1">
                     {settlement.status === 'failed' && (
                       <button
-                        onClick={() => handleRetry(settlement.id)}
+                        onClick={() => window.confirm("Are you sure you want to retry this settlement?") && handleRetry(settlement.id)}
                         disabled={actionLoading === settlement.id}
                         className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:opacity-50"
                       >
@@ -247,7 +212,7 @@ export default function AdminSettlementsPage() {
                     )}
                     {settlement.status === 'pending_approval' && (
                       <button
-                        onClick={() => handleApprove(settlement.id)}
+                        onClick={() => window.confirm("Are you sure you want to approve this settlement?") && handleApprove(settlement.id)}
                         disabled={actionLoading === settlement.id}
                         className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 disabled:opacity-50"
                       >
@@ -276,11 +241,7 @@ export default function AdminSettlementsPage() {
             </thead>
             <tbody className="divide-y divide-gray-200">
               {loading ? (
-                <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
-                    Loading settlements...
-                  </td>
-                </tr>
+                <SkeletonTableRows rows={6} cols={7} cellClassName="px-4 py-3" />
               ) : settlements.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
@@ -312,14 +273,14 @@ export default function AdminSettlementsPage() {
                       </td>
                       <td className="px-4 py-3">
                         <div className="text-sm font-medium text-gray-900">
-                          {formatCurrency(settlement.netAmountUsd)}
+                          {formatUsd(settlement.netAmountUsd)}
                         </div>
                         <div className="text-xs text-gray-500">
-                          Fee: {formatCurrency(settlement.feeAmountUsd)}
+                          Fee: {formatUsd(settlement.feeAmountUsd)}
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${statusColors[settlement.status]}`}>
+                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[settlement.status]}`}>
                           <StatusIcon className="w-3 h-3" />
                           {settlement.status.replace('_', ' ')}
                         </span>
@@ -348,7 +309,7 @@ export default function AdminSettlementsPage() {
                         <div className="flex items-center gap-2">
                           {settlement.status === 'failed' && (
                             <button
-                              onClick={() => handleRetry(settlement.id)}
+onClick={() => window.confirm("Are you sure you want to retry this settlement?") && handleRetry(settlement.id)}
                               disabled={actionLoading === settlement.id}
                               className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:opacity-50"
                             >
@@ -357,7 +318,7 @@ export default function AdminSettlementsPage() {
                           )}
                           {settlement.status === 'pending_approval' && (
                             <button
-                              onClick={() => handleApprove(settlement.id)}
+onClick={() => window.confirm("Are you sure you want to approve this settlement?") && handleApprove(settlement.id)}
                               disabled={actionLoading === settlement.id}
                               className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 disabled:opacity-50"
                             >

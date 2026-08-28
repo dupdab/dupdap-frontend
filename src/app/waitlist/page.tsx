@@ -5,6 +5,8 @@ import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { CheckCircle, Loader2, XCircle } from 'lucide-react';
 import { waitlistApi } from '@/lib/api';
+import { FormField } from '@/components/FormField';
+import { getErrorMessage } from '@/lib/errors';
 
 type UsernameStatus = 'idle' | 'checking' | 'available' | 'taken' | 'error';
 
@@ -49,8 +51,8 @@ export default function WaitlistPage() {
     try {
       await waitlistApi.join(form);
       setJoined(true);
-    } catch (err: any) {
-      toast.error(err.response?.data?.message ?? 'Failed to join waitlist');
+    } catch (err) {
+      toast.error(getErrorMessage(err) ?? 'Failed to join waitlist');
     } finally {
       setLoading(false);
     }
@@ -90,71 +92,15 @@ export default function WaitlistPage() {
         ) : (
           <form onSubmit={submit} className="space-y-4">
             <fieldset disabled={loading} className="space-y-4">
-              <div>
-                <label className="label">Email</label>
-                <input
-                  className="input"
-                  type="email"
-                  required
-                  value={form.email}
-                  onChange={(e) => setForm({ ...form, email: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label className="label">Username (optional)</label>
-                <input
-                  className="input"
-                  type="text"
-                  value={form.username}
-                  onChange={(e) => setForm({ ...form, username: e.target.value })}
-                />
-                {usernameStatus === 'checking' && (
-                  <p className="text-xs text-gray-400 mt-1 flex items-center gap-1">
-                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> Checking availability…
-                  </p>
-                )}
-                {usernameStatus === 'available' && (
-                  <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
-                    <CheckCircle className="w-3.5 h-3.5" /> Username is available
-                  </p>
-                )}
-                {usernameStatus === 'taken' && (
-                  <p className="text-xs text-red-500 mt-1 flex items-center gap-1">
-                    <XCircle className="w-3.5 h-3.5" /> Username is already taken
-                  </p>
-                )}
-                {usernameStatus === 'error' && (
-                  <p className="text-xs text-gray-400 mt-1">Couldn&apos;t check availability right now</p>
-                )}
-              </div>
-
-              <div>
-                <label className="label">Business Name (optional)</label>
-                <input
-                  className="input"
-                  type="text"
-                  value={form.businessName}
-                  onChange={(e) => setForm({ ...form, businessName: e.target.value })}
-                />
-              </div>
-
-              <div>
-                <label className="label">Country (optional)</label>
-                <input
-                  className="input"
-                  type="text"
-                  value={form.country}
-                  onChange={(e) => setForm({ ...form, country: e.target.value })}
-                />
-              </div>
-
-              <button
-                data-testid="waitlist-submit-button"
-                type="submit"
-                disabled={loading || usernameStatus === 'checking' || usernameStatus === 'taken'}
-                className="btn-primary w-full"
-              >
+              <FormField label="Email" type="email" required value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })} />
+              <FormField label="Username (optional)" type="text" required={false} value={form.username}
+                onChange={(e) => setForm({ ...form, username: e.target.value })} />
+              <FormField label="Business Name (optional)" type="text" required={false} value={form.businessName}
+                onChange={(e) => setForm({ ...form, businessName: e.target.value })} />
+              <FormField label="Country (optional)" type="text" required={false} value={form.country}
+                onChange={(e) => setForm({ ...form, country: e.target.value })} />
+              <button data-testid="waitlist-submit-button" type="submit" disabled={loading} className="btn-primary w-full">
                 {loading ? 'Joining...' : 'Join waitlist'}
               </button>
             </fieldset>
