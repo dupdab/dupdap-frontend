@@ -6,14 +6,17 @@ import toast from 'react-hot-toast';
 import { QRCodeSVG } from 'qrcode.react';
 import { paymentsApi } from '@/lib/api';
 import { formatUsd, formatDate, PAYMENT_STATUS_COLORS } from '@/lib/utils';
+import { FormField } from '@/components/FormField';
+import { getErrorMessage } from '@/lib/errors';
+import type { Payment, PaymentListResponse } from '@/lib/types';
 
 export default function PaymentsPage() {
-  const [payments, setPayments] = useState<any[]>([]);
+  const [payments, setPayments] = useState<Payment[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(true);
   const [showCreate, setShowCreate] = useState(false);
-  const [selectedPayment, setSelectedPayment] = useState<any>(null);
+  const [selectedPayment, setSelectedPayment] = useState<Payment | null>(null);
   const [form, setForm] = useState({ amountUsd: '', description: '', customerEmail: '', expiryMinutes: '30' });
   const [creating, setCreating] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -46,8 +49,8 @@ export default function PaymentsPage() {
       setForm({ amountUsd: '', description: '', customerEmail: '', expiryMinutes: '30' });
       load(1);
       toast.success('Payment created');
-    } catch (err: any) {
-      toast.error(err.response?.data?.message ?? 'Failed to create payment');
+    } catch (err) {
+      toast.error(getErrorMessage(err) ?? 'Failed to create payment');
     } finally {
       setCreating(false);
     }
@@ -81,26 +84,14 @@ export default function PaymentsPage() {
             </div>
             <form onSubmit={createPayment} className="space-y-4">
               <fieldset disabled={creating} className="space-y-4">
-                <div>
-                  <label className="label">Amount (USD)</label>
-                  <input className="input" type="number" step="0.01" min="0.01" required value={form.amountUsd}
-                    onChange={(e) => setForm({ ...form, amountUsd: e.target.value })} />
-                </div>
-                <div>
-                  <label className="label">Description (optional)</label>
-                  <input className="input" value={form.description}
-                    onChange={(e) => setForm({ ...form, description: e.target.value })} />
-                </div>
-                <div>
-                  <label className="label">Customer Email (optional)</label>
-                  <input className="input" type="email" value={form.customerEmail}
-                    onChange={(e) => setForm({ ...form, customerEmail: e.target.value })} />
-                </div>
-                <div>
-                  <label className="label">Expires in (minutes)</label>
-                  <input className="input" type="number" min="5" max="1440" value={form.expiryMinutes}
-                    onChange={(e) => setForm({ ...form, expiryMinutes: e.target.value })} />
-                </div>
+                <FormField label="Amount (USD)" type="number" step="0.01" min="0.01" required value={form.amountUsd}
+                  onChange={(e) => setForm({ ...form, amountUsd: e.target.value })} />
+                <FormField label="Description (optional)" type="text" required={false} value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })} />
+                <FormField label="Customer Email (optional)" type="email" required={false} value={form.customerEmail}
+                  onChange={(e) => setForm({ ...form, customerEmail: e.target.value })} />
+                <FormField label="Expires in (minutes)" type="number" min="5" max="1440" value={form.expiryMinutes}
+                  onChange={(e) => setForm({ ...form, expiryMinutes: e.target.value })} />
                 <button type="submit" disabled={creating} className="btn-primary w-full">
                   {creating ? 'Creating...' : 'Create Payment'}
                 </button>

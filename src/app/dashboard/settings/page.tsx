@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import { merchantApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
+import { FormField } from '@/components/FormField';
 
 export default function SettingsPage() {
   const { merchant } = useAuthStore();

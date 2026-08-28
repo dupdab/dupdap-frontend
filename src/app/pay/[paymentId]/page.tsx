@@ -5,6 +5,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { Clock, CheckCircle, XCircle, Loader2, Copy, Check, AlertTriangle } from 'lucide-react';
 import { paymentsApi } from '@/lib/api';
 import { formatUsd } from '@/lib/utils';
+import type { Payment } from '@/lib/types';
 
 export async function generateMetadata({ params }: { params: { paymentId: string } }) {
   try {
@@ -41,7 +42,7 @@ function formatRemaining(ms: number): string {
 }
 
 export default function PayPage({ params }: { params: { paymentId: string } }) {
-  const [payment, setPayment] = useState<any>(null);
+  const [payment, setPayment] = useState<Payment | null>(null);
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(Date.now());
   const [copied, setCopied] = useState<string | null>(null);

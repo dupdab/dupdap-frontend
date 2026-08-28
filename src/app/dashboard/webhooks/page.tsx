@@ -8,7 +8,7 @@ import { WEBHOOK_EVENTS, formatDate } from '@/lib/utils';
 import ConfirmDialog from '@/components/ConfirmDialog';
 
 export default function WebhooksPage() {
-  const [webhooks, setWebhooks] = useState<any[]>([]);
+  const [webhooks, setWebhooks] = useState<Webhook[]>([]);
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({ url: '', events: [] as string[] });
   const [creating, setCreating] = useState(false);

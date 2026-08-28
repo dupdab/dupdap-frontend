@@ -3,17 +3,11 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { settlementsApi } from '@/lib/api';
-import { formatUsd, formatDate } from '@/lib/utils';
-
-const STATUS_COLORS: Record<string, string> = {
-  pending: 'bg-yellow-100 text-yellow-800',
-  processing: 'bg-blue-100 text-blue-800',
-  completed: 'bg-green-100 text-green-800',
-  failed: 'bg-red-100 text-red-800',
-};
+import { formatUsd, formatDate, STATUS_COLORS } from '@/lib/utils';
+import type { Settlement } from '@/lib/types';
 
 export default function SettlementsPage() {
-  const [settlements, setSettlements] = useState<any[]>([]);
+  const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);

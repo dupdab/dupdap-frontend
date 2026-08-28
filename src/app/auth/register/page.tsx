@@ -65,8 +65,8 @@ export default function RegisterPage() {
       });
       setAuth(data.accessToken, data.merchant);
       router.push('/dashboard');
-    } catch (err: any) {
-      toast.error(err.response?.data?.message ?? 'Registration failed');
+    } catch (err) {
+      toast.error(getErrorMessage(err) ?? 'Registration failed');
     } finally {
       setLoading(false);
     }
