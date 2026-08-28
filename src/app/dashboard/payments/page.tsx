@@ -44,7 +44,7 @@ export default function PaymentsPage() {
         amountUsd,
         description: form.description || undefined,
         customerEmail: form.customerEmail || undefined,
-        expiryMinutes: parseInt(form.expiryMinutes),
+        expiryMinutes: parseInt(form.expiryMinutes, 10),
       });
       setSelectedPayment(data);
       setShowCreate(false);
