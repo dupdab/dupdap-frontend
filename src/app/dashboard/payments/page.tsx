@@ -44,6 +44,7 @@ export default function PaymentsPage() {
       setSelectedPayment(data);
       setShowCreate(false);
       setForm({ amountUsd: '', description: '', customerEmail: '', expiryMinutes: '30' });
+      setPage(1);
       load(1);
       toast.success('Payment created');
     } catch (err: any) {
