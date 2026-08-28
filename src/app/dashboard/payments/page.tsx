@@ -7,6 +7,8 @@ import { QRCodeSVG } from 'qrcode.react';
 import { paymentsApi } from '@/lib/api';
 import { formatUsd, formatDate, PAYMENT_STATUS_COLORS } from '@/lib/utils';
 
+const PAYMENT_TABLE_COLUMNS = 5;
+
 export default function PaymentsPage() {
   const [payments, setPayments] = useState<any[]>([]);
   const [total, setTotal] = useState(0);
@@ -185,9 +187,9 @@ export default function PaymentsPage() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading ? (
-                <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-400">Loading...</td></tr>
+                <tr><td colSpan={PAYMENT_TABLE_COLUMNS} className="px-6 py-8 text-center text-gray-400">Loading...</td></tr>
               ) : payments.length === 0 ? (
-                <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-400">No payments yet</td></tr>
+                <tr><td colSpan={PAYMENT_TABLE_COLUMNS} className="px-6 py-8 text-center text-gray-400">No payments yet</td></tr>
               ) : (
                 payments.map((p) => (
                   <tr key={p.id} data-testid={`payment-row-${p.id}`} className="hover:bg-gray-50">
