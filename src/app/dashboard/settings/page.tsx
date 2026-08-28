@@ -15,16 +15,20 @@ export default function SettingsPage() {
   const [generatingKey, setGeneratingKey] = useState(false);
 
   useEffect(() => {
-    merchantApi.profile().then(({ data }) => {
-      setForm({
-        businessName: data.businessName ?? '',
-        country: data.country ?? '',
-        bankAccountNumber: data.bankAccountNumber ?? '',
-        bankCode: data.bankCode ?? '',
-        bankName: data.bankName ?? '',
+    merchantApi.profile()
+      .then(({ data }) => {
+        setForm({
+          businessName: data.businessName ?? '',
+          country: data.country ?? '',
+          bankAccountNumber: data.bankAccountNumber ?? '',
+          bankCode: data.bankCode ?? '',
+          bankName: data.bankName ?? '',
+        });
+        setCurrentScopes(data.apiKeyScopes ?? []);
+      })
+      .catch(() => {
+        toast.error("Couldn't load your profile");
       });
-      setCurrentScopes(data.apiKeyScopes ?? []);
-    });
   }, []);
 
   const save = async (e: React.FormEvent) => {
