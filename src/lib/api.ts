@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { redirectToLogin } from './auth-redirect';
 import type {
   AuthResponse,
   Merchant,
@@ -27,7 +28,7 @@ api.interceptors.response.use(
   (err) => {
     if (err.response?.status === 401 && typeof window !== 'undefined') {
       localStorage.removeItem('access_token');
-      window.location.href = '/auth/login';
+      redirectToLogin();
     }
     return Promise.reject(err);
   },
@@ -65,6 +66,7 @@ export const merchantApi = {
 export const webhooksApi = {
   list: () => api.get<Webhook[]>('/webhooks'),
   create: (data: { url: string; events: string[]; secret?: string }) => api.post<Webhook>('/webhooks', data),
+  rotateSecret: (id: string) => api.post<Webhook>(`/webhooks/${id}/rotate-secret`, {}),
   remove: (id: string) => api.delete(`/webhooks/${id}`),
 };
 
