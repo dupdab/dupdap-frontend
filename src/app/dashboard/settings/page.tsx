@@ -132,7 +132,7 @@ export default function SettingsPage() {
             {apiKey}
           </div>
         ) : null}
-        <button onClick={generateKey} disabled={generatingKey} className="btn-secondary">
+        <button onClick={() => window.confirm("Are you sure you want to generate a new API key? This will invalidate your current key.") && generateKey()} disabled={generatingKey} className="btn-secondary">
           {generatingKey ? 'Generating...' : 'Generate new API key'}
         </button>
         <p className="text-xs text-red-500 mt-2">Generating a new key will invalidate the previous one.</p>

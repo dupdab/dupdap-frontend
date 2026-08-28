@@ -144,7 +144,7 @@ export default function PaymentsPage() {
           {loading ? (
             <div className="px-6 py-8 text-center text-gray-400">Loading...</div>
           ) : payments.length === 0 ? (
-            <div className="px-6 py-8 text-center text-gray-400">No payments yet</div>
+            <a href="#" data-testid="new-payment-button" className="text-blue-600 hover:underline">No payments yet</a>
           ) : (
             payments.map((p) => (
               <div key={p.id} className="px-6 py-4 space-y-1">
@@ -207,7 +207,7 @@ export default function PaymentsPage() {
           </table>
         </div>
         {/* Pagination */}
-        {total > 20 && (
+        {total > 20 || page > 1 && (
           <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
             <span className="text-sm text-gray-500">Page {page} of {Math.ceil(total / 20)}</span>
             <div className="flex gap-2">
