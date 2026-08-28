@@ -7,6 +7,32 @@ import toast from 'react-hot-toast';
 import { authApi } from '@/lib/api';
 import { getErrorMessage } from '@/lib/utils';
 import { useAuthStore } from '@/lib/store';
+import { COUNTRIES } from '@/lib/countries';
+
+interface PasswordChecks {
+  length: boolean;
+  lower: boolean;
+  upper: boolean;
+  number: boolean;
+  special: boolean;
+}
+
+function checkPassword(pw: string): PasswordChecks {
+  return {
+    length: pw.length >= 8,
+    lower: /[a-z]/.test(pw),
+    upper: /[A-Z]/.test(pw),
+    number: /\d/.test(pw),
+    special: /[^A-Za-z0-9]/.test(pw),
+  };
+}
+
+function passwordScore(checks: PasswordChecks): number {
+  return Object.values(checks).filter(Boolean).length;
+}
+
+const STRENGTH_LABELS = ['Very weak', 'Weak', 'Fair', 'Good', 'Strong', 'Very strong'];
+const STRENGTH_COLORS = ['bg-red-500', 'bg-red-500', 'bg-orange-500', 'bg-yellow-500', 'bg-lime-500', 'bg-green-500'];
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -15,19 +41,33 @@ export default function RegisterPage() {
   const [form, setForm] = useState({
     email: '',
     password: '',
+    confirmPassword: '',
     businessName: '',
     country: '',
   });
 
+  const checks = checkPassword(form.password);
+  const score = passwordScore(checks);
+  const passwordsMatch = form.confirmPassword.length === 0 || form.password === form.confirmPassword;
+  const passwordValid = score >= 4 && checks.length && checks.lower && checks.upper && checks.number;
+  const canSubmit = passwordValid && passwordsMatch;
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!passwordValid) return toast.error('Please meet the password requirements');
+    if (!passwordsMatch) return toast.error('Passwords do not match');
     setLoading(true);
     try {
-      const { data } = await authApi.register(form);
+      const { data } = await authApi.register({
+        email: form.email,
+        password: form.password,
+        businessName: form.businessName,
+        country: form.country || undefined,
+      });
       setAuth(data.accessToken, data.merchant);
       router.push('/dashboard');
-    } catch (err: any) {
-      toast.error(getErrorMessage(err, 'Registration failed'));
+    } catch (err) {
+      toast.error(getErrorMessage(err) ?? 'Registration failed');
     } finally {
       setLoading(false);
     }
@@ -46,6 +86,14 @@ export default function RegisterPage() {
     </div>
   );
 
+  const requirements: { key: keyof PasswordChecks; label: string }[] = [
+    { key: 'length', label: 'At least 8 characters' },
+    { key: 'upper', label: 'An uppercase letter' },
+    { key: 'lower', label: 'A lowercase letter' },
+    { key: 'number', label: 'A number' },
+    { key: 'special', label: 'A special character' },
+  ];
+
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="card w-full max-w-md p-8">
@@ -58,9 +106,82 @@ export default function RegisterPage() {
           <fieldset disabled={loading} className="space-y-4">
             {field('businessName', 'Business Name')}
             {field('email', 'Email', 'email')}
-            {field('password', 'Password', 'password')}
-            {field('country', 'Country (optional)', 'text', false)}
-            <button data-testid="register-submit-button" type="submit" disabled={loading} className="btn-primary w-full">
+
+            <div>
+              <label className="label">Password</label>
+              <input
+                className="input"
+                type="password"
+                required
+                value={form.password}
+                onChange={(e) => setForm({ ...form, password: e.target.value })}
+              />
+              {form.password.length > 0 && (
+                <div className="mt-2">
+                  <div className="flex gap-1">
+                    {STRENGTH_COLORS.map((color, i) => (
+                      <div
+                        key={i}
+                        className={`h-1.5 flex-1 rounded-full ${i < score ? color : 'bg-gray-200'}`}
+                      />
+                    ))}
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">
+                    Strength: {STRENGTH_LABELS[score]}
+                  </p>
+                  <ul className="mt-2 grid grid-cols-1 gap-1">
+                    {requirements.map((r) => (
+                      <li
+                        key={r.key}
+                        className={`text-xs flex items-center gap-1.5 ${checks[r.key] ? 'text-green-600' : 'text-gray-400'}`}
+                      >
+                        <span className="inline-block w-3.5 h-3.5 rounded-full text-center leading-3.5 text-[10px]">
+                          {checks[r.key] ? '✓' : '•'}
+                        </span>
+                        {r.label}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+
+            <div>
+              <label className="label">Confirm Password</label>
+              <input
+                className={`input ${form.confirmPassword.length > 0 && !passwordsMatch ? 'border-red-400 focus:ring-red-400' : ''}`}
+                type="password"
+                required
+                value={form.confirmPassword}
+                onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
+              />
+              {form.confirmPassword.length > 0 && !passwordsMatch && (
+                <p className="text-xs text-red-500 mt-1">Passwords do not match</p>
+              )}
+            </div>
+
+            <div>
+              <label className="label">Country (optional)</label>
+              <select
+                className="input"
+                value={form.country}
+                onChange={(e) => setForm({ ...form, country: e.target.value })}
+              >
+                <option value="">Select a country</option>
+                {COUNTRIES.map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            <button
+              data-testid="register-submit-button"
+              type="submit"
+              disabled={loading || !canSubmit}
+              className="btn-primary w-full"
+            >
               {loading ? 'Creating account...' : 'Create account'}
             </button>
           </fieldset>

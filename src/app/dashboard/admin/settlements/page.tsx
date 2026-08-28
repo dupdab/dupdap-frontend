@@ -10,8 +10,8 @@ import {
   ExternalLink 
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
-import { adminApi } from '@/lib/api';
-import { formatUsd, formatDate } from '@/lib/utils';
+import api from '@/lib/api';
+import { STATUS_COLORS } from '@/lib/utils';
 
 interface Settlement {
   id: string;
@@ -36,13 +36,13 @@ interface Settlement {
   updatedAt: string;
 }
 
-const statusColors = {
-  pending: 'bg-yellow-100 text-yellow-800',
-  pending_approval: 'bg-orange-100 text-orange-800',
-  processing: 'bg-blue-100 text-blue-800',
-  completed: 'bg-green-100 text-green-800',
-  failed: 'bg-red-100 text-red-800',
-};
+interface SettlementsResponse {
+  data: Settlement[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
 
 const statusIcons = {
   pending: Clock,
@@ -188,7 +188,7 @@ export default function AdminSettlementsPage() {
                 <div key={settlement.id} className="px-4 py-3 space-y-1">
                   <div className="flex items-center justify-between">
                     <span className="text-sm font-medium text-gray-900">{settlement.id.slice(0, 8)}...</span>
-                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${statusColors[settlement.status]}`}>
+                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[settlement.status]}`}>
                       <StatusIcon className="w-3 h-3" />
                       {settlement.status.replace('_', ' ')}
                     </span>
@@ -203,7 +203,7 @@ export default function AdminSettlementsPage() {
                   <div className="flex items-center gap-2 pt-1">
                     {settlement.status === 'failed' && (
                       <button
-                        onClick={() => handleRetry(settlement.id)}
+                        onClick={() => window.confirm("Are you sure you want to retry this settlement?") && handleRetry(settlement.id)}
                         disabled={actionLoading === settlement.id}
                         className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:opacity-50"
                       >
@@ -212,7 +212,7 @@ export default function AdminSettlementsPage() {
                     )}
                     {settlement.status === 'pending_approval' && (
                       <button
-                        onClick={() => handleApprove(settlement.id)}
+                        onClick={() => window.confirm("Are you sure you want to approve this settlement?") && handleApprove(settlement.id)}
                         disabled={actionLoading === settlement.id}
                         className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 disabled:opacity-50"
                       >
@@ -284,7 +284,7 @@ export default function AdminSettlementsPage() {
                         </div>
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${statusColors[settlement.status]}`}>
+                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[settlement.status]}`}>
                           <StatusIcon className="w-3 h-3" />
                           {settlement.status.replace('_', ' ')}
                         </span>
@@ -313,7 +313,7 @@ export default function AdminSettlementsPage() {
                         <div className="flex items-center gap-2">
                           {settlement.status === 'failed' && (
                             <button
-                              onClick={() => handleRetry(settlement.id)}
+onClick={() => window.confirm("Are you sure you want to retry this settlement?") && handleRetry(settlement.id)}
                               disabled={actionLoading === settlement.id}
                               className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:opacity-50"
                             >
@@ -322,7 +322,7 @@ export default function AdminSettlementsPage() {
                           )}
                           {settlement.status === 'pending_approval' && (
                             <button
-                              onClick={() => handleApprove(settlement.id)}
+onClick={() => window.confirm("Are you sure you want to approve this settlement?") && handleApprove(settlement.id)}
                               disabled={actionLoading === settlement.id}
                               className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 disabled:opacity-50"
                             >
