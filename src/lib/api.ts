@@ -30,6 +30,8 @@ export const authApi = {
   register: (data: { email: string; password: string; businessName: string; country?: string }) =>
     api.post('/auth/register', data),
   login: (data: { email: string; password: string }) => api.post('/auth/login', data),
+  forgotPassword: (data: { email: string }) => api.post('/auth/forgot-password', data),
+  resetPassword: (data: { token: string; password: string }) => api.post('/auth/reset-password', data),
 };
 
 export const paymentsApi = {
