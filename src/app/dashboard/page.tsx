@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { TrendingUp, CreditCard, Banknote, Clock } from 'lucide-react';
 import { paymentsApi, settlementsApi } from '@/lib/api';
 import { formatUsd, formatDate, PAYMENT_STATUS_COLORS } from '@/lib/utils';
+import { Skeleton, SkeletonList } from '@/components/Skeleton';
 import { useAuthStore } from '@/lib/store';
 import type { Payment, PaymentStats } from '@/lib/types';
 
@@ -32,15 +33,16 @@ export default function DashboardPage() {
 
   const statMap = stats.reduce(
     (acc: Record<string, { count: number; total: number }>, s) => {
-      acc[s.status] = { count: parseInt(s.count), total: parseFloat(s.totalUsd ?? 0) };
+      acc[s.status] = { count: toSafeInt(s.count), total: parseFloat(String(s.totalUsd ?? 0)) };
       return acc;
     },
     {},
   );
 
-  const totalVolume = stats.reduce((acc, s) => acc + parseFloat(s.totalUsd ?? 0), 0);
+  const totalVolume = stats.reduce((acc, s) => acc + parseFloat(String(s.totalUsd ?? 0)), 0);
   const settledCount = statMap.settled?.count ?? 0;
   const pendingCount = statMap.pending?.count ?? 0;
+  const totalPayments = stats.reduce((acc, s) => acc + toSafeInt(s.count), 0);
 
   return (
     <div className="p-8">

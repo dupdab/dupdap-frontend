@@ -5,7 +5,8 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { authApi } from '@/lib/api';
-import { getErrorMessage } from '@/lib/utils';
+import { getErrorMessage } from '@/lib/errors';
+import { isAuthResponse } from '@/lib/types';
 import { useAuthStore } from '@/lib/store';
 import { COUNTRIES } from '@/lib/countries';
 
@@ -64,6 +65,10 @@ export default function RegisterPage() {
         businessName: form.businessName,
         country: form.country || undefined,
       });
+      if (!isAuthResponse(data)) {
+        toast.error('Invalid response from server. Please try again.');
+        return;
+      }
       setAuth(data.accessToken, data.merchant);
       router.push('/dashboard');
     } catch (err) {

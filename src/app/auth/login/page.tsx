@@ -5,10 +5,10 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { authApi } from '@/lib/api';
-import { getErrorMessage } from '@/lib/utils';
+import { getErrorMessage } from '@/lib/errors';
+import { isAuthResponse } from '@/lib/types';
 import { useAuthStore } from '@/lib/store';
 import { FormField } from '@/components/FormField';
-import { getErrorMessage } from '@/lib/errors';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -21,6 +21,10 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const { data } = await authApi.login(form);
+      if (!isAuthResponse(data)) {
+        toast.error('Invalid response from server. Please try again.');
+        return;
+      }
       setAuth(data.accessToken, data.merchant);
       router.push('/dashboard');
     } catch (err) {

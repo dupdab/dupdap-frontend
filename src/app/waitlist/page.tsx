@@ -8,11 +8,6 @@ import { waitlistApi } from '@/lib/api';
 import { FormField } from '@/components/FormField';
 import { getErrorMessage } from '@/lib/errors';
 
-export const metadata = {
-  title: 'Join the waitlist — DupDub',
-  description: 'Be first to access DupDub when we launch — join the waitlist today.',
-};
-
 export default function WaitlistPage() {
   const [form, setForm] = useState({ email: '', username: '', businessName: '', country: '' });
   const [loading, setLoading] = useState(false);

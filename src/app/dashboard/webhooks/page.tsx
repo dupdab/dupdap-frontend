@@ -4,8 +4,10 @@ import { useEffect, useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { webhooksApi } from '@/lib/api';
-import { WEBHOOK_EVENTS, formatDate } from '@/lib/utils';
+import { WEBHOOK_EVENTS, formatDate, getErrorMessage } from '@/lib/utils';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import Modal from '@/components/Modal';
+import type { Webhook } from '@/lib/types';
 
 export default function WebhooksPage() {
   const [webhooks, setWebhooks] = useState<Webhook[]>([]);

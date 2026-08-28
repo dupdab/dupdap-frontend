@@ -7,6 +7,8 @@ import { QRCodeSVG } from 'qrcode.react';
 import { paymentsApi } from '@/lib/api';
 import { formatUsd, formatDate, PAYMENT_STATUS_COLORS } from '@/lib/utils';
 import { FormField } from '@/components/FormField';
+import Modal from '@/components/Modal';
+import { SkeletonList } from '@/components/Skeleton';
 import { getErrorMessage } from '@/lib/errors';
 import type { Payment, PaymentListResponse } from '@/lib/types';
 
@@ -95,29 +97,20 @@ export default function PaymentsPage() {
       >
         <form onSubmit={createPayment} className="space-y-4">
           <fieldset disabled={creating} className="space-y-4">
-            <div>
-              <label className="label">Amount (USD)</label>
-              <input className="input" type="number" step="0.01" min="0.01" required value={form.amountUsd}
-                onChange={(e) => setForm({ ...form, amountUsd: e.target.value })} />
-            </div>
-            <form onSubmit={createPayment} className="space-y-4">
-              <fieldset disabled={creating} className="space-y-4">
-                <FormField label="Amount (USD)" type="number" step="0.01" min="0.01" required value={form.amountUsd}
-                  onChange={(e) => setForm({ ...form, amountUsd: e.target.value })} />
-                <FormField label="Description (optional)" type="text" required={false} value={form.description}
-                  onChange={(e) => setForm({ ...form, description: e.target.value })} />
-                <FormField label="Customer Email (optional)" type="email" required={false} value={form.customerEmail}
-                  onChange={(e) => setForm({ ...form, customerEmail: e.target.value })} />
-                <FormField label="Expires in (minutes)" type="number" min="5" max="1440" value={form.expiryMinutes}
-                  onChange={(e) => setForm({ ...form, expiryMinutes: e.target.value })} />
-                <button type="submit" disabled={creating} className="btn-primary w-full">
-                  {creating ? 'Creating...' : 'Create Payment'}
-                </button>
-              </fieldset>
-            </form>
-          </div>
-        </div>
-      )}
+            <FormField label="Amount (USD)" type="number" step="0.01" min="0.01" required value={form.amountUsd}
+              onChange={(e) => setForm({ ...form, amountUsd: e.target.value })} />
+            <FormField label="Description (optional)" type="text" required={false} value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })} />
+            <FormField label="Customer Email (optional)" type="email" required={false} value={form.customerEmail}
+              onChange={(e) => setForm({ ...form, customerEmail: e.target.value })} />
+            <FormField label="Expires in (minutes)" type="number" min="5" max="1440" value={form.expiryMinutes}
+              onChange={(e) => setForm({ ...form, expiryMinutes: e.target.value })} />
+            <button type="submit" disabled={creating} className="btn-primary w-full">
+              {creating ? 'Creating...' : 'Create Payment'}
+            </button>
+          </fieldset>
+        </form>
+      </Modal>
 
       {/* QR Modal */}
       <Modal
@@ -130,7 +123,7 @@ export default function PaymentsPage() {
         {selectedPayment && (
           <>
             <div className="bg-white p-4 rounded-lg inline-block mb-4">
-              <QRCodeSVG value={selectedPayment.qrCode ?? selectedPayment.stellarDepositAddress} size={200} />
+              <QRCodeSVG value={selectedPayment.qrCode ?? selectedPayment.stellarDepositAddress ?? ''} size={200} />
             </div>
             <p className="text-sm font-semibold mb-1">{formatUsd(selectedPayment.amountUsd)}</p>
             <p className="text-xs text-gray-500 mb-3">{selectedPayment.reference}</p>
