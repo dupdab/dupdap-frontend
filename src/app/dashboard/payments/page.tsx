@@ -10,6 +10,8 @@ import { FormField } from '@/components/FormField';
 import { getErrorMessage } from '@/lib/errors';
 import type { Payment, PaymentListResponse } from '@/lib/types';
 
+const PAYMENT_TABLE_COLUMNS = 5;
+
 export default function PaymentsPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [total, setTotal] = useState(0);
@@ -38,15 +40,21 @@ export default function PaymentsPage() {
     e.preventDefault();
     setCreating(true);
     try {
+      const amountUsd = parseFloat(form.amountUsd);
+      if (Number.isNaN(amountUsd) || amountUsd <= 0) {
+        toast.error('Enter a valid amount');
+        return;
+      }
       const { data } = await paymentsApi.create({
-        amountUsd: parseFloat(form.amountUsd),
+        amountUsd,
         description: form.description || undefined,
         customerEmail: form.customerEmail || undefined,
-        expiryMinutes: parseInt(form.expiryMinutes),
+        expiryMinutes: parseInt(form.expiryMinutes, 10),
       });
       setSelectedPayment(data);
       setShowCreate(false);
       setForm({ amountUsd: '', description: '', customerEmail: '', expiryMinutes: '30' });
+      setPage(1);
       load(1);
       toast.success('Payment created');
     } catch (err) {
@@ -182,9 +190,9 @@ export default function PaymentsPage() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading ? (
-                <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-400">Loading...</td></tr>
+                <tr><td colSpan={PAYMENT_TABLE_COLUMNS} className="px-6 py-8 text-center text-gray-400">Loading...</td></tr>
               ) : payments.length === 0 ? (
-                <tr><td colSpan={5} className="px-6 py-8 text-center text-gray-400">No payments yet</td></tr>
+                <tr><td colSpan={PAYMENT_TABLE_COLUMNS} className="px-6 py-8 text-center text-gray-400">No payments yet</td></tr>
               ) : (
                 payments.map((p) => (
                   <tr key={p.id} data-testid={`payment-row-${p.id}`} className="hover:bg-gray-50">
