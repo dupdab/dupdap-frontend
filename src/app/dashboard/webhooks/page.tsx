@@ -14,6 +14,7 @@ export default function WebhooksPage() {
   const [creating, setCreating] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [formError, setFormError] = useState('');
 
   const load = () => webhooksApi.list().then(({ data }) => setWebhooks(data));
 
@@ -21,7 +22,12 @@ export default function WebhooksPage() {
 
   const create = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (form.events.length === 0) return toast.error('Select at least one event');
+    if (form.events.length === 0) {
+      setFormError('Select at least one event');
+      toast.error('Select at least one event');
+      return;
+    }
+    setFormError('');
     setCreating(true);
     try {
       await webhooksApi.create(form);
@@ -30,7 +36,9 @@ export default function WebhooksPage() {
       setForm({ url: '', events: [] });
       load();
     } catch (err) {
-      toast.error(getErrorMessage(err, 'Failed to create webhook'));
+      const msg = getErrorMessage(err, 'Failed to create webhook');
+      setFormError(msg);
+      toast.error(msg);
     } finally {
       setCreating(false);
     }
@@ -60,6 +68,7 @@ export default function WebhooksPage() {
   const closeCreateModal = () => {
     setShowCreate(false);
     setForm({ url: '', events: [] });
+    setFormError('');
   };
 
   return (
@@ -76,28 +85,50 @@ export default function WebhooksPage() {
 
       <Modal
         open={showCreate}
-        onClose={() => setShowCreate(false)}
+        onClose={closeCreateModal}
         title="New Webhook"
         testId="create-webhook-modal"
       >
         <form onSubmit={create} className="space-y-4">
+          {formError && (
+            <p role="alert" className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">
+              {formError}
+            </p>
+          )}
           <fieldset disabled={creating} className="space-y-4">
             <div>
-              <label className="label">Endpoint URL</label>
-              <input className="input" type="url" required placeholder="https://your-server.com/webhook"
-                value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} />
+              <label htmlFor="webhook-url" className="label">Endpoint URL</label>
+              <input
+                id="webhook-url"
+                className="input"
+                type="url"
+                required
+                placeholder="https://your-server.com/webhook"
+                value={form.url}
+                onChange={(e) => setForm({ ...form, url: e.target.value })}
+              />
             </div>
-            <div>
-              <label className="label">Events</label>
+            <fieldset>
+              <legend className="label mb-1">Events</legend>
               <div className="space-y-2 mt-1">
-                {WEBHOOK_EVENTS.map((evt) => (
-                  <label key={evt} className="flex items-center gap-2 text-sm cursor-pointer">
-                    <input type="checkbox" checked={form.events.includes(evt)} onChange={() => toggleEvent(evt)} />
-                    <code className="text-xs">{evt}</code>
-                  </label>
-                ))}
+                {WEBHOOK_EVENTS.map((evt) => {
+                  const id = `webhook-event-${evt}`;
+                  return (
+                    <div key={evt} className="flex items-center gap-2">
+                      <input
+                        id={id}
+                        type="checkbox"
+                        checked={form.events.includes(evt)}
+                        onChange={() => toggleEvent(evt)}
+                      />
+                      <label htmlFor={id} className="text-sm cursor-pointer">
+                        <code className="text-xs">{evt}</code>
+                      </label>
+                    </div>
+                  );
+                })}
               </div>
-            </div>
+            </fieldset>
             <button data-testid="webhook-submit-button" type="submit" disabled={creating} className="btn-primary w-full">
               {creating ? 'Creating...' : 'Create Webhook'}
             </button>

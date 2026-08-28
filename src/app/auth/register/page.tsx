@@ -38,6 +38,7 @@ export default function RegisterPage() {
   const router = useRouter();
   const setAuth = useAuthStore((s) => s.setAuth);
   const [loading, setLoading] = useState(false);
+  const [formError, setFormError] = useState('');
   const [form, setForm] = useState({
     email: '',
     password: '',
@@ -56,6 +57,7 @@ export default function RegisterPage() {
     e.preventDefault();
     if (!passwordValid) return toast.error('Please meet the password requirements');
     if (!passwordsMatch) return toast.error('Passwords do not match');
+    setFormError('');
     setLoading(true);
     try {
       const { data } = await authApi.register({
@@ -67,7 +69,9 @@ export default function RegisterPage() {
       setAuth(data.accessToken, data.merchant);
       router.push('/dashboard');
     } catch (err) {
-      toast.error(getErrorMessage(err) ?? 'Registration failed');
+      const msg = getErrorMessage(err) ?? 'Registration failed';
+      setFormError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -103,6 +107,11 @@ export default function RegisterPage() {
         </div>
 
         <form onSubmit={submit} className="space-y-4">
+          {formError && (
+            <p role="alert" className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">
+              {formError}
+            </p>
+          )}
           <fieldset disabled={loading} className="space-y-4">
             {field('businessName', 'Business Name')}
             {field('email', 'Email', 'email')}

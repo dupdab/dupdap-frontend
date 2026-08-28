@@ -77,6 +77,24 @@ export default function AnalyticsPage() {
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>
+              {/* Visually-hidden data table — same data as chart for screen readers */}
+              <table className="sr-only">
+                <caption>Payment Count by Status</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Status</th>
+                    <th scope="col">Count</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pieData.map((row) => (
+                    <tr key={row.name}>
+                      <td>{row.name}</td>
+                      <td>{row.value}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
 
             <div className="card p-6">
@@ -89,6 +107,24 @@ export default function AnalyticsPage() {
                   <Bar dataKey="amount" fill="#eab308" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
+              {/* Visually-hidden data table — same data as chart for screen readers */}
+              <table className="sr-only">
+                <caption>Volume by Status (USD)</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Status</th>
+                    <th scope="col">Volume (USD)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pieData.map((row) => (
+                    <tr key={row.name}>
+                      <td>{row.name}</td>
+                      <td>{formatUsd(row.amount)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>

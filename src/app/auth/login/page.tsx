@@ -15,16 +15,20 @@ export default function LoginPage() {
   const setAuth = useAuthStore((s) => s.setAuth);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({ email: '', password: '' });
+  const [formError, setFormError] = useState('');
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError('');
     setLoading(true);
     try {
       const { data } = await authApi.login(form);
       setAuth(data.accessToken, data.merchant);
       router.push('/dashboard');
     } catch (err) {
-      toast.error(getErrorMessage(err) ?? 'Login failed');
+      const msg = getErrorMessage(err) ?? 'Login failed';
+      setFormError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -39,6 +43,11 @@ export default function LoginPage() {
         </div>
 
         <form onSubmit={submit} className="space-y-4">
+          {formError && (
+            <p role="alert" className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">
+              {formError}
+            </p>
+          )}
           <fieldset disabled={loading} className="space-y-4">
             <FormField label="Email" type="email" required value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })} />

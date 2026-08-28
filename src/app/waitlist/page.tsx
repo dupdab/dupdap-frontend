@@ -17,15 +17,19 @@ export default function WaitlistPage() {
   const [form, setForm] = useState({ email: '', username: '', businessName: '', country: '' });
   const [loading, setLoading] = useState(false);
   const [joined, setJoined] = useState(false);
+  const [formError, setFormError] = useState('');
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setFormError('');
     setLoading(true);
     try {
       await waitlistApi.join(form);
       setJoined(true);
     } catch (err) {
-      toast.error(getErrorMessage(err) ?? 'Failed to join waitlist');
+      const msg = getErrorMessage(err) ?? 'Failed to join waitlist';
+      setFormError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -48,6 +52,11 @@ export default function WaitlistPage() {
           </div>
         ) : (
           <form onSubmit={submit} className="space-y-4">
+            {formError && (
+              <p role="alert" className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">
+                {formError}
+              </p>
+            )}
             <fieldset disabled={loading} className="space-y-4">
               <FormField label="Email" type="email" required value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })} />

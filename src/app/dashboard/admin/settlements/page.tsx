@@ -125,44 +125,60 @@ export default function AdminSettlementsPage() {
       <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-gray-500" />
+            <Filter className="w-4 h-4 text-gray-500" aria-hidden="true" />
             <span className="text-sm font-medium text-gray-700">Filters:</span>
           </div>
-          
-          <select
-            value={filters.status}
-            onChange={(e) => setFilters({ ...filters, status: e.target.value })}
-            className="px-3 py-1 border border-gray-300 rounded-md text-sm"
-          >
-            <option value="">All Statuses</option>
-            <option value="pending">Pending</option>
-            <option value="pending_approval">Pending Approval</option>
-            <option value="processing">Processing</option>
-            <option value="completed">Completed</option>
-            <option value="failed">Failed</option>
-          </select>
 
-          <input
-            type="text"
-            placeholder="Merchant ID"
-            value={filters.merchantId}
-            onChange={(e) => setFilters({ ...filters, merchantId: e.target.value })}
-            className="px-3 py-1 border border-gray-300 rounded-md text-sm"
-          />
+          <div className="flex flex-col gap-0.5">
+            <label htmlFor="filter-status" className="sr-only">Status</label>
+            <select
+              id="filter-status"
+              value={filters.status}
+              onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+              className="px-3 py-1 border border-gray-300 rounded-md text-sm"
+            >
+              <option value="">All Statuses</option>
+              <option value="pending">Pending</option>
+              <option value="pending_approval">Pending Approval</option>
+              <option value="processing">Processing</option>
+              <option value="completed">Completed</option>
+              <option value="failed">Failed</option>
+            </select>
+          </div>
 
-          <input
-            type="date"
-            value={filters.startDate}
-            onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
-            className="px-3 py-1 border border-gray-300 rounded-md text-sm"
-          />
+          <div className="flex flex-col gap-0.5">
+            <label htmlFor="filter-merchant-id" className="sr-only">Merchant ID</label>
+            <input
+              id="filter-merchant-id"
+              type="text"
+              placeholder="Merchant ID"
+              value={filters.merchantId}
+              onChange={(e) => setFilters({ ...filters, merchantId: e.target.value })}
+              className="px-3 py-1 border border-gray-300 rounded-md text-sm"
+            />
+          </div>
 
-          <input
-            type="date"
-            value={filters.endDate}
-            onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
-            className="px-3 py-1 border border-gray-300 rounded-md text-sm"
-          />
+          <div className="flex flex-col gap-0.5">
+            <label htmlFor="filter-start-date" className="sr-only">Start Date</label>
+            <input
+              id="filter-start-date"
+              type="date"
+              value={filters.startDate}
+              onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
+              className="px-3 py-1 border border-gray-300 rounded-md text-sm"
+            />
+          </div>
+
+          <div className="flex flex-col gap-0.5">
+            <label htmlFor="filter-end-date" className="sr-only">End Date</label>
+            <input
+              id="filter-end-date"
+              type="date"
+              value={filters.endDate}
+              onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
+              className="px-3 py-1 border border-gray-300 rounded-md text-sm"
+            />
+          </div>
 
           <button
             onClick={() => setFilters({ status: '', merchantId: '', startDate: '', endDate: '' })}
