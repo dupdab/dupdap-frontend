@@ -1,11 +1,44 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { Plus, Trash2 } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { webhooksApi } from '@/lib/api';
 import { WEBHOOK_EVENTS, formatDate } from '@/lib/utils';
 import ConfirmDialog from '@/components/ConfirmDialog';
+
+// ---------------------------------------------------------------------------
+// Memoized row component — avoids re-rendering existing webhook cards when
+// the create modal opens/closes or the deletion confirmation dialog is shown.
+// ---------------------------------------------------------------------------
+
+interface WebhookRowProps {
+  webhook: Webhook;
+  onDelete: (id: string) => void;
+}
+
+const WebhookRow = memo(function WebhookRow({ webhook: w, onDelete }: WebhookRowProps) {
+  return (
+    <div key={w.id} data-testid={`webhook-row-${w.id}`} className="card p-5 flex items-start justify-between">
+      <div>
+        <p className="font-mono text-sm font-medium break-all">{w.url}</p>
+        <div className="flex flex-wrap gap-1 mt-2">
+          {w.events.map((e: string) => (
+            <span key={e} className="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded">{e}</span>
+          ))}
+        </div>
+        <p className="text-xs text-gray-400 mt-2">Created {formatDate(w.createdAt)}</p>
+      </div>
+      <button
+        data-testid={`delete-webhook-${w.id}`}
+        onClick={() => onDelete(w.id)}
+        className="text-red-400 hover:text-red-600 ml-4"
+      >
+        <Trash2 className="w-4 h-4" />
+      </button>
+    </div>
+  );
+});
 
 export default function WebhooksPage() {
   const [webhooks, setWebhooks] = useState<Webhook[]>([]);
@@ -110,24 +143,7 @@ export default function WebhooksPage() {
           <div className="card p-8 text-center text-gray-400 text-sm">No webhooks configured</div>
         ) : (
           webhooks.map((w) => (
-            <div key={w.id} data-testid={`webhook-row-${w.id}`} className="card p-5 flex items-start justify-between">
-              <div>
-                <p className="font-mono text-sm font-medium break-all">{w.url}</p>
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {w.events.map((e: string) => (
-                    <span key={e} className="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded">{e}</span>
-                  ))}
-                </div>
-                <p className="text-xs text-gray-400 mt-2">Created {formatDate(w.createdAt)}</p>
-              </div>
-              <button
-                data-testid={`delete-webhook-${w.id}`}
-                onClick={() => setDeletingId(w.id)}
-                className="text-red-400 hover:text-red-600 ml-4"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
+            <WebhookRow key={w.id} webhook={w} onDelete={setDeletingId} />
           ))
         )}
       </div>

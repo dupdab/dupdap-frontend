@@ -64,37 +64,73 @@ export default function AdminSettlementsPage() {
     startDate: '',
     endDate: '',
   });
+  // Separate input state so the text field stays responsive while the fetch
+  // is debounced — avoids a network round-trip on every keystroke.
+  const [merchantIdInput, setMerchantIdInput] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  const fetchSettlements = async () => {
-    try {
-      setLoading(true);
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: '20',
-        ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v)),
-      });
-
-      const response = await adminApi.listSettlements(params.toString());
-
-      setSettlements(response.data.data);
-      setTotal(response.data.total);
-    } catch (error) {
-      console.error('Failed to fetch settlements:', error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Debounce: only propagate the typed merchantId into filters after 400 ms of
+  // inactivity, preventing redundant in-flight requests while the user types.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setFilters((prev) => ({ ...prev, merchantId: merchantIdInput }));
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [merchantIdInput]);
 
   useEffect(() => {
-    if (token) fetchSettlements();
+    if (!token) return;
+
+    const controller = new AbortController();
+
+    const fetchSettlements = async () => {
+      try {
+        setLoading(true);
+        const params = new URLSearchParams({
+          page: page.toString(),
+          limit: '20',
+          ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v)),
+        });
+
+        const response = await adminApi.listSettlements(params.toString(), {
+          signal: controller.signal,
+        });
+
+        setSettlements(response.data.data);
+        setTotal(response.data.total);
+      } catch (error: any) {
+        // AbortError is expected when a newer request supersedes this one —
+        // don't log or update state for cancelled requests.
+        if (error?.name !== 'AbortError' && error?.code !== 'ERR_CANCELED') {
+          console.error('Failed to fetch settlements:', error);
+        }
+      } finally {
+        // Only clear the loading flag if this request was not aborted, so the
+        // spinner stays visible until the winning request completes.
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchSettlements();
+
+    // Abort any in-flight request when filters/page change or the component
+    // unmounts — prevents out-of-order response application.
+    return () => controller.abort();
   }, [token, page, filters]);
+
+  // Keep fetchSettlements accessible for retry/approve actions that need to
+  // manually refresh the list outside the main effect.
+  const refetch = () => {
+    setFilters((prev) => ({ ...prev }));
+  };
 
   const handleRetry = async (settlementId: string) => {
     try {
       setActionLoading(settlementId);
       await adminApi.retrySettlement(settlementId);
-      await fetchSettlements();
+      refetch();
     } catch (error) {
       console.error('Failed to retry settlement:', error);
     } finally {
@@ -106,7 +142,7 @@ export default function AdminSettlementsPage() {
     try {
       setActionLoading(settlementId);
       await adminApi.approveSettlement(settlementId);
-      await fetchSettlements();
+      refetch();
     } catch (error) {
       console.error('Failed to approve settlement:', error);
     } finally {
@@ -145,8 +181,8 @@ export default function AdminSettlementsPage() {
           <input
             type="text"
             placeholder="Merchant ID"
-            value={filters.merchantId}
-            onChange={(e) => setFilters({ ...filters, merchantId: e.target.value })}
+            value={merchantIdInput}
+            onChange={(e) => setMerchantIdInput(e.target.value)}
             className="px-3 py-1 border border-gray-300 rounded-md text-sm"
           />
 
@@ -165,7 +201,10 @@ export default function AdminSettlementsPage() {
           />
 
           <button
-            onClick={() => setFilters({ status: '', merchantId: '', startDate: '', endDate: '' })}
+            onClick={() => {
+              setMerchantIdInput('');
+              setFilters({ status: '', merchantId: '', startDate: '', endDate: '' });
+            }}
             className="px-3 py-1 text-sm text-gray-600 hover:text-gray-900"
           >
             Clear

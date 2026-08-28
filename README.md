@@ -55,6 +55,27 @@ The customer-facing payment flow here is built around Stellar, not a generic mul
 4. Frontend polls the backend for payment status (`GET /payments/:id/status`) until it's confirmed/settled
 5. Receipt view once settled
 
+### Images
+
+There are no `<img>` tags or image files in the codebase today — icons come from `lucide-react` and QR codes are rendered inline by `qrcode.react`. When the first real image is added (merchant logos, avatars, marketing assets), use Next.js's `next/image` component:
+
+```tsx
+import Image from 'next/image';
+
+// Local asset (placed in /public):
+<Image src="/logo.png" alt="Merchant logo" width={120} height={40} />
+
+// Remote asset — hostname must be allow-listed in next.config.js first:
+<Image src="https://cdn.example.com/avatar.jpg" alt="Avatar" width={48} height={48} />
+```
+
+Why `next/image` over a plain `<img>`:
+- Automatic format conversion (WebP/AVIF) and responsive `srcset` generation
+- Built-in lazy loading with a low-quality placeholder option
+- Prevents Cumulative Layout Shift via required `width`/`height` (or `fill` layout)
+
+**Adding a remote image domain:** edit the `remotePatterns` array in `next.config.js` — Next.js throws a hard error at build time for any remote hostname not explicitly listed there. The array is already wired up (currently empty); add an entry for each CDN or image host as you introduce it.
+
 ## Tech stack
 
 - **Framework**: Next.js 14 (App Router), React 18, TypeScript
