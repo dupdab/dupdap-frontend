@@ -83,7 +83,7 @@ export default function AdminSettlementsPage() {
       });
 
       const response = await api.get<SettlementsResponse>(
-        `/api/v1/admin/settlements?${params}`,
+        `/admin/settlements?${params}`,
         { headers: { Authorization: `Bearer ${token}` } }
       );
 
@@ -104,7 +104,7 @@ export default function AdminSettlementsPage() {
     try {
       setActionLoading(settlementId);
       await api.post(
-        `/api/v1/admin/settlements/${settlementId}/retry`,
+        `/admin/settlements/${settlementId}/retry`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
@@ -120,7 +120,7 @@ export default function AdminSettlementsPage() {
     try {
       setActionLoading(settlementId);
       await api.post(
-        `/api/v1/admin/settlements/${settlementId}/approve`,
+        `/admin/settlements/${settlementId}/approve`,
         {},
         { headers: { Authorization: `Bearer ${token}` } }
       );
