@@ -37,8 +37,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {
-    if (!token) router.push('/auth/login');
-  }, [token, router]);
+    if (!token) {
+      const next = pathname ? `?next=${encodeURIComponent(pathname)}` : '';
+      router.push(`/auth/login${next}`);
+    }
+  }, [token, router, pathname]);
 
   useEffect(() => {
     setMobileNavOpen(false);

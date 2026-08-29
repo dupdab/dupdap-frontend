@@ -64,6 +64,7 @@ export const merchantApi = {
 export const webhooksApi = {
   list: () => api.get<Webhook[]>('/webhooks'),
   create: (data: { url: string; events: string[]; secret?: string }) => api.post<Webhook>('/webhooks', data),
+  rotateSecret: (id: string) => api.post<Webhook>(`/webhooks/${id}/rotate-secret`, {}),
   remove: (id: string) => api.delete(`/webhooks/${id}`),
 };
 
