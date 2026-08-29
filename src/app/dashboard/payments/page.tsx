@@ -160,7 +160,7 @@ export default function PaymentsPage() {
               <p className="text-xs text-gray-500 mb-1">Stellar Memo (required)</p>
               <div className="flex items-center gap-2">
                 <code className="text-sm font-mono font-bold flex-1">{selectedPayment.stellarMemo}</code>
-                <button onClick={() => copyMemo(selectedPayment.stellarMemo)}>
+                <button onClick={() => copyMemo(selectedPayment.stellarMemo)} aria-label="Copy memo">
                   {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4 text-gray-400" />}
                 </button>
               </div>
