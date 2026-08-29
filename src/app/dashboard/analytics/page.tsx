@@ -1,12 +1,26 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+import dynamic from 'next/dynamic';
 import { paymentsApi } from '@/lib/api';
 import { formatUsd } from '@/lib/utils';
 import type { PaymentStats } from '@/lib/types';
 
-const COLORS = ['#eab308', '#22c55e', '#3b82f6', '#a855f7', '#ef4444', '#6b7280'];
+// Recharts is a large library only used on this page. Wrapping the chart
+// components with next/dynamic (ssr: false) does two things:
+//   1. Excludes recharts from the SSR pass (it references browser-only APIs).
+//   2. Ensures the recharts bundle is code-split into a lazy chunk that is
+//      only fetched when a merchant actually visits /dashboard/analytics —
+//      merchants who never open analytics never download it.
+const StatusPieChart = dynamic(() => import('./StatusPieChart'), {
+  ssr: false,
+  loading: () => <div className="h-[250px] flex items-center justify-center text-sm text-gray-400">Loading chart…</div>,
+});
+
+const VolumeBarChart = dynamic(() => import('./VolumeBarChart'), {
+  ssr: false,
+  loading: () => <div className="h-[250px] flex items-center justify-center text-sm text-gray-400">Loading chart…</div>,
+});
 
 export default function AnalyticsPage() {
   const [stats, setStats] = useState<PaymentStats[]>([]);
@@ -25,12 +39,12 @@ export default function AnalyticsPage() {
 
   const pieData = stats.map((s) => ({
     name: s.status,
-    value: parseInt(s.count),
-    amount: parseFloat(s.totalUsd ?? 0),
+    value: parseInt(String(s.count), 10),
+    amount: parseFloat(String(s.totalUsd ?? 0)),
   }));
 
-  const totalVolume = stats.reduce((acc, s) => acc + parseFloat(s.totalUsd ?? 0), 0);
-  const totalCount = stats.reduce((acc, s) => acc + parseInt(s.count), 0);
+  const totalVolume = stats.reduce((acc, s) => acc + parseFloat(String(s.totalUsd ?? 0)), 0);
+  const totalCount = stats.reduce((acc, s) => acc + parseInt(String(s.count), 10), 0);
 
   return (
     <div className="p-8">
@@ -77,6 +91,24 @@ export default function AnalyticsPage() {
                   <Legend />
                 </PieChart>
               </ResponsiveContainer>
+              {/* Visually-hidden data table — same data as chart for screen readers */}
+              <table className="sr-only">
+                <caption>Payment Count by Status</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Status</th>
+                    <th scope="col">Count</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pieData.map((row) => (
+                    <tr key={row.name}>
+                      <td>{row.name}</td>
+                      <td>{row.value}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
 
             <div className="card p-6">
@@ -89,6 +121,24 @@ export default function AnalyticsPage() {
                   <Bar dataKey="amount" fill="#eab308" radius={[4, 4, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
+              {/* Visually-hidden data table — same data as chart for screen readers */}
+              <table className="sr-only">
+                <caption>Volume by Status (USD)</caption>
+                <thead>
+                  <tr>
+                    <th scope="col">Status</th>
+                    <th scope="col">Volume (USD)</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pieData.map((row) => (
+                    <tr key={row.name}>
+                      <td>{row.name}</td>
+                      <td>{formatUsd(row.amount)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         </div>

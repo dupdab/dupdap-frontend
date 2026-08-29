@@ -1,12 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-
-interface Merchant {
-  id: string;
-  email: string;
-  businessName: string;
-  status: string;
-}
+import type { Merchant } from './types';
 
 interface AuthState {
   token: string | null;
@@ -18,6 +12,20 @@ interface AuthState {
   _setHasHydrated: (value: boolean) => void;
 }
 
+const LEGACY_TOKEN_KEY = 'access_token';
+
+/** Remove the legacy duplicate key written before #143 unified auth storage. */
+export function clearLegacyAccessTokenKey() {
+  if (typeof window !== 'undefined') {
+    localStorage.removeItem(LEGACY_TOKEN_KEY);
+  }
+}
+
+/**
+ * Auth token is persisted via Zustand (`dupdub-auth` key) as the single source of truth.
+ * SECURITY (#142): tokens in localStorage remain readable to any XSS payload. The
+ * recommended long-term fix is an httpOnly, SameSite=Strict cookie issued by the backend.
+ */
 export const useAuthStore = create<AuthState>()(
   persist(
     (set) => ({
@@ -25,24 +33,15 @@ export const useAuthStore = create<AuthState>()(
       merchant: null,
       hasHydrated: false,
       setAuth: (token, merchant) => {
-        // Single write path: persist middleware will sync the 'dupdub-auth' key.
-        // No duplicate localStorage.setItem — consumers that need the raw token
-        // should read it from the store, not from a separate 'access_token' key.
+        clearLegacyAccessTokenKey();
         set({ token, merchant });
       },
       logout: () => {
-        // Single write path: clearing state triggers persist to overwrite the key.
+        clearLegacyAccessTokenKey();
         set({ token: null, merchant: null });
       },
       _setHasHydrated: (value) => set({ hasHydrated: value }),
     }),
-    {
-      name: 'dupdub-auth',
-      onRehydrateStorage: () => (state) => {
-        // Mark hydration complete so the dashboard layout can safely evaluate
-        // the auth guard without racing against the async localStorage read.
-        state?._setHasHydrated(true);
-      },
-    },
+    { name: 'dupdub-auth', onRehydrateStorage: () => () => clearLegacyAccessTokenKey() },
   ),
 );

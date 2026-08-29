@@ -41,10 +41,18 @@ The customer-facing payment flow here is built around Stellar, not a generic mul
 ### State & data flow
 
 - **`src/lib/api.ts`** — a single Axios instance (`NEXT_PUBLIC_API_URL`, default `http://localhost:3000/api/v1`) with:
-  - a request interceptor that attaches `Authorization: Bearer <token>` from `localStorage`
-  - a response interceptor that clears the token and redirects to `/auth/login` on `401`
+  - a request interceptor that attaches `Authorization: Bearer <token>` from the Zustand auth store (single source of truth)
+  - a response interceptor that calls `logout()` on the auth store and redirects to `/auth/login` on `401`
   - grouped API helpers (`authApi`, `paymentsApi`, …) rather than ad-hoc fetches scattered through components
 - **`src/lib/store.ts`** — Zustand + `persist` for auth state (`token`, `merchant`), persisted to `localStorage` under the `dupdub-auth` key. This is the only global client state; everything else (payment lists, analytics, etc.) is fetched per-page through `api.ts`.
+
+### Auth token security
+
+The access token is persisted in `localStorage` via Zustand. Any XSS vector can read it synchronously. Mitigations in this repo:
+
+- **Single storage key** — the Axios client reads from `useAuthStore`, not a duplicate `access_token` key, so 401 logout and UI auth state stay in sync.
+- **CSP headers** — `next.config.js` sets a restrictive Content-Security-Policy (plus `X-Frame-Options`, `Referrer-Policy`) to reduce XSS blast radius.
+- **Recommended long-term fix** — move to an `httpOnly`, `SameSite=Strict` session cookie issued by `dupdap-backend`, with the frontend never handling the raw JWT.
 - **`src/lib/utils.ts`** — shared formatting/className helpers (`clsx` + `tailwind-merge`).
 
 ### Customer payment flow (`/pay/[paymentId]`)
@@ -54,6 +62,27 @@ The customer-facing payment flow here is built around Stellar, not a generic mul
 3. Customer confirms/signs in their own wallet — the app never touches a private key
 4. Frontend polls the backend for payment status (`GET /payments/:id/status`) until it's confirmed/settled
 5. Receipt view once settled
+
+### Images
+
+There are no `<img>` tags or image files in the codebase today — icons come from `lucide-react` and QR codes are rendered inline by `qrcode.react`. When the first real image is added (merchant logos, avatars, marketing assets), use Next.js's `next/image` component:
+
+```tsx
+import Image from 'next/image';
+
+// Local asset (placed in /public):
+<Image src="/logo.png" alt="Merchant logo" width={120} height={40} />
+
+// Remote asset — hostname must be allow-listed in next.config.js first:
+<Image src="https://cdn.example.com/avatar.jpg" alt="Avatar" width={48} height={48} />
+```
+
+Why `next/image` over a plain `<img>`:
+- Automatic format conversion (WebP/AVIF) and responsive `srcset` generation
+- Built-in lazy loading with a low-quality placeholder option
+- Prevents Cumulative Layout Shift via required `width`/`height` (or `fill` layout)
+
+**Adding a remote image domain:** edit the `remotePatterns` array in `next.config.js` — Next.js throws a hard error at build time for any remote hostname not explicitly listed there. The array is already wired up (currently empty); add an entry for each CDN or image host as you introduce it.
 
 ## Tech stack
 

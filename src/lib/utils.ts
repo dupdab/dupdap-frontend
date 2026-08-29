@@ -17,14 +17,17 @@ export function getErrorMessage(err: unknown, fallback: string): string {
   return fallback;
 }
 
-export function formatDate(date: string | Date): string {
+export function formatDate(date: string | Date | undefined | null): string {
+  if (!date) return '—';
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return '—';
   return new Intl.DateTimeFormat('en-US', {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-  }).format(new Date(date));
+  }).format(d);
 }
 
 import {
@@ -67,6 +70,8 @@ export const STATUS_ICONS: Record<string, LucideIcon> = {
 
 /** @deprecated use STATUS_COLORS */
 export const PAYMENT_STATUS_COLORS = STATUS_COLORS;
+
+export const DEFAULT_STATUS_COLOR = 'bg-gray-100 text-gray-600';
 
 export const WEBHOOK_EVENTS = [
   'payment.created',
