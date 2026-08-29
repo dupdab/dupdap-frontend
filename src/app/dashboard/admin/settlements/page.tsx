@@ -67,6 +67,9 @@ export default function AdminSettlementsPage() {
     startDate: '',
     endDate: '',
   });
+  // Separate input state so the text field stays responsive while the fetch
+  // is debounced — avoids a network round-trip on every keystroke.
+  const [merchantIdInput, setMerchantIdInput] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   useEffect(() => {
@@ -101,7 +104,8 @@ export default function AdminSettlementsPage() {
         ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v)),
       });
 
-      const response = await adminApi.listSettlements(params.toString());
+  useEffect(() => {
+    if (!token) return;
 
       setSettlements(response.data.data);
       setTotal(response.data.total);
@@ -116,11 +120,17 @@ export default function AdminSettlementsPage() {
     if (token) fetchSettlements();
   }, [token, fetchSettlements]);
 
+  // Keep fetchSettlements accessible for retry/approve actions that need to
+  // manually refresh the list outside the main effect.
+  const refetch = () => {
+    setFilters((prev) => ({ ...prev }));
+  };
+
   const handleRetry = async (settlementId: string) => {
     try {
       setActionLoading(settlementId);
       await adminApi.retrySettlement(settlementId);
-      await fetchSettlements();
+      refetch();
     } catch (error) {
       toast.error(getErrorMessage(error) ?? 'Failed to retry settlement');
     } finally {
@@ -132,7 +142,7 @@ export default function AdminSettlementsPage() {
     try {
       setActionLoading(settlementId);
       await adminApi.approveSettlement(settlementId);
-      await fetchSettlements();
+      refetch();
     } catch (error) {
       toast.error(getErrorMessage(error) ?? 'Failed to approve settlement');
     } finally {

@@ -92,6 +92,39 @@ function WebhookSecretRow({ webhook, onRotated }: { webhook: Webhook; onRotated:
   );
 }
 
+// ---------------------------------------------------------------------------
+// Memoized row component — avoids re-rendering existing webhook cards when
+// the create modal opens/closes or the deletion confirmation dialog is shown.
+// ---------------------------------------------------------------------------
+
+interface WebhookRowProps {
+  webhook: Webhook;
+  onDelete: (id: string) => void;
+}
+
+const WebhookRow = memo(function WebhookRow({ webhook: w, onDelete }: WebhookRowProps) {
+  return (
+    <div key={w.id} data-testid={`webhook-row-${w.id}`} className="card p-5 flex items-start justify-between">
+      <div>
+        <p className="font-mono text-sm font-medium break-all">{w.url}</p>
+        <div className="flex flex-wrap gap-1 mt-2">
+          {w.events.map((e: string) => (
+            <span key={e} className="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded">{e}</span>
+          ))}
+        </div>
+        <p className="text-xs text-gray-400 mt-2">Created {formatDate(w.createdAt)}</p>
+      </div>
+      <button
+        data-testid={`delete-webhook-${w.id}`}
+        onClick={() => onDelete(w.id)}
+        className="text-red-400 hover:text-red-600 ml-4"
+      >
+        <Trash2 className="w-4 h-4" />
+      </button>
+    </div>
+  );
+});
+
 export default function WebhooksPage() {
   const [webhooks, setWebhooks] = useState<Webhook[]>([]);
   const [showCreate, setShowCreate] = useState(false);

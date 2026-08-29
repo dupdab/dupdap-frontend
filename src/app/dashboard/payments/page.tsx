@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { Plus, Copy, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { QRCodeSVG } from 'qrcode.react';
@@ -15,6 +15,68 @@ import { SkeletonList } from '@/components/Skeleton';
 import type { Payment } from '@/lib/types';
 
 const PAYMENT_TABLE_COLUMNS = 5;
+
+// ---------------------------------------------------------------------------
+// Memoized row components — re-render only when the payment data or the
+// callback reference changes, not on modal open/close or filter typing in
+// the parent.
+// ---------------------------------------------------------------------------
+
+interface PaymentRowProps {
+  payment: Payment;
+  onShowQr: (payment: Payment) => void;
+}
+
+/** Desktop table row */
+const PaymentTableRow = memo(function PaymentTableRow({ payment: p, onShowQr }: PaymentRowProps) {
+  return (
+    <tr key={p.id} data-testid={`payment-row-${p.id}`} className="hover:bg-gray-50">
+      <td className="px-6 py-4 font-mono text-xs">{p.reference}</td>
+      <td className="px-6 py-4 font-semibold">{formatUsd(p.amountUsd)}</td>
+      <td className="px-6 py-4">
+        <span
+          data-testid="payment-status-badge"
+          className={`text-xs px-2 py-0.5 rounded-full font-medium ${PAYMENT_STATUS_COLORS[p.status]}`}
+        >
+          {p.status}
+        </span>
+      </td>
+      <td className="px-6 py-4 text-gray-500">{formatDate(p.createdAt)}</td>
+      <td className="px-6 py-4">
+        {p.status === 'pending' && (
+          <button
+            data-testid={`show-qr-button-${p.id}`}
+            onClick={() => onShowQr(p)}
+            className="text-brand-600 text-xs hover:underline"
+          >
+            Show QR
+          </button>
+        )}
+      </td>
+    </tr>
+  );
+});
+
+/** Mobile card */
+const PaymentMobileCard = memo(function PaymentMobileCard({ payment: p, onShowQr }: PaymentRowProps) {
+  return (
+    <div key={p.id} className="px-6 py-4 space-y-1">
+      <div className="flex items-center justify-between">
+        <span className="font-mono text-xs text-gray-500">{p.reference}</span>
+        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${PAYMENT_STATUS_COLORS[p.status]}`}>
+          {p.status}
+        </span>
+      </div>
+      <div className="font-semibold">{formatUsd(p.amountUsd)}</div>
+      <div className="text-xs text-gray-500">{formatDate(p.createdAt)}</div>
+      {p.status === 'pending' && (
+        <button onClick={() => onShowQr(p)} className="text-brand-600 text-xs hover:underline">
+          Show QR
+        </button>
+      )}
+    </div>
+  );
+});
 
 export default function PaymentsPage() {
   const [payments, setPayments] = useState<Payment[]>([]);

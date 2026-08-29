@@ -1,12 +1,26 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from 'recharts';
+import dynamic from 'next/dynamic';
 import { paymentsApi } from '@/lib/api';
 import { formatUsd } from '@/lib/utils';
 import type { PaymentStats } from '@/lib/types';
 
-const COLORS = ['#eab308', '#22c55e', '#3b82f6', '#a855f7', '#ef4444', '#6b7280'];
+// Recharts is a large library only used on this page. Wrapping the chart
+// components with next/dynamic (ssr: false) does two things:
+//   1. Excludes recharts from the SSR pass (it references browser-only APIs).
+//   2. Ensures the recharts bundle is code-split into a lazy chunk that is
+//      only fetched when a merchant actually visits /dashboard/analytics —
+//      merchants who never open analytics never download it.
+const StatusPieChart = dynamic(() => import('./StatusPieChart'), {
+  ssr: false,
+  loading: () => <div className="h-[250px] flex items-center justify-center text-sm text-gray-400">Loading chart…</div>,
+});
+
+const VolumeBarChart = dynamic(() => import('./VolumeBarChart'), {
+  ssr: false,
+  loading: () => <div className="h-[250px] flex items-center justify-center text-sm text-gray-400">Loading chart…</div>,
+});
 
 export default function AnalyticsPage() {
   const [stats, setStats] = useState<PaymentStats[]>([]);
