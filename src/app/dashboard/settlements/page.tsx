@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { settlementsApi } from '@/lib/api';
-import { formatUsd, formatDate, STATUS_COLORS } from '@/lib/utils';
+import { formatUsd, formatDate, STATUS_COLORS, STATUS_ICONS } from '@/lib/utils';
 import type { Settlement } from '@/lib/types';
 
 export default function SettlementsPage() {
@@ -45,9 +45,12 @@ export default function SettlementsPage() {
                   <Link href={`/dashboard/settlements/${s.id}`} className="font-mono text-xs text-gray-500 hover:text-brand-700 hover:underline">
                     {s.id.slice(0, 8)}...
                   </Link>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[s.status]}`}>
-                    {s.status}
-                  </span>
+                  {(() => { const Icon = STATUS_ICONS[s.status]; return (
+                    <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[s.status]}`}>
+                      {Icon && <Icon className="w-3 h-3" aria-hidden="true" />}
+                      {s.status}
+                    </span>
+                  ); })()}
                 </div>
                 <div className="font-semibold text-green-700">{formatUsd(s.netAmountUsd)}</div>
                 <div className="text-xs text-gray-500">
@@ -88,9 +91,12 @@ export default function SettlementsPage() {
                     <td className="px-6 py-4 text-red-600">-{formatUsd(s.feeAmountUsd)}</td>
                     <td className="px-6 py-4 font-semibold text-green-700">{formatUsd(s.netAmountUsd)}</td>
                     <td className="px-6 py-4">
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[s.status]}`}>
-                        {s.status}
-                      </span>
+                      {(() => { const Icon = STATUS_ICONS[s.status]; return (
+                        <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[s.status]}`}>
+                          {Icon && <Icon className="w-3 h-3" aria-hidden="true" />}
+                          {s.status}
+                        </span>
+                      ); })()}
                     </td>
                     <td className="px-6 py-4 text-gray-500">{formatDate(s.createdAt)}</td>
                   </tr>

@@ -11,7 +11,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import api from '@/lib/api';
-import { STATUS_COLORS } from '@/lib/utils';
+import { STATUS_COLORS, STATUS_ICONS } from '@/lib/utils';
 
 interface Settlement {
   id: string;
@@ -44,13 +44,7 @@ interface SettlementsResponse {
   totalPages: number;
 }
 
-const statusIcons = {
-  pending: Clock,
-  pending_approval: AlertCircle,
-  processing: RefreshCw,
-  completed: CheckCircle,
-  failed: AlertCircle,
-};
+const statusIcons = STATUS_ICONS;
 
 export default function AdminSettlementsPage() {
   const { token } = useAuthStore();

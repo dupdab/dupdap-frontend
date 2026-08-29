@@ -31,18 +31,30 @@ const navItems = [
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
-  const { merchant, token, logout } = useAuthStore();
+  const { merchant, token, logout, hasHydrated } = useAuthStore();
   const router = useRouter();
   const pathname = usePathname();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {
-    if (!token) router.push('/auth/login');
-  }, [token, router]);
+    // Only redirect once the persist middleware has finished reading localStorage.
+    // Redirecting before hydration would log out a valid session on every hard refresh.
+    if (hasHydrated && !token) router.push('/auth/login');
+  }, [hasHydrated, token, router]);
 
   useEffect(() => {
     setMobileNavOpen(false);
   }, [pathname]);
+
+  // Show a neutral loading state while Zustand rehydrates from localStorage.
+  // This prevents both the blank-page flash and the premature redirect.
+  if (!hasHydrated) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50" aria-busy="true" aria-label="Loading">
+        <div className="w-8 h-8 rounded-full border-4 border-brand-200 border-t-brand-600 animate-spin" />
+      </div>
+    );
+  }
 
   if (!merchant) return null;
 
