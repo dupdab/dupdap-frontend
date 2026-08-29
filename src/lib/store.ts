@@ -5,8 +5,11 @@ import type { Merchant } from './types';
 interface AuthState {
   token: string | null;
   merchant: Merchant | null;
+  /** True once Zustand's persist middleware has finished rehydrating from localStorage. */
+  hasHydrated: boolean;
   setAuth: (token: string, merchant: Merchant) => void;
   logout: () => void;
+  _setHasHydrated: (value: boolean) => void;
 }
 
 const LEGACY_TOKEN_KEY = 'access_token';
@@ -28,6 +31,7 @@ export const useAuthStore = create<AuthState>()(
     (set) => ({
       token: null,
       merchant: null,
+      hasHydrated: false,
       setAuth: (token, merchant) => {
         clearLegacyAccessTokenKey();
         set({ token, merchant });
@@ -36,6 +40,7 @@ export const useAuthStore = create<AuthState>()(
         clearLegacyAccessTokenKey();
         set({ token: null, merchant: null });
       },
+      _setHasHydrated: (value) => set({ hasHydrated: value }),
     }),
     { name: 'dupdub-auth', onRehydrateStorage: () => () => clearLegacyAccessTokenKey() },
   ),

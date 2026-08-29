@@ -30,6 +30,16 @@ export function formatDate(date: string | Date | undefined | null): string {
   }).format(d);
 }
 
+import {
+  Clock,
+  AlertCircle,
+  CheckCircle,
+  RefreshCw,
+  XCircle,
+  HelpCircle,
+  type LucideIcon,
+} from 'lucide-react';
+
 export const STATUS_COLORS: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-800',
   pending_approval: 'bg-orange-100 text-orange-800',
@@ -40,6 +50,22 @@ export const STATUS_COLORS: Record<string, string> = {
   completed: 'bg-green-100 text-green-800',
   failed: 'bg-red-100 text-red-800',
   expired: 'bg-gray-100 text-gray-800',
+};
+
+/**
+ * Distinguishing icon per status so that state is never conveyed by color alone.
+ * Use alongside STATUS_COLORS in badge/pill elements to meet WCAG 1.4.1 (Use of Color).
+ */
+export const STATUS_ICONS: Record<string, LucideIcon> = {
+  pending: Clock,
+  pending_approval: AlertCircle,
+  confirmed: CheckCircle,
+  processing: RefreshCw,
+  settling: RefreshCw,
+  settled: CheckCircle,
+  completed: CheckCircle,
+  failed: XCircle,
+  expired: HelpCircle,
 };
 
 /** @deprecated use STATUS_COLORS */

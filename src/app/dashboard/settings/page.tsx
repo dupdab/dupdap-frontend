@@ -172,7 +172,7 @@ export default function SettingsPage() {
             { value: 'settlements:read', label: 'Settlements: read' },
             { value: 'webhooks:manage', label: 'Webhooks: manage' },
           ].map(({ value, label }) => (
-            <label key={value} className="flex items-center gap-2 mb-2 block text-sm text-gray-700">
+            <label key={value} className="flex items-center gap-2 mb-2 text-sm text-gray-700">
               <input
                 type="checkbox"
                 className="form-checkbox"
