@@ -10,8 +10,9 @@ import {
   ExternalLink 
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
-import api from '@/lib/api';
-import { STATUS_COLORS } from '@/lib/utils';
+import { adminApi } from '@/lib/api';
+import { formatUsd, formatDate, STATUS_COLORS } from '@/lib/utils';
+import { SkeletonList, SkeletonTableRows } from '@/components/Skeleton';
 
 interface Settlement {
   id: string;
