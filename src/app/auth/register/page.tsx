@@ -86,6 +86,7 @@ export default function RegisterPage() {
         className="input"
         type={type}
         required={required}
+        autoComplete={autoComplete}
         value={form[key]}
         onChange={(e) => setForm({ ...form, [key]: e.target.value })}
       />
@@ -114,8 +115,8 @@ export default function RegisterPage() {
             {loading ? 'Creating account, please wait…' : ''}
           </p>
           <fieldset disabled={loading} className="space-y-4">
-            {field('businessName', 'Business Name')}
-            {field('email', 'Email', 'email')}
+            {field('businessName', 'Business Name', 'text', true, 'organization')}
+            {field('email', 'Email', 'email', true, 'email')}
 
             <div>
               <label htmlFor="password" className="label">Password</label>
@@ -124,6 +125,7 @@ export default function RegisterPage() {
                 className="input"
                 type="password"
                 required
+                autoComplete="new-password"
                 value={form.password}
                 onChange={(e) => setForm({ ...form, password: e.target.value })}
               />
@@ -164,6 +166,7 @@ export default function RegisterPage() {
                 className={`input ${form.confirmPassword.length > 0 && !passwordsMatch ? 'border-red-400 focus:ring-red-400' : ''}`}
                 type="password"
                 required
+                autoComplete="new-password"
                 value={form.confirmPassword}
                 onChange={(e) => setForm({ ...form, confirmPassword: e.target.value })}
               />

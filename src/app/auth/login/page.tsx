@@ -13,10 +13,16 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const setAuth = useAuthStore((s) => s.setAuth);
   const [loading, setLoading] = useState(false);
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [rateLimited, setRateLimited] = useState(false);
+  const [rateLimitMessage, setRateLimitMessage] = useState<string | null>(null);
   const [form, setForm] = useState({ email: '', password: '' });
+
+  const showCaptcha = failedAttempts >= CAPTCHA_THRESHOLD;
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (rateLimited) return;
     setLoading(true);
     try {
       const { data } = await authApi.login(form);
@@ -28,7 +34,15 @@ function LoginForm() {
       const next = searchParams.get('next');
       router.push(next && next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard');
     } catch (err) {
-      toast.error(getErrorMessage(err) ?? 'Login failed');
+      if (err instanceof AxiosError && err.response?.status === 429) {
+        const message = getRateLimitMessage(err);
+        setRateLimited(true);
+        setRateLimitMessage(message);
+        toast.error(message);
+      } else {
+        setFailedAttempts((count) => count + 1);
+        toast.error(getErrorMessage(err) ?? 'Login failed');
+      }
     } finally {
       setLoading(false);
     }
