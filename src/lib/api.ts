@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { getApiUrl } from './env';
+import { useAuthStore } from './store';
 import type {
   AuthResponse,
   Merchant,
@@ -16,10 +16,8 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  if (typeof window !== 'undefined') {
-    const token = localStorage.getItem('access_token');
-    if (token) config.headers.Authorization = `Bearer ${token}`;
-  }
+  const token = useAuthStore.getState().token;
+  if (token) config.headers.Authorization = `Bearer ${token}`;
   return config;
 });
 
@@ -27,7 +25,7 @@ api.interceptors.response.use(
   (res) => res,
   (err) => {
     if (err.response?.status === 401 && typeof window !== 'undefined') {
-      localStorage.removeItem('access_token');
+      useAuthStore.getState().logout();
       window.location.href = '/auth/login';
     }
     return Promise.reject(err);
@@ -66,6 +64,7 @@ export const merchantApi = {
 export const webhooksApi = {
   list: () => api.get<Webhook[]>('/webhooks'),
   create: (data: { url: string; events: string[]; secret?: string }) => api.post<Webhook>('/webhooks', data),
+  rotateSecret: (id: string) => api.post<Webhook>(`/webhooks/${id}/rotate-secret`, {}),
   remove: (id: string) => api.delete(`/webhooks/${id}`),
 };
 
