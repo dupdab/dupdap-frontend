@@ -1,31 +1,60 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
-import { CheckCircle } from 'lucide-react';
+import { CheckCircle, Loader2, XCircle } from 'lucide-react';
 import { waitlistApi } from '@/lib/api';
 import { FormField } from '@/components/FormField';
 import { getErrorMessage } from '@/lib/errors';
 
-export const metadata = {
-  title: 'Join the waitlist — DupDub',
-  description: 'Be first to access DupDub when we launch — join the waitlist today.',
-};
+type UsernameStatus = 'idle' | 'checking' | 'available' | 'taken' | 'error';
 
 export default function WaitlistPage() {
   const [form, setForm] = useState({ email: '', username: '', businessName: '', country: '' });
   const [loading, setLoading] = useState(false);
   const [joined, setJoined] = useState(false);
+  const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>('idle');
+
+  // Debounced live availability check for the optional username field.
+  useEffect(() => {
+    const username = form.username.trim();
+    if (!username) {
+      setUsernameStatus('idle');
+      return;
+    }
+    setUsernameStatus('checking');
+    const handle = setTimeout(async () => {
+      try {
+        const { data } = await waitlistApi.checkUsername(username);
+        // Tolerate a few common response shapes: { available }, { taken }, { exists }.
+        let available: boolean;
+        if (typeof data?.available === 'boolean') available = data.available;
+        else if (typeof data?.taken === 'boolean') available = !data.taken;
+        else if (typeof data?.exists === 'boolean') available = !data.exists;
+        else available = true;
+        setUsernameStatus(available ? 'available' : 'taken');
+      } catch {
+        setUsernameStatus('error');
+      }
+    }, 400);
+    return () => clearTimeout(handle);
+  }, [form.username]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (usernameStatus === 'taken') {
+      toast.error('That username is already taken');
+      return;
+    }
     setLoading(true);
     try {
       await waitlistApi.join(form);
       setJoined(true);
     } catch (err) {
-      toast.error(getErrorMessage(err) ?? 'Failed to join waitlist');
+      const msg = getErrorMessage(err) ?? 'Failed to join waitlist';
+      setFormError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -45,9 +74,29 @@ export default function WaitlistPage() {
             <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
             <h3 className="font-semibold text-lg">You&apos;re on the list!</h3>
             <p className="text-gray-500 text-sm mt-2">We&apos;ll reach out when your account is ready.</p>
+            <div className="mt-6 space-y-3">
+              <button
+                type="button"
+                onClick={() => {
+                  setForm({ email: '', username: '', businessName: '', country: '' });
+                  setUsernameStatus('idle');
+                  setJoined(false);
+                }}
+                className="btn-secondary w-full"
+              >
+                Add another signup
+              </button>
+              <Link href="/" className="block text-sm text-brand-600 font-medium hover:underline">
+                Back to home
+              </Link>
+            </div>
           </div>
         ) : (
-          <form onSubmit={submit} className="space-y-4">
+          <form onSubmit={submit} className="space-y-4" aria-busy={loading}>
+            {/* Visually-hidden live region announces submit outcomes to screen readers (#158) */}
+            <p className="sr-only" aria-live="polite" aria-atomic="true">
+              {loading ? 'Submitting, please wait…' : ''}
+            </p>
             <fieldset disabled={loading} className="space-y-4">
               <FormField label="Email" type="email" required value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })} />

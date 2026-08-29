@@ -6,11 +6,14 @@ export type PaymentStatus =
   | 'failed'
   | 'expired';
 
+export type MerchantRole = 'merchant' | 'admin' | 'staff';
+
 export interface Merchant {
   id: string;
   email: string;
   businessName: string;
   status: string;
+  role?: MerchantRole;
   country?: string;
   bankAccountNumber?: string;
   bankCode?: string;
@@ -21,6 +24,16 @@ export interface Merchant {
 export interface AuthResponse {
   accessToken: string;
   merchant: Merchant;
+}
+
+export function isAuthResponse(data: unknown): data is AuthResponse {
+  if (!data || typeof data !== 'object') return false;
+  const record = data as Record<string, unknown>;
+  if (typeof record.accessToken !== 'string' || !record.accessToken) return false;
+  const merchant = record.merchant;
+  if (!merchant || typeof merchant !== 'object') return false;
+  const merchantRecord = merchant as Record<string, unknown>;
+  return typeof merchantRecord.id === 'string' && merchantRecord.id.length > 0;
 }
 
 export interface Payment {
@@ -70,6 +83,7 @@ export interface Webhook {
   id: string;
   url: string;
   events: string[];
+  secret?: string;
   createdAt: string;
 }
 
