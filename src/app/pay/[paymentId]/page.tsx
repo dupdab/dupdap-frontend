@@ -37,13 +37,16 @@ function formatRemaining(ms: number): string {
 export default function PayPage({ params }: { params: { paymentId: string } }) {
   const [payment, setPayment] = useState<Payment | null>(null);
   const [loading, setLoading] = useState(true);
-  const [pollWarning, setPollWarning] = useState('');
+  const [loadError, setLoadError] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [copied, setCopied] = useState<string | null>(null);
 
   useEffect(() => {
     let pollAttempts = 0;
-    paymentsApi.getByReference(params.paymentId).then(({ data }) => setPayment(data)).finally(() => setLoading(false));
+    paymentsApi.getByReference(params.paymentId)
+      .then(({ data }) => setPayment(data))
+      .catch(() => setLoadError(true))
+      .finally(() => setLoading(false));
 
     const interval = setInterval(() => {
       pollAttempts += 1;
@@ -100,7 +103,9 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <XCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
-          <p className="text-gray-600">Payment not found</p>
+          <p className="text-gray-600">
+            {loadError ? 'Something went wrong loading this payment — try again' : 'Payment not found'}
+          </p>
         </div>
       </div>
     );

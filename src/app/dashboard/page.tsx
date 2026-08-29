@@ -2,16 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { TrendingUp, CreditCard, Banknote, Clock } from 'lucide-react';
-import { paymentsApi, settlementsApi } from '@/lib/api';
+import { paymentsApi } from '@/lib/api';
 import { formatUsd, formatDate, PAYMENT_STATUS_COLORS } from '@/lib/utils';
-import { Skeleton, SkeletonList } from '@/components/Skeleton';
+import { aggregatePaymentStats } from '@/lib/dashboard-stats';
 import { useAuthStore } from '@/lib/store';
+import { Skeleton, SkeletonList } from '@/components/Skeleton';
 import type { Payment, PaymentStats } from '@/lib/types';
-
-const toSafeInt = (value: unknown) => {
-  const parsed = parseInt(String(value ?? 0), 10);
-  return Number.isNaN(parsed) ? 0 : parsed;
-};
 
 export default function DashboardPage() {
   const { merchant } = useAuthStore();
@@ -31,18 +27,7 @@ export default function DashboardPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const statMap = stats.reduce(
-    (acc: Record<string, { count: number; total: number }>, s) => {
-      acc[s.status] = { count: toSafeInt(s.count), total: parseFloat(String(s.totalUsd ?? 0)) };
-      return acc;
-    },
-    {},
-  );
-
-  const totalVolume = stats.reduce((acc, s) => acc + parseFloat(String(s.totalUsd ?? 0)), 0);
-  const settledCount = statMap.settled?.count ?? 0;
-  const pendingCount = statMap.pending?.count ?? 0;
-  const totalPayments = stats.reduce((acc, s) => acc + toSafeInt(s.count), 0);
+  const { totalVolume, settledCount, pendingCount, totalPayments } = aggregatePaymentStats(stats);
 
   return (
     <div className="p-8">
@@ -96,7 +81,7 @@ export default function DashboardPage() {
                   <p className="text-xs text-gray-400">{formatDate(p.createdAt)}</p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${PAYMENT_STATUS_COLORS[p.status]}`}>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${PAYMENT_STATUS_COLORS[p.status] ?? DEFAULT_STATUS_COLOR}`}>
                     {p.status}
                   </span>
                   <span className="text-sm font-semibold">{formatUsd(p.amountUsd)}</span>
