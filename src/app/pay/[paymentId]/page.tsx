@@ -7,16 +7,6 @@ import { paymentsApi } from '@/lib/api';
 import { formatUsd } from '@/lib/utils';
 import type { Payment } from '@/lib/types';
 
-interface Payment {
-  amountUsd: number;
-  amountXlm: number | string;
-  description?: string;
-  reference: string;
-  status: string;
-  stellarDepositAddress: string;
-  stellarMemo: string;
-}
-
 export async function generateMetadata({ params }: { params: { paymentId: string } }) {
   try {
     const { data } = await paymentsApi.getByReference(params.paymentId);
@@ -34,6 +24,8 @@ const STATUS_ICONS: Record<string, React.ReactNode> = {
   failed: <XCircle className="w-8 h-8 text-red-500" />,
   expired: <XCircle className="w-8 h-8 text-gray-400" />,
 };
+
+const DEFAULT_STATUS_ICON = <Loader2 className="w-8 h-8 text-gray-400 animate-spin" />;
 
 function computeExpiresAt(payment: any): Date | null {
   if (payment?.expiresAt) return new Date(payment.expiresAt);
@@ -56,10 +48,11 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
   const [loading, setLoading] = useState(true);
   const [now, setNow] = useState(Date.now());
   const [copied, setCopied] = useState<string | null>(null);
+  const [pollWarning, setPollWarning] = useState<string>('');
 
   useEffect(() => {
     let pollAttempts = 0;
-    paymentsApi.getByReference(params.paymentId).then(({ data }) => setPayment(data)).finally(() => setLoading(false));
+    paymentsApi.getByReference(params.paymentId).then(({ data }) => setPayment(data)).catch(() => { /* shows "Payment not found" */ }).finally(() => setLoading(false));
 
     const interval = setInterval(() => {
       pollAttempts += 1;
