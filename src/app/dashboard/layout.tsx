@@ -13,13 +13,11 @@ import {
   BarChart3,
   Menu,
   X,
+  Shield,
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
+import { isAdmin } from '@/lib/auth';
 import { cn } from '@/lib/utils';
-
-export const metadata = {
-  robots: { index: false, follow: false },
-};
 
 const navItems = [
   { href: '/dashboard', label: 'Overview', icon: LayoutDashboard, exact: true },
@@ -28,6 +26,7 @@ const navItems = [
   { href: '/dashboard/analytics', label: 'Analytics', icon: BarChart3 },
   { href: '/dashboard/webhooks', label: 'Webhooks', icon: Webhook },
   { href: '/dashboard/settings', label: 'Settings', icon: Settings },
+  { href: '/dashboard/admin/settlements', label: 'Admin Settlements', icon: Shield, adminOnly: true },
 ];
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
@@ -37,14 +36,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {
-    if (!token) router.push('/auth/login');
-  }, [token, router]);
+    if (!token) {
+      const next = pathname ? `?next=${encodeURIComponent(pathname)}` : '';
+      router.push(`/auth/login${next}`);
+    }
+  }, [token, router, pathname]);
 
   useEffect(() => {
     setMobileNavOpen(false);
   }, [pathname]);
 
   if (!merchant) return null;
+
+  const visibleNavItems = navItems.filter((item) => !item.adminOnly || isAdmin(merchant));
 
   const sidebarContent = (
     <>
@@ -63,12 +67,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
 
       <nav className="flex-1 p-4 space-y-1">
-        {navItems.map(({ href, label, icon: Icon, exact }) => {
+        {visibleNavItems.map(({ href, label, icon: Icon, exact }) => {
           const active = exact ? pathname === href : pathname.startsWith(href);
           return (
             <Link
               key={href}
               href={href}
+              aria-current={active ? 'page' : undefined}
               className={cn(
                 'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
                 active
