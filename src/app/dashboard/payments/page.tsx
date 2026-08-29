@@ -7,6 +7,8 @@ import { QRCodeSVG } from 'qrcode.react';
 import { paymentsApi } from '@/lib/api';
 import { formatUsd, formatDate, PAYMENT_STATUS_COLORS, DEFAULT_STATUS_COLOR } from '@/lib/utils';
 import { FormField } from '@/components/FormField';
+import Modal from '@/components/Modal';
+import { SkeletonList } from '@/components/Skeleton';
 import { getErrorMessage } from '@/lib/errors';
 import Modal from '@/components/Modal';
 import { SkeletonList } from '@/components/Skeleton';

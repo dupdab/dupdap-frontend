@@ -64,6 +64,10 @@ export default function RegisterPage() {
         businessName: form.businessName,
         country: form.country || undefined,
       });
+      if (!isAuthResponse(data)) {
+        toast.error('Invalid response from server. Please try again.');
+        return;
+      }
       setAuth(data.accessToken, data.merchant);
       router.push('/dashboard');
     } catch (err) {

@@ -17,10 +17,6 @@ import {
 import { useAuthStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 
-export const metadata = {
-  robots: { index: false, follow: false },
-};
-
 const navItems = [
   { href: '/dashboard', label: 'Overview', icon: LayoutDashboard, exact: true },
   { href: '/dashboard/payments', label: 'Payments', icon: CreditCard },

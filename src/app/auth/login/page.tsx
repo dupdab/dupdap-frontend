@@ -7,7 +7,6 @@ import toast from 'react-hot-toast';
 import { authApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { FormField } from '@/components/FormField';
-import { getErrorMessage } from '@/lib/errors';
 
 function LoginForm() {
   const router = useRouter();
@@ -21,6 +20,10 @@ function LoginForm() {
     setLoading(true);
     try {
       const { data } = await authApi.login(form);
+      if (!isAuthResponse(data)) {
+        toast.error('Invalid response from server. Please try again.');
+        return;
+      }
       setAuth(data.accessToken, data.merchant);
       const next = searchParams.get('next');
       router.push(next && next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard');
