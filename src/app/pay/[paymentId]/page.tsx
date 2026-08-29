@@ -40,6 +40,7 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
   const [loadError, setLoadError] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [copied, setCopied] = useState<string | null>(null);
+  const [pollWarning, setPollWarning] = useState<string>('');
 
   useEffect(() => {
     let pollAttempts = 0;
