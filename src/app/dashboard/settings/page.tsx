@@ -86,7 +86,11 @@ export default function SettingsPage() {
 
       <div className="card p-6 mb-6">
         <h2 className="font-semibold mb-4">Business Profile</h2>
-        <form onSubmit={save} className="space-y-4">
+        <form onSubmit={save} className="space-y-4" aria-busy={saving}>
+          {/* Visually-hidden live region announces save outcomes to screen readers (#158) */}
+          <p className="sr-only" aria-live="polite" aria-atomic="true">
+            {saving ? 'Saving changes, please wait…' : ''}
+          </p>
           {[
             { key: 'businessName', label: 'Business Name' },
             { key: 'country', label: 'Country' },
@@ -95,8 +99,10 @@ export default function SettingsPage() {
             { key: 'bankAccountNumber', label: 'Bank Account Number', inputMode: 'numeric' as const, pattern: '[0-9]{6,17}' },
           ].map(({ key, label, inputMode, pattern }) => (
             <div key={key}>
-              <label className="label">{label}</label>
+              {/* id derived from field key so htmlFor/id are always in sync (#157) */}
+              <label htmlFor={key} className="label">{label}</label>
               <input
+                id={key}
                 className={`input ${fieldErrors[key] ? 'border-red-400 focus:border-red-400' : ''}`}
                 inputMode={inputMode}
                 pattern={pattern}
