@@ -5,7 +5,7 @@ const useRouter = jest.fn(() => ({
   back: jest.fn(),
 }));
 
-const usePathname = jest.fn(() => '/waitlist');
+const usePathname = jest.fn(() => '/dashboard');
 const useSearchParams = jest.fn(() => new URLSearchParams());
 const redirect = jest.fn();
 
