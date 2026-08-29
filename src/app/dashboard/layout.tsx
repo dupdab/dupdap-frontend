@@ -17,10 +17,6 @@ import {
 import { useAuthStore } from '@/lib/store';
 import { cn } from '@/lib/utils';
 
-export const metadata = {
-  robots: { index: false, follow: false },
-};
-
 const navItems = [
   { href: '/dashboard', label: 'Overview', icon: LayoutDashboard, exact: true },
   { href: '/dashboard/payments', label: 'Payments', icon: CreditCard },
@@ -37,8 +33,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   useEffect(() => {
-    if (!token) router.push('/auth/login');
-  }, [token, router]);
+    if (!token) {
+      const next = pathname ? `?next=${encodeURIComponent(pathname)}` : '';
+      router.push(`/auth/login${next}`);
+    }
+  }, [token, router, pathname]);
 
   useEffect(() => {
     setMobileNavOpen(false);
@@ -69,6 +68,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             <Link
               key={href}
               href={href}
+              aria-current={active ? 'page' : undefined}
               className={cn(
                 'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
                 active

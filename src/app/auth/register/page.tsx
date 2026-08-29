@@ -5,9 +5,9 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { authApi } from '@/lib/api';
-import { getErrorMessage } from '@/lib/utils';
 import { useAuthStore } from '@/lib/store';
 import { COUNTRIES } from '@/lib/countries';
+import { getErrorMessage } from '@/lib/errors';
 
 interface PasswordChecks {
   length: boolean;
@@ -64,6 +64,10 @@ export default function RegisterPage() {
         businessName: form.businessName,
         country: form.country || undefined,
       });
+      if (!isAuthResponse(data)) {
+        toast.error('Invalid response from server. Please try again.');
+        return;
+      }
       setAuth(data.accessToken, data.merchant);
       router.push('/dashboard');
     } catch (err) {
@@ -73,16 +77,12 @@ export default function RegisterPage() {
     }
   };
 
-  const field = (
-    key: keyof typeof form,
-    label: string,
-    type = 'text',
-    required = true,
-    autoComplete?: string,
-  ) => (
+  // Each field key doubles as the input id so htmlFor/id are always in sync (#156).
+  const field = (key: keyof typeof form, label: string, type = 'text', required = true) => (
     <div>
-      <label className="label">{label}</label>
+      <label htmlFor={key} className="label">{label}</label>
       <input
+        id={key}
         className="input"
         type={type}
         required={required}
@@ -109,14 +109,19 @@ export default function RegisterPage() {
           <p className="text-gray-500 text-sm">Create your merchant account</p>
         </div>
 
-        <form onSubmit={submit} className="space-y-4">
+        <form onSubmit={submit} className="space-y-4" aria-busy={loading}>
+          {/* Visually-hidden live region announces submit outcomes to screen readers (#158) */}
+          <p className="sr-only" aria-live="polite" aria-atomic="true">
+            {loading ? 'Creating account, please wait…' : ''}
+          </p>
           <fieldset disabled={loading} className="space-y-4">
             {field('businessName', 'Business Name', 'text', true, 'organization')}
             {field('email', 'Email', 'email', true, 'email')}
 
             <div>
-              <label className="label">Password</label>
+              <label htmlFor="password" className="label">Password</label>
               <input
+                id="password"
                 className="input"
                 type="password"
                 required
@@ -155,8 +160,9 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label className="label">Confirm Password</label>
+              <label htmlFor="confirmPassword" className="label">Confirm Password</label>
               <input
+                id="confirmPassword"
                 className={`input ${form.confirmPassword.length > 0 && !passwordsMatch ? 'border-red-400 focus:ring-red-400' : ''}`}
                 type="password"
                 required
@@ -170,8 +176,9 @@ export default function RegisterPage() {
             </div>
 
             <div>
-              <label className="label">Country (optional)</label>
+              <label htmlFor="country" className="label">Country (optional)</label>
               <select
+                id="country"
                 className="input"
                 value={form.country}
                 onChange={(e) => setForm({ ...form, country: e.target.value })}

@@ -7,25 +7,6 @@ import { paymentsApi } from '@/lib/api';
 import { formatUsd } from '@/lib/utils';
 import type { Payment } from '@/lib/types';
 
-interface Payment {
-  amountUsd: number;
-  amountXlm: number | string;
-  description?: string;
-  reference: string;
-  status: string;
-  stellarDepositAddress: string;
-  stellarMemo: string;
-}
-
-export async function generateMetadata({ params }: { params: { paymentId: string } }) {
-  try {
-    const { data } = await paymentsApi.getByReference(params.paymentId);
-    return { title: `Pay ${formatUsd(data.amountUsd)} — DupDub` };
-  } catch {
-    return { title: 'Pay — DupDub' };
-  }
-}
-
 const STATUS_ICONS: Record<string, React.ReactNode> = {
   pending: <Clock className="w-8 h-8 text-yellow-500" />,
   confirmed: <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />,
@@ -34,6 +15,8 @@ const STATUS_ICONS: Record<string, React.ReactNode> = {
   failed: <XCircle className="w-8 h-8 text-red-500" />,
   expired: <XCircle className="w-8 h-8 text-gray-400" />,
 };
+
+const DEFAULT_STATUS_ICON = <Clock className="w-8 h-8 text-gray-400" />;
 
 function computeExpiresAt(payment: any): Date | null {
   if (payment?.expiresAt) return new Date(payment.expiresAt);
@@ -54,12 +37,16 @@ function formatRemaining(ms: number): string {
 export default function PayPage({ params }: { params: { paymentId: string } }) {
   const [payment, setPayment] = useState<Payment | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [copied, setCopied] = useState<string | null>(null);
 
   useEffect(() => {
     let pollAttempts = 0;
-    paymentsApi.getByReference(params.paymentId).then(({ data }) => setPayment(data)).finally(() => setLoading(false));
+    paymentsApi.getByReference(params.paymentId)
+      .then(({ data }) => setPayment(data))
+      .catch(() => setLoadError(true))
+      .finally(() => setLoading(false));
 
     const interval = setInterval(() => {
       pollAttempts += 1;
@@ -116,13 +103,15 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <XCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
-          <p className="text-gray-600">Payment not found</p>
+          <p className="text-gray-600">
+            {loadError ? 'Something went wrong loading this payment — try again' : 'Payment not found'}
+          </p>
         </div>
       </div>
     );
   }
 
-  const stellarUri = `web+stellar:pay?destination=${encodeURIComponent(payment.stellarDepositAddress)}&amount=${encodeURIComponent(String(payment.amountXlm))}&memo=${encodeURIComponent(payment.stellarMemo)}&memo_type=text`;
+  const stellarUri = `web+stellar:pay?destination=${encodeURIComponent(payment.stellarDepositAddress ?? '')}&amount=${encodeURIComponent(String(payment.amountXlm ?? payment.amountUsd))}&memo=${encodeURIComponent(payment.stellarMemo)}&memo_type=text`;
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -146,7 +135,11 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
               )}
 
               <div className="flex justify-center mb-4">
-                <div className="bg-white p-3 rounded-xl border border-gray-200">
+                <div
+                  className="bg-white p-3 rounded-xl border border-gray-200"
+                  role="img"
+                  aria-label={`Stellar payment QR code for ${formatUsd(payment.amountUsd)}`}
+                >
                   <QRCodeSVG value={stellarUri} size={160} />
                 </div>
               </div>
@@ -167,7 +160,7 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
                 <div className="flex items-center gap-2">
                   <code className="text-sm font-mono font-bold break-all flex-1 text-gray-900">{payment.stellarDepositAddress}</code>
                   <button
-                    onClick={() => copy(payment.stellarDepositAddress, 'address')}
+                    onClick={() => copy(payment.stellarDepositAddress ?? '', 'address')}
                     aria-label="Copy deposit address"
                     className="shrink-0"
                   >

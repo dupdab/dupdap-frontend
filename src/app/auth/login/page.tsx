@@ -1,31 +1,16 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
-import { AxiosError } from 'axios';
+import { useRouter, useSearchParams } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { authApi } from '@/lib/api';
-import { getErrorMessage } from '@/lib/errors';
 import { useAuthStore } from '@/lib/store';
 import { FormField } from '@/components/FormField';
 
-const CAPTCHA_THRESHOLD = 3;
-
-function getRateLimitMessage(err: AxiosError): string {
-  const retryAfter = err.response?.headers['retry-after'];
-  const seconds = retryAfter ? Number(retryAfter) : NaN;
-  if (!Number.isNaN(seconds) && seconds > 0) {
-    const minutes = Math.max(1, Math.ceil(seconds / 60));
-    return `Too many login attempts. Please try again in ${minutes} minute${minutes === 1 ? '' : 's'}.`;
-  }
-  const serverMessage = (err.response?.data as { message?: string } | undefined)?.message;
-  if (serverMessage) return serverMessage;
-  return 'Too many login attempts. Please try again later.';
-}
-
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const setAuth = useAuthStore((s) => s.setAuth);
   const [loading, setLoading] = useState(false);
   const [failedAttempts, setFailedAttempts] = useState(0);
@@ -41,8 +26,13 @@ export default function LoginPage() {
     setLoading(true);
     try {
       const { data } = await authApi.login(form);
+      if (!isAuthResponse(data)) {
+        toast.error('Invalid response from server. Please try again.');
+        return;
+      }
       setAuth(data.accessToken, data.merchant);
-      router.push('/dashboard');
+      const next = searchParams.get('next');
+      router.push(next && next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard');
     } catch (err) {
       if (err instanceof AxiosError && err.response?.status === 429) {
         const message = getRateLimitMessage(err);
@@ -66,46 +56,18 @@ export default function LoginPage() {
           <p className="text-gray-500 text-sm">Sign in to your merchant account</p>
         </div>
 
-        {rateLimitMessage ? (
-          <div
-            role="alert"
-            className="mb-4 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800"
-          >
-            {rateLimitMessage}
-          </div>
-        ) : null}
-
-        <form onSubmit={submit} className="space-y-4">
-          <fieldset disabled={loading || rateLimited} className="space-y-4">
-            <FormField
-              label="Email"
-              type="email"
-              required
-              autoComplete="email"
-              value={form.email}
-              onChange={(e) => setForm({ ...form, email: e.target.value })}
-            />
-            <FormField
-              label="Password"
-              type="password"
-              required
-              autoComplete="current-password"
-              value={form.password}
-              onChange={(e) => setForm({ ...form, password: e.target.value })}
-            />
-
-            {showCaptcha ? (
-              <div
-                data-testid="login-captcha-slot"
-                className="rounded-lg border border-dashed border-gray-300 bg-gray-50 p-4 text-center text-sm text-gray-500"
-                aria-label="CAPTCHA verification"
-              >
-                Complete verification to continue signing in.
-              </div>
-            ) : null}
-
-            <button data-testid="login-submit-button" type="submit" disabled={loading || rateLimited} className="btn-primary w-full">
-              {loading ? 'Signing in...' : rateLimited ? 'Try again later' : 'Sign in'}
+        <form onSubmit={submit} className="space-y-4" aria-busy={loading}>
+          {/* Visually-hidden live region announces submit outcomes to screen readers (#158) */}
+          <p className="sr-only" aria-live="polite" aria-atomic="true">
+            {loading ? 'Signing in, please wait…' : ''}
+          </p>
+          <fieldset disabled={loading} className="space-y-4">
+            <FormField label="Email" type="email" required value={form.email}
+              onChange={(e) => setForm({ ...form, email: e.target.value })} />
+            <FormField label="Password" type="password" required value={form.password}
+              onChange={(e) => setForm({ ...form, password: e.target.value })} />
+            <button data-testid="login-submit-button" type="submit" disabled={loading} className="btn-primary w-full">
+              {loading ? 'Signing in...' : 'Sign in'}
             </button>
           </fieldset>
         </form>
@@ -118,5 +80,13 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
   );
 }
