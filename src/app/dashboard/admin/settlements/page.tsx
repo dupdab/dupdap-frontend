@@ -157,7 +157,7 @@ export default function AdminSettlementsPage() {
       <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-gray-500" />
+            <Filter className="w-4 h-4 text-gray-500" aria-hidden="true" />
             <span className="text-sm font-medium text-gray-700">Filters:</span>
           </div>
           

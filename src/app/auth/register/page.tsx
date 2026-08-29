@@ -38,6 +38,7 @@ export default function RegisterPage() {
   const router = useRouter();
   const setAuth = useAuthStore((s) => s.setAuth);
   const [loading, setLoading] = useState(false);
+  const [formError, setFormError] = useState('');
   const [form, setForm] = useState({
     email: '',
     password: '',
@@ -56,6 +57,7 @@ export default function RegisterPage() {
     e.preventDefault();
     if (!passwordValid) return toast.error('Please meet the password requirements');
     if (!passwordsMatch) return toast.error('Passwords do not match');
+    setFormError('');
     setLoading(true);
     try {
       const { data } = await authApi.register({
@@ -71,7 +73,9 @@ export default function RegisterPage() {
       setAuth(data.accessToken, data.merchant);
       router.push('/dashboard');
     } catch (err) {
-      toast.error(getErrorMessage(err) ?? 'Registration failed');
+      const msg = getErrorMessage(err) ?? 'Registration failed';
+      setFormError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }

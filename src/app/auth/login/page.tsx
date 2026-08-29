@@ -17,6 +17,7 @@ function LoginForm() {
   const [rateLimited, setRateLimited] = useState(false);
   const [rateLimitMessage, setRateLimitMessage] = useState<string | null>(null);
   const [form, setForm] = useState({ email: '', password: '' });
+  const [formError, setFormError] = useState('');
 
   const showCaptcha = failedAttempts >= CAPTCHA_THRESHOLD;
 

@@ -52,7 +52,9 @@ export default function WaitlistPage() {
       await waitlistApi.join(form);
       setJoined(true);
     } catch (err) {
-      toast.error(getErrorMessage(err) ?? 'Failed to join waitlist');
+      const msg = getErrorMessage(err) ?? 'Failed to join waitlist';
+      setFormError(msg);
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
