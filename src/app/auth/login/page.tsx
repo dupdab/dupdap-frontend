@@ -1,34 +1,49 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import toast from 'react-hot-toast';
 import { authApi } from '@/lib/api';
-import { getErrorMessage } from '@/lib/utils';
 import { useAuthStore } from '@/lib/store';
 import { FormField } from '@/components/FormField';
-import { getErrorMessage } from '@/lib/errors';
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
   const setAuth = useAuthStore((s) => s.setAuth);
   const [loading, setLoading] = useState(false);
+  const [failedAttempts, setFailedAttempts] = useState(0);
+  const [rateLimited, setRateLimited] = useState(false);
+  const [rateLimitMessage, setRateLimitMessage] = useState<string | null>(null);
   const [form, setForm] = useState({ email: '', password: '' });
   const [formError, setFormError] = useState('');
 
+  const showCaptcha = failedAttempts >= CAPTCHA_THRESHOLD;
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setFormError('');
+    if (rateLimited) return;
     setLoading(true);
     try {
       const { data } = await authApi.login(form);
+      if (!isAuthResponse(data)) {
+        toast.error('Invalid response from server. Please try again.');
+        return;
+      }
       setAuth(data.accessToken, data.merchant);
-      router.push('/dashboard');
+      const next = searchParams.get('next');
+      router.push(next && next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard');
     } catch (err) {
-      const msg = getErrorMessage(err) ?? 'Login failed';
-      setFormError(msg);
-      toast.error(msg);
+      if (err instanceof AxiosError && err.response?.status === 429) {
+        const message = getRateLimitMessage(err);
+        setRateLimited(true);
+        setRateLimitMessage(message);
+        toast.error(message);
+      } else {
+        setFailedAttempts((count) => count + 1);
+        toast.error(getErrorMessage(err) ?? 'Login failed');
+      }
     } finally {
       setLoading(false);
     }
@@ -42,12 +57,11 @@ export default function LoginPage() {
           <p className="text-gray-500 text-sm">Sign in to your merchant account</p>
         </div>
 
-        <form onSubmit={submit} className="space-y-4">
-          {formError && (
-            <p role="alert" className="text-sm text-red-600 bg-red-50 border border-red-200 rounded px-3 py-2">
-              {formError}
-            </p>
-          )}
+        <form onSubmit={submit} className="space-y-4" aria-busy={loading}>
+          {/* Visually-hidden live region announces submit outcomes to screen readers (#158) */}
+          <p className="sr-only" aria-live="polite" aria-atomic="true">
+            {loading ? 'Signing in, please wait…' : ''}
+          </p>
           <fieldset disabled={loading} className="space-y-4">
             <FormField label="Email" type="email" required value={form.email}
               onChange={(e) => setForm({ ...form, email: e.target.value })} />
@@ -67,5 +81,13 @@ export default function LoginPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
   );
 }

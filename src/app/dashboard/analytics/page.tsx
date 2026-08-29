@@ -25,12 +25,12 @@ export default function AnalyticsPage() {
 
   const pieData = stats.map((s) => ({
     name: s.status,
-    value: parseInt(s.count),
-    amount: parseFloat(s.totalUsd ?? 0),
+    value: parseInt(String(s.count), 10),
+    amount: parseFloat(String(s.totalUsd ?? 0)),
   }));
 
-  const totalVolume = stats.reduce((acc, s) => acc + parseFloat(s.totalUsd ?? 0), 0);
-  const totalCount = stats.reduce((acc, s) => acc + parseInt(s.count), 0);
+  const totalVolume = stats.reduce((acc, s) => acc + parseFloat(String(s.totalUsd ?? 0)), 0);
+  const totalCount = stats.reduce((acc, s) => acc + parseInt(String(s.count), 10), 0);
 
   return (
     <div className="p-8">
