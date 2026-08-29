@@ -1,10 +1,66 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { settlementsApi } from '@/lib/api';
 import { formatUsd, formatDate, STATUS_COLORS } from '@/lib/utils';
+import { SkeletonList, SkeletonTableRows } from '@/components/Skeleton';
 import type { Settlement } from '@/lib/types';
+
+// ---------------------------------------------------------------------------
+// Memoized row components — skips re-renders caused by parent state changes
+// (pagination, error state) that don't affect already-rendered rows.
+// ---------------------------------------------------------------------------
+
+interface SettlementRowProps {
+  settlement: Settlement;
+}
+
+/** Desktop table row */
+const SettlementTableRow = memo(function SettlementTableRow({ settlement: s }: SettlementRowProps) {
+  return (
+    <tr className="hover:bg-gray-50">
+      <td className="px-6 py-4 font-mono text-xs text-gray-500">
+        <Link href={`/dashboard/settlements/${s.id}`} className="hover:text-brand-700 hover:underline">
+          {s.id.slice(0, 8)}...
+        </Link>
+      </td>
+      <td className="px-6 py-4">{formatUsd(s.totalAmountUsd)}</td>
+      <td className="px-6 py-4 text-red-600">-{formatUsd(s.feeAmountUsd)}</td>
+      <td className="px-6 py-4 font-semibold text-green-700">{formatUsd(s.netAmountUsd)}</td>
+      <td className="px-6 py-4">
+        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[s.status]}`}>
+          {s.status}
+        </span>
+      </td>
+      <td className="px-6 py-4 text-gray-500">{formatDate(s.createdAt)}</td>
+    </tr>
+  );
+});
+
+/** Mobile card */
+const SettlementMobileCard = memo(function SettlementMobileCard({ settlement: s }: SettlementRowProps) {
+  return (
+    <div className="px-6 py-4 space-y-1">
+      <div className="flex items-center justify-between">
+        <Link
+          href={`/dashboard/settlements/${s.id}`}
+          className="font-mono text-xs text-gray-500 hover:text-brand-700 hover:underline"
+        >
+          {s.id.slice(0, 8)}...
+        </Link>
+        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[s.status]}`}>
+          {s.status}
+        </span>
+      </div>
+      <div className="font-semibold text-green-700">{formatUsd(s.netAmountUsd)}</div>
+      <div className="text-xs text-gray-500">
+        Gross {formatUsd(s.totalAmountUsd)} · Fee -{formatUsd(s.feeAmountUsd)}
+      </div>
+      <div className="text-xs text-gray-500">{formatDate(s.createdAt)}</div>
+    </div>
+  );
+});
 
 export default function SettlementsPage() {
   const [settlements, setSettlements] = useState<Settlement[]>([]);
@@ -40,21 +96,7 @@ export default function SettlementsPage() {
             <div className="px-6 py-8 text-center text-gray-400">No settlements yet</div>
           ) : (
             settlements.map((s) => (
-              <div key={s.id} className="px-6 py-4 space-y-1">
-                <div className="flex items-center justify-between">
-                  <Link href={`/dashboard/settlements/${s.id}`} className="font-mono text-xs text-gray-500 hover:text-brand-700 hover:underline">
-                    {s.id.slice(0, 8)}...
-                  </Link>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[s.status]}`}>
-                    {s.status}
-                  </span>
-                </div>
-                <div className="font-semibold text-green-700">{formatUsd(s.netAmountUsd)}</div>
-                <div className="text-xs text-gray-500">
-                  Gross {formatUsd(s.totalAmountUsd)} · Fee -{formatUsd(s.feeAmountUsd)}
-                </div>
-                <div className="text-xs text-gray-500">{formatDate(s.createdAt)}</div>
-              </div>
+              <SettlementMobileCard key={s.id} settlement={s} />
             ))
           )}
         </div>
@@ -78,22 +120,7 @@ export default function SettlementsPage() {
                 <tr><td colSpan={6} className="px-6 py-8 text-center text-gray-400">No settlements yet</td></tr>
               ) : (
                 settlements.map((s) => (
-                   <tr key={s.id} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 font-mono text-xs text-gray-500">
-                      <Link href={`/dashboard/settlements/${s.id}`} className="hover:text-brand-700 hover:underline">
-                        {s.id.slice(0, 8)}...
-                      </Link>
-                    </td>
-                    <td className="px-6 py-4">{formatUsd(s.totalAmountUsd)}</td>
-                    <td className="px-6 py-4 text-red-600">-{formatUsd(s.feeAmountUsd)}</td>
-                    <td className="px-6 py-4 font-semibold text-green-700">{formatUsd(s.netAmountUsd)}</td>
-                    <td className="px-6 py-4">
-                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[s.status]}`}>
-                        {s.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-gray-500">{formatDate(s.createdAt)}</td>
-                  </tr>
+                  <SettlementTableRow key={s.id} settlement={s} />
                 ))
               )}
             </tbody>
