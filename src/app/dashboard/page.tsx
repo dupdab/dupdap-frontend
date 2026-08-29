@@ -2,15 +2,12 @@
 
 import { useEffect, useState } from 'react';
 import { TrendingUp, CreditCard, Banknote, Clock } from 'lucide-react';
-import { paymentsApi, settlementsApi } from '@/lib/api';
-import { formatUsd, formatDate, PAYMENT_STATUS_COLORS, DEFAULT_STATUS_COLOR } from '@/lib/utils';
+import { paymentsApi } from '@/lib/api';
+import { formatUsd, formatDate, PAYMENT_STATUS_COLORS } from '@/lib/utils';
+import { aggregatePaymentStats } from '@/lib/dashboard-stats';
 import { useAuthStore } from '@/lib/store';
+import { Skeleton, SkeletonList } from '@/components/Skeleton';
 import type { Payment, PaymentStats } from '@/lib/types';
-
-const toSafeInt = (value: unknown) => {
-  const parsed = parseInt(String(value ?? 0), 10);
-  return Number.isNaN(parsed) ? 0 : parsed;
-};
 
 export default function DashboardPage() {
   const { merchant } = useAuthStore();
@@ -30,17 +27,7 @@ export default function DashboardPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const statMap = stats.reduce(
-    (acc: Record<string, { count: number; total: number }>, s) => {
-      acc[s.status] = { count: parseInt(s.count), total: parseFloat(s.totalUsd ?? 0) };
-      return acc;
-    },
-    {},
-  );
-
-  const totalVolume = stats.reduce((acc, s) => acc + parseFloat(s.totalUsd ?? 0), 0);
-  const settledCount = statMap.settled?.count ?? 0;
-  const pendingCount = statMap.pending?.count ?? 0;
+  const { totalVolume, settledCount, pendingCount, totalPayments } = aggregatePaymentStats(stats);
 
   return (
     <div className="p-8">
