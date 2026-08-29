@@ -81,7 +81,7 @@ export default function DashboardPage() {
                   <p className="text-xs text-gray-400">{formatDate(p.createdAt)}</p>
                 </div>
                 <div className="flex items-center gap-3">
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${PAYMENT_STATUS_COLORS[p.status]}`}>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${PAYMENT_STATUS_COLORS[p.status] ?? DEFAULT_STATUS_COLOR}`}>
                     {p.status}
                   </span>
                   <span className="text-sm font-semibold">{formatUsd(p.amountUsd)}</span>

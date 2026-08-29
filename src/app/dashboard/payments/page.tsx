@@ -5,7 +5,7 @@ import { Plus, Copy, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { QRCodeSVG } from 'qrcode.react';
 import { paymentsApi } from '@/lib/api';
-import { formatUsd, formatDate, PAYMENT_STATUS_COLORS } from '@/lib/utils';
+import { formatUsd, formatDate, PAYMENT_STATUS_COLORS, DEFAULT_STATUS_COLOR } from '@/lib/utils';
 import { FormField } from '@/components/FormField';
 import { getErrorMessage } from '@/lib/errors';
 import type { Payment, PaymentListResponse } from '@/lib/types';
@@ -161,7 +161,7 @@ export default function PaymentsPage() {
               <div key={p.id} className="px-6 py-4 space-y-1">
                 <div className="flex items-center justify-between">
                   <span className="font-mono text-xs text-gray-500">{p.reference}</span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${PAYMENT_STATUS_COLORS[p.status]}`}>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${PAYMENT_STATUS_COLORS[p.status] ?? DEFAULT_STATUS_COLOR}`}>
                     {p.status}
                   </span>
                 </div>
@@ -199,7 +199,7 @@ export default function PaymentsPage() {
                     <td className="px-6 py-4 font-mono text-xs">{p.reference}</td>
                     <td className="px-6 py-4 font-semibold">{formatUsd(p.amountUsd)}</td>
                     <td className="px-6 py-4">
-                      <span data-testid="payment-status-badge" className={`text-xs px-2 py-0.5 rounded-full font-medium ${PAYMENT_STATUS_COLORS[p.status]}`}>
+                      <span data-testid="payment-status-badge" className={`text-xs px-2 py-0.5 rounded-full font-medium ${PAYMENT_STATUS_COLORS[p.status] ?? DEFAULT_STATUS_COLOR}`}>
                         {p.status}
                       </span>
                     </td>
