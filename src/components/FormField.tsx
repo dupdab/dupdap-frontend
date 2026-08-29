@@ -4,18 +4,14 @@ interface FormFieldProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label: string;
 }
 
-/**
- * Accessible form field: auto-generates a stable id so the <label> htmlFor
- * is always linked to its <input> (fixes #156, #157).
- */
-export function FormField({ label, id: idProp, ...props }: FormFieldProps) {
-  const autoId = useId();
-  const id = idProp ?? autoId;
+export function FormField({ label, id, ...props }: FormFieldProps) {
+  const generatedId = useId();
+  const inputId = id ?? generatedId;
 
   return (
     <div>
-      <label htmlFor={id} className="label">{label}</label>
-      <input id={id} className="input" {...props} />
+      <label className="label" htmlFor={inputId}>{label}</label>
+      <input id={inputId} className="input" {...props} />
     </div>
   );
 }

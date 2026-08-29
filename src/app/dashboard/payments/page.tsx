@@ -5,10 +5,12 @@ import { Plus, Copy, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { QRCodeSVG } from 'qrcode.react';
 import { paymentsApi } from '@/lib/api';
-import { formatUsd, formatDate, PAYMENT_STATUS_COLORS } from '@/lib/utils';
+import { formatUsd, formatDate, PAYMENT_STATUS_COLORS, DEFAULT_STATUS_COLOR } from '@/lib/utils';
 import { FormField } from '@/components/FormField';
 import { getErrorMessage } from '@/lib/errors';
-import type { Payment, PaymentListResponse } from '@/lib/types';
+import Modal from '@/components/Modal';
+import { SkeletonList } from '@/components/Skeleton';
+import type { Payment } from '@/lib/types';
 
 const PAYMENT_TABLE_COLUMNS = 5;
 
@@ -74,6 +76,8 @@ export default function PaymentsPage() {
     }
   };
 
+  const showPagination = total > 20 || page > 1;
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
@@ -86,7 +90,6 @@ export default function PaymentsPage() {
         </button>
       </div>
 
-      {/* Create Modal */}
       <Modal
         open={showCreate}
         onClose={() => setShowCreate(false)}
@@ -99,26 +102,44 @@ export default function PaymentsPage() {
             {creating ? 'Creating payment, please wait…' : ''}
           </p>
           <fieldset disabled={creating} className="space-y-4">
-            <div>
-              {/* id derived from field key so htmlFor/id are always in sync (#157) */}
-              <label htmlFor="amount-usd" className="label">Amount (USD)</label>
-              <input id="amount-usd" className="input" type="number" step="0.01" min="0.01" required value={form.amountUsd}
-                onChange={(e) => setForm({ ...form, amountUsd: e.target.value })} />
-            </div>
-            <FormField label="Description (optional)" type="text" required={false} value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })} />
-            <FormField label="Customer Email (optional)" type="email" required={false} value={form.customerEmail}
-              onChange={(e) => setForm({ ...form, customerEmail: e.target.value })} />
-            <FormField label="Expires in (minutes)" type="number" min="5" max="1440" value={form.expiryMinutes}
-              onChange={(e) => setForm({ ...form, expiryMinutes: e.target.value })} />
-            <button data-testid="create-payment-submit-button" type="submit" disabled={creating} className="btn-primary w-full">
+            <FormField
+              label="Amount (USD)"
+              type="number"
+              step="0.01"
+              min="0.01"
+              required
+              value={form.amountUsd}
+              onChange={(e) => setForm({ ...form, amountUsd: e.target.value })}
+            />
+            <FormField
+              label="Description (optional)"
+              type="text"
+              required={false}
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+            />
+            <FormField
+              label="Customer Email (optional)"
+              type="email"
+              required={false}
+              value={form.customerEmail}
+              onChange={(e) => setForm({ ...form, customerEmail: e.target.value })}
+            />
+            <FormField
+              label="Expires in (minutes)"
+              type="number"
+              min="5"
+              max="1440"
+              value={form.expiryMinutes}
+              onChange={(e) => setForm({ ...form, expiryMinutes: e.target.value })}
+            />
+            <button data-testid="create-payment-submit" type="submit" disabled={creating} className="btn-primary w-full">
               {creating ? 'Creating...' : 'Create Payment'}
             </button>
           </fieldset>
         </form>
       </Modal>
 
-      {/* QR Modal */}
       <Modal
         open={!!selectedPayment}
         onClose={() => setSelectedPayment(null)}
@@ -129,7 +150,7 @@ export default function PaymentsPage() {
         {selectedPayment && (
           <>
             <div className="bg-white p-4 rounded-lg inline-block mb-4">
-              <QRCodeSVG value={selectedPayment.qrCode ?? selectedPayment.stellarDepositAddress} size={200} />
+              <QRCodeSVG value={selectedPayment.qrCode ?? selectedPayment.stellarDepositAddress ?? ''} size={200} />
             </div>
             <p className="text-sm font-semibold mb-1">{formatUsd(selectedPayment.amountUsd)}</p>
             <p className="text-xs text-gray-500 mb-3">{selectedPayment.reference}</p>
@@ -147,20 +168,18 @@ export default function PaymentsPage() {
         )}
       </Modal>
 
-      {/* Payments Table */}
       <div className="card">
-        {/* Mobile card layout */}
         <div className="md:hidden divide-y divide-gray-50">
           {loading ? (
             <SkeletonList rows={6} />
           ) : payments.length === 0 ? (
-            <a href="#" data-testid="new-payment-button" className="text-blue-600 hover:underline">No payments yet</a>
+            <div className="px-6 py-8 text-center text-gray-400 text-sm">No payments yet</div>
           ) : (
             payments.map((p) => (
               <div key={p.id} className="px-6 py-4 space-y-1">
                 <div className="flex items-center justify-between">
                   <span className="font-mono text-xs text-gray-500">{p.reference}</span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${PAYMENT_STATUS_COLORS[p.status]}`}>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${PAYMENT_STATUS_COLORS[p.status] ?? DEFAULT_STATUS_COLOR}`}>
                     {p.status}
                   </span>
                 </div>
@@ -198,7 +217,7 @@ export default function PaymentsPage() {
                     <td className="px-6 py-4 font-mono text-xs">{p.reference}</td>
                     <td className="px-6 py-4 font-semibold">{formatUsd(p.amountUsd)}</td>
                     <td className="px-6 py-4">
-                      <span data-testid="payment-status-badge" className={`text-xs px-2 py-0.5 rounded-full font-medium ${PAYMENT_STATUS_COLORS[p.status]}`}>
+                      <span data-testid="payment-status-badge" className={`text-xs px-2 py-0.5 rounded-full font-medium ${PAYMENT_STATUS_COLORS[p.status] ?? DEFAULT_STATUS_COLOR}`}>
                         {p.status}
                       </span>
                     </td>
@@ -216,13 +235,26 @@ export default function PaymentsPage() {
             </tbody>
           </table>
         </div>
-        {/* Pagination */}
-        {total > 20 || page > 1 && (
+        {showPagination && (
           <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
             <span className="text-sm text-gray-500">Page {page} of {Math.ceil(total / 20)}</span>
             <div className="flex gap-2">
-              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="btn-secondary text-sm px-3 py-1">Prev</button>
-              <button onClick={() => setPage(p => p + 1)} disabled={page * 20 >= total} className="btn-secondary text-sm px-3 py-1">Next</button>
+              <button
+                data-testid="pagination-prev"
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1}
+                className="btn-secondary text-sm px-3 py-1"
+              >
+                Prev
+              </button>
+              <button
+                data-testid="pagination-next"
+                onClick={() => setPage((p) => p + 1)}
+                disabled={page * 20 >= total}
+                className="btn-secondary text-sm px-3 py-1"
+              >
+                Next
+              </button>
             </div>
           </div>
         )}

@@ -70,6 +70,7 @@ export interface Webhook {
   id: string;
   url: string;
   events: string[];
+  secret?: string;
   createdAt: string;
 }
 
