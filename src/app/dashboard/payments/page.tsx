@@ -96,7 +96,11 @@ export default function PaymentsPage() {
         title="Create Payment"
         testId="create-payment-modal"
       >
-        <form onSubmit={createPayment} className="space-y-4">
+        <form onSubmit={createPayment} className="space-y-4" aria-busy={creating}>
+          {/* Visually-hidden live region announces submit outcomes to screen readers (#158) */}
+          <p className="sr-only" aria-live="polite" aria-atomic="true">
+            {creating ? 'Creating payment, please wait…' : ''}
+          </p>
           <fieldset disabled={creating} className="space-y-4">
             <FormField
               label="Amount (USD)"

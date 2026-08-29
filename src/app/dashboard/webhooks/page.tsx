@@ -180,11 +180,15 @@ export default function WebhooksPage() {
         title="New Webhook"
         testId="create-webhook-modal"
       >
-        <form onSubmit={create} className="space-y-4">
+        <form onSubmit={create} className="space-y-4" aria-busy={creating}>
+          {/* Visually-hidden live region announces submit outcomes to screen readers (#158) */}
+          <p className="sr-only" aria-live="polite" aria-atomic="true">
+            {creating ? 'Creating webhook, please wait…' : ''}
+          </p>
           <fieldset disabled={creating} className="space-y-4">
             <div>
-              <label className="label">Endpoint URL</label>
-              <input className="input" type="url" required placeholder="https://your-server.com/webhook"
+              <label htmlFor="webhook-url" className="label">Endpoint URL</label>
+              <input id="webhook-url" className="input" type="url" required placeholder="https://your-server.com/webhook"
                 value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} />
             </div>
             <div>
