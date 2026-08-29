@@ -1,6 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
+import toast from 'react-hot-toast';
 import { 
   RefreshCw, 
   CheckCircle, 
@@ -10,8 +11,9 @@ import {
   ExternalLink 
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
-import api from '@/lib/api';
-import { STATUS_COLORS } from '@/lib/utils';
+import { adminApi } from '@/lib/api';
+import { formatUsd, formatDate, STATUS_COLORS } from '@/lib/utils';
+import { SkeletonList, SkeletonTableRows } from '@/components/Skeleton';
 
 interface Settlement {
   id: string;
@@ -36,14 +38,6 @@ interface Settlement {
   updatedAt: string;
 }
 
-interface SettlementsResponse {
-  data: Settlement[];
-  total: number;
-  page: number;
-  limit: number;
-  totalPages: number;
-}
-
 const statusIcons = {
   pending: Clock,
   pending_approval: AlertCircle,
@@ -52,14 +46,23 @@ const statusIcons = {
   failed: AlertCircle,
 };
 
+const EMPTY_FILTERS = {
+  status: '',
+  merchantId: '',
+  startDate: '',
+  endDate: '',
+};
+
+const FILTER_DEBOUNCE_MS = 300;
+
 export default function AdminSettlementsPage() {
   const { token } = useAuthStore();
   const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
-  const [filters, setFilters] = useState({
-    status: '',
+  const [filters, setFilters] = useState(EMPTY_FILTERS);
+  const [filterInputs, setFilterInputs] = useState({
     merchantId: '',
     startDate: '',
     endDate: '',
@@ -69,56 +72,53 @@ export default function AdminSettlementsPage() {
   const [merchantIdInput, setMerchantIdInput] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  // Debounce: only propagate the typed merchantId into filters after 400 ms of
-  // inactivity, preventing redundant in-flight requests while the user types.
   useEffect(() => {
     const timer = setTimeout(() => {
-      setFilters((prev) => ({ ...prev, merchantId: merchantIdInput }));
-    }, 400);
+      setFilters((prev) => {
+        const next = {
+          ...prev,
+          merchantId: filterInputs.merchantId,
+          startDate: filterInputs.startDate,
+          endDate: filterInputs.endDate,
+        };
+        if (
+          prev.merchantId === next.merchantId &&
+          prev.startDate === next.startDate &&
+          prev.endDate === next.endDate
+        ) {
+          return prev;
+        }
+        return next;
+      });
+    }, FILTER_DEBOUNCE_MS);
+
     return () => clearTimeout(timer);
-  }, [merchantIdInput]);
+  }, [filterInputs.merchantId, filterInputs.startDate, filterInputs.endDate]);
+
+  const fetchSettlements = useCallback(async () => {
+    try {
+      setLoading(true);
+      const params = new URLSearchParams({
+        page: page.toString(),
+        limit: '20',
+        ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v)),
+      });
 
   useEffect(() => {
     if (!token) return;
 
-    const controller = new AbortController();
+      setSettlements(response.data.data);
+      setTotal(response.data.total);
+    } catch (error) {
+      console.error('Failed to fetch settlements:', error);
+    } finally {
+      setLoading(false);
+    }
+  }, [page, filters]);
 
-    const fetchSettlements = async () => {
-      try {
-        setLoading(true);
-        const params = new URLSearchParams({
-          page: page.toString(),
-          limit: '20',
-          ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v)),
-        });
-
-        const response = await adminApi.listSettlements(params.toString(), {
-          signal: controller.signal,
-        });
-
-        setSettlements(response.data.data);
-        setTotal(response.data.total);
-      } catch (error: any) {
-        // AbortError is expected when a newer request supersedes this one —
-        // don't log or update state for cancelled requests.
-        if (error?.name !== 'AbortError' && error?.code !== 'ERR_CANCELED') {
-          console.error('Failed to fetch settlements:', error);
-        }
-      } finally {
-        // Only clear the loading flag if this request was not aborted, so the
-        // spinner stays visible until the winning request completes.
-        if (!controller.signal.aborted) {
-          setLoading(false);
-        }
-      }
-    };
-
-    fetchSettlements();
-
-    // Abort any in-flight request when filters/page change or the component
-    // unmounts — prevents out-of-order response application.
-    return () => controller.abort();
-  }, [token, page, filters]);
+  useEffect(() => {
+    if (token) fetchSettlements();
+  }, [token, fetchSettlements]);
 
   // Keep fetchSettlements accessible for retry/approve actions that need to
   // manually refresh the list outside the main effect.
@@ -132,7 +132,7 @@ export default function AdminSettlementsPage() {
       await adminApi.retrySettlement(settlementId);
       refetch();
     } catch (error) {
-      console.error('Failed to retry settlement:', error);
+      toast.error(getErrorMessage(error) ?? 'Failed to retry settlement');
     } finally {
       setActionLoading(null);
     }
@@ -144,10 +144,16 @@ export default function AdminSettlementsPage() {
       await adminApi.approveSettlement(settlementId);
       refetch();
     } catch (error) {
-      console.error('Failed to approve settlement:', error);
+      toast.error(getErrorMessage(error) ?? 'Failed to approve settlement');
     } finally {
       setActionLoading(null);
     }
+  };
+
+  const handleClearFilters = () => {
+    setFilterInputs({ merchantId: '', startDate: '', endDate: '' });
+    setFilters(EMPTY_FILTERS);
+    setPage(1);
   };
 
   return (
@@ -161,13 +167,16 @@ export default function AdminSettlementsPage() {
       <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
         <div className="flex items-center gap-4 flex-wrap">
           <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-gray-500" />
+            <Filter className="w-4 h-4 text-gray-500" aria-hidden="true" />
             <span className="text-sm font-medium text-gray-700">Filters:</span>
           </div>
           
           <select
             value={filters.status}
-            onChange={(e) => setFilters({ ...filters, status: e.target.value })}
+            onChange={(e) => {
+              setFilters({ ...filters, status: e.target.value });
+              setPage(1);
+            }}
             className="px-3 py-1 border border-gray-300 rounded-md text-sm"
           >
             <option value="">All Statuses</option>
@@ -181,30 +190,27 @@ export default function AdminSettlementsPage() {
           <input
             type="text"
             placeholder="Merchant ID"
-            value={merchantIdInput}
-            onChange={(e) => setMerchantIdInput(e.target.value)}
+            value={filterInputs.merchantId}
+            onChange={(e) => setFilterInputs({ ...filterInputs, merchantId: e.target.value })}
             className="px-3 py-1 border border-gray-300 rounded-md text-sm"
           />
 
           <input
             type="date"
-            value={filters.startDate}
-            onChange={(e) => setFilters({ ...filters, startDate: e.target.value })}
+            value={filterInputs.startDate}
+            onChange={(e) => setFilterInputs({ ...filterInputs, startDate: e.target.value })}
             className="px-3 py-1 border border-gray-300 rounded-md text-sm"
           />
 
           <input
             type="date"
-            value={filters.endDate}
-            onChange={(e) => setFilters({ ...filters, endDate: e.target.value })}
+            value={filterInputs.endDate}
+            onChange={(e) => setFilterInputs({ ...filterInputs, endDate: e.target.value })}
             className="px-3 py-1 border border-gray-300 rounded-md text-sm"
           />
 
           <button
-            onClick={() => {
-              setMerchantIdInput('');
-              setFilters({ status: '', merchantId: '', startDate: '', endDate: '' });
-            }}
+            onClick={handleClearFilters}
             className="px-3 py-1 text-sm text-gray-600 hover:text-gray-900"
           >
             Clear
@@ -348,7 +354,7 @@ export default function AdminSettlementsPage() {
                         <div className="flex items-center gap-2">
                           {settlement.status === 'failed' && (
                             <button
-onClick={() => window.confirm("Are you sure you want to retry this settlement?") && handleRetry(settlement.id)}
+                              onClick={() => window.confirm("Are you sure you want to retry this settlement?") && handleRetry(settlement.id)}
                               disabled={actionLoading === settlement.id}
                               className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:opacity-50"
                             >
@@ -357,7 +363,7 @@ onClick={() => window.confirm("Are you sure you want to retry this settlement?")
                           )}
                           {settlement.status === 'pending_approval' && (
                             <button
-onClick={() => window.confirm("Are you sure you want to approve this settlement?") && handleApprove(settlement.id)}
+                              onClick={() => window.confirm("Are you sure you want to approve this settlement?") && handleApprove(settlement.id)}
                               disabled={actionLoading === settlement.id}
                               className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 disabled:opacity-50"
                             >

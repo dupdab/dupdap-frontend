@@ -4,6 +4,7 @@ import { memo, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { settlementsApi } from '@/lib/api';
 import { formatUsd, formatDate, STATUS_COLORS } from '@/lib/utils';
+import { SkeletonList, SkeletonTableRows } from '@/components/Skeleton';
 import type { Settlement } from '@/lib/types';
 
 // ---------------------------------------------------------------------------
