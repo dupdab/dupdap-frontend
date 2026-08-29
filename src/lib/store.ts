@@ -1,12 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-
-interface Merchant {
-  id: string;
-  email: string;
-  businessName: string;
-  status: string;
-}
+import type { Merchant } from './types';
 
 interface AuthState {
   token: string | null;
