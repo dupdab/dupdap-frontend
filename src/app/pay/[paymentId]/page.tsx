@@ -4,19 +4,8 @@ import { useEffect, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Clock, CheckCircle, XCircle, Loader2, Copy, Check, AlertTriangle } from 'lucide-react';
 import { paymentsApi } from '@/lib/api';
-import { formatUsd } from '@/lib/utils';
+import { formatUsd, STATUS_ICONS, STATUS_COLORS } from '@/lib/utils';
 import type { Payment } from '@/lib/types';
-
-const STATUS_ICONS: Record<string, React.ReactNode> = {
-  pending: <Clock className="w-8 h-8 text-yellow-500" />,
-  confirmed: <Loader2 className="w-8 h-8 text-blue-500 animate-spin" />,
-  settling: <Loader2 className="w-8 h-8 text-purple-500 animate-spin" />,
-  settled: <CheckCircle className="w-8 h-8 text-green-500" />,
-  failed: <XCircle className="w-8 h-8 text-red-500" />,
-  expired: <XCircle className="w-8 h-8 text-gray-400" />,
-};
-
-const DEFAULT_STATUS_ICON = <Clock className="w-8 h-8 text-gray-400" />;
 
 function computeExpiresAt(payment: Payment): Date | null {
   if (payment.expiresAt) return new Date(payment.expiresAt);
@@ -112,6 +101,9 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
     );
   }
 
+  const StatusIcon = STATUS_ICONS[payment.status] ?? Clock;
+  const statusColor = STATUS_COLORS[payment.status] ?? 'text-gray-400';
+
   const stellarUri = `web+stellar:pay?destination=${encodeURIComponent(payment.stellarDepositAddress ?? '')}&amount=${encodeURIComponent(String(payment.amountXlm ?? payment.amountUsd))}&memo=${encodeURIComponent(payment.stellarMemo)}&memo_type=text`;
 
   return (
@@ -186,16 +178,10 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
             </>
           ) : (
             <div className="text-center py-6">
-              {STATUS_ICONS[payment.status] ?? DEFAULT_STATUS_ICON}
-              <p className="mt-3 font-semibold capitalize">{payment.status}</p>
+              <StatusIcon className={`w-12 h-12 mx-auto mb-3 ${statusColor}`} />
+              <p className="text-lg font-semibold capitalize">{payment.status}</p>
               {payment.status === 'settled' && (
                 <p className="text-sm text-gray-500 mt-1">Payment complete</p>
-              )}
-              {payment.status === 'failed' && (
-                <p className="text-sm text-gray-500 mt-1">This payment could not be completed</p>
-              )}
-              {payment.status === 'expired' && (
-                <p className="text-sm text-gray-500 mt-1">This payment request has expired</p>
               )}
             </div>
           )}
