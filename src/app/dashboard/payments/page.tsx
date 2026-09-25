@@ -10,8 +10,6 @@ import { FormField } from '@/components/FormField';
 import Modal from '@/components/Modal';
 import { SkeletonList } from '@/components/Skeleton';
 import { getErrorMessage } from '@/lib/errors';
-import Modal from '@/components/Modal';
-import { SkeletonList } from '@/components/Skeleton';
 import type { Payment } from '@/lib/types';
 
 const PAYMENT_TABLE_COLUMNS = 5;
@@ -217,112 +215,74 @@ export default function PaymentsPage() {
               <QRCodeSVG value={selectedPayment.qrCode ?? selectedPayment.stellarDepositAddress ?? ''} size={200} />
             </div>
             <p className="text-sm font-semibold mb-1">{formatUsd(selectedPayment.amountUsd)}</p>
-            <p className="text-xs text-gray-500 mb-3">{selectedPayment.reference}</p>
-            <div className="bg-gray-50 rounded-lg p-3 text-left">
-              <p className="text-xs text-gray-500 mb-1">Stellar Memo (required)</p>
-              <div className="flex items-center gap-2">
-                <code className="text-sm font-mono font-bold flex-1">{selectedPayment.stellarMemo}</code>
-                <button onClick={() => copyMemo(selectedPayment.stellarMemo)} aria-label="Copy memo">
-                  {copied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4 text-gray-400" />}
-                </button>
-              </div>
-            </div>
-            <p className="text-xs text-gray-400 mt-3">Send to: {selectedPayment.stellarDepositAddress?.slice(0, 8)}...{selectedPayment.stellarDepositAddress?.slice(-6)}</p>
+            <p className="text-xs text-gray-500 mb-4">{selectedPayment.reference}</p>
+            {selectedPayment.memo && (
+              <button
+                onClick={() => copyMemo(selectedPayment.memo!)}
+                className="btn-secondary w-full flex items-center justify-center gap-2"
+              >
+                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                {copied ? 'Copied!' : 'Copy Memo'}
+              </button>
+            )}
           </>
         )}
       </Modal>
 
-      <div className="card">
-        <div className="md:hidden divide-y divide-gray-50">
-          {loading ? (
-            <SkeletonList rows={6} />
-          ) : payments.length === 0 ? (
-            <div className="px-6 py-8 text-center text-gray-400 text-sm">No payments yet</div>
-          ) : (
-            payments.map((p) => (
-              <div key={p.id} className="px-6 py-4 space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-xs text-gray-500">{p.reference}</span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${PAYMENT_STATUS_COLORS[p.status] ?? DEFAULT_STATUS_COLOR}`}>
-                    {p.status}
-                  </span>
-                </div>
-                <div className="font-semibold">{formatUsd(p.amountUsd)}</div>
-                <div className="text-xs text-gray-500">{formatDate(p.createdAt)}</div>
-                {p.status === 'pending' && (
-                  <button onClick={() => setSelectedPayment(p)} className="text-brand-600 text-xs hover:underline">
-                    Show QR
-                  </button>
-                )}
-              </div>
-            ))
-          )}
-        </div>
+      <div className="card overflow-hidden">
+        {loading ? (
+          <SkeletonList rows={5} />
+        ) : payments.length === 0 ? (
+          <div className="p-12 text-center text-gray-500">No payments yet</div>
+        ) : (
+          <>
+            {/* Desktop table */}
+            <table className="w-full hidden md:table">
+              <thead className="bg-gray-50 border-b">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reference</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y">
+                {payments.map((p) => (
+                  <PaymentTableRow key={p.id} payment={p} onShowQr={setSelectedPayment} />
+                ))}
+              </tbody>
+            </table>
 
-        <div className="hidden md:block overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-100">
-              <tr>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Reference</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Amount</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Created</th>
-                <th className="px-6 py-3"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {loading ? (
-                <tr><td colSpan={PAYMENT_TABLE_COLUMNS} className="px-6 py-8 text-center text-gray-400">Loading...</td></tr>
-              ) : payments.length === 0 ? (
-                <tr><td colSpan={PAYMENT_TABLE_COLUMNS} className="px-6 py-8 text-center text-gray-400">No payments yet</td></tr>
-              ) : (
-                payments.map((p) => (
-                  <tr key={p.id} data-testid={`payment-row-${p.id}`} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 font-mono text-xs">{p.reference}</td>
-                    <td className="px-6 py-4 font-semibold">{formatUsd(p.amountUsd)}</td>
-                    <td className="px-6 py-4">
-                      <span data-testid="payment-status-badge" className={`text-xs px-2 py-0.5 rounded-full font-medium ${PAYMENT_STATUS_COLORS[p.status] ?? DEFAULT_STATUS_COLOR}`}>
-                        {p.status}
-                      </span>
-                    </td>
-                    <td className="px-6 py-4 text-gray-500">{formatDate(p.createdAt)}</td>
-                    <td className="px-6 py-4">
-                      {p.status === 'pending' && (
-                        <button data-testid={`show-qr-button-${p.id}`} onClick={() => setSelectedPayment(p)} className="text-brand-600 text-xs hover:underline">
-                          Show QR
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-        {showPagination && (
-          <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
-            <span className="text-sm text-gray-500">Page {page} of {Math.ceil(total / 20)}</span>
-            <div className="flex gap-2">
-              <button
-                data-testid="pagination-prev"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="btn-secondary text-sm px-3 py-1"
-              >
-                Prev
-              </button>
-              <button
-                data-testid="pagination-next"
-                onClick={() => setPage((p) => p + 1)}
-                disabled={page * 20 >= total}
-                className="btn-secondary text-sm px-3 py-1"
-              >
-                Next
-              </button>
+            {/* Mobile cards */}
+            <div className="md:hidden divide-y">
+              {payments.map((p) => (
+                <PaymentMobileCard key={p.id} payment={p} onShowQr={setSelectedPayment} />
+              ))}
             </div>
-          </div>
+          </>
         )}
       </div>
+
+      {showPagination && (
+        <div className="flex items-center justify-between mt-4">
+          <button
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page === 1}
+            className="btn-secondary"
+          >
+            Previous
+          </button>
+          <span className="text-sm text-gray-500">Page {page}</span>
+          <button
+            onClick={() => setPage((p) => p + 1)}
+            disabled={payments.length < 20}
+            className="btn-secondary"
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 }
