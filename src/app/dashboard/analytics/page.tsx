@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { paymentsApi } from '@/lib/api';
 import { formatUsd } from '@/lib/utils';
@@ -27,7 +27,9 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  useEffect(() => {
+  const loadStats = useCallback(() => {
+    setLoading(true);
+    setError('');
     paymentsApi.stats()
       .then(({ data }) => {
         setError('');
@@ -36,6 +38,10 @@ export default function AnalyticsPage() {
       .catch(() => setError("Couldn't load analytics."))
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    loadStats();
+  }, [loadStats]);
 
   const pieData = stats.map((s) => ({
     name: s.status,
@@ -56,7 +62,16 @@ export default function AnalyticsPage() {
       {loading ? (
         <div className="text-center py-12 text-gray-400">Loading...</div>
       ) : error ? (
-        <div className="text-center py-12 text-red-500">{error}</div>
+        <div className="text-center py-12 text-red-500">
+          <p>{error}</p>
+          <button
+            type="button"
+            onClick={loadStats}
+            className="mt-4 inline-flex items-center rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
+          >
+            Retry
+          </button>
+        </div>
       ) : (
         <div className="space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
