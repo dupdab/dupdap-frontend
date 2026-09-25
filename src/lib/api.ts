@@ -1,5 +1,8 @@
 import axios from 'axios';
+import { getApiUrl } from './env';
 import { useAuthStore } from './store';
+import { getApiUrl } from './env';
+import { redirectToLogin } from './auth-redirect';
 import type {
   AuthResponse,
   Merchant,
@@ -26,7 +29,7 @@ api.interceptors.response.use(
   (err) => {
     if (err.response?.status === 401 && typeof window !== 'undefined') {
       useAuthStore.getState().logout();
-      window.location.href = '/auth/login';
+      redirectToLogin();
     }
     return Promise.reject(err);
   },
@@ -39,6 +42,9 @@ export const authApi = {
   register: (data: { email: string; password: string; businessName: string; country?: string }) =>
     api.post<AuthResponse>('/auth/register', data),
   login: (data: { email: string; password: string }) => api.post<AuthResponse>('/auth/login', data),
+  forgotPassword: (data: { email: string }) => api.post('/auth/forgot-password', data),
+  resetPassword: (data: { token: string; password: string }) =>
+    api.post('/auth/reset-password', data),
 };
 
 export const paymentsApi = {

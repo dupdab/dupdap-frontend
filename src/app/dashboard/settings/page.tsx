@@ -1,20 +1,24 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Copy, Check, Eye, EyeOff } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { merchantApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { FormField } from '@/components/FormField';
+import { getErrorMessage } from '@/lib/errors';
 
 function maskApiKey(key: string): string {
   if (key.length <= 8) return '••••••••';
   return `${key.slice(0, 4)}${'•'.repeat(Math.min(key.length - 8, 24))}${key.slice(-4)}`;
 }
 
+const EMPTY_FORM = { businessName: '', country: '', bankAccountNumber: '', bankCode: '', bankName: '' };
+
 export default function SettingsPage() {
   const { merchant } = useAuthStore();
-  const [form, setForm] = useState({ businessName: '', country: '', bankAccountNumber: '', bankCode: '', bankName: '' });
+  const [form, setForm] = useState(EMPTY_FORM);
+  const [savedForm, setSavedForm] = useState(EMPTY_FORM);
   const [currentScopes, setCurrentScopes] = useState<string[]>([]);
   const [selectedScopes, setSelectedScopes] = useState<string[]>(['payments:read', 'settlements:read']);
   const [saving, setSaving] = useState(false);
@@ -24,17 +28,25 @@ export default function SettingsPage() {
   const [generatingKey, setGeneratingKey] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
 
+  const isDirty = Object.keys(form).some(
+    (key) => form[key as keyof typeof form] !== savedForm[key as keyof typeof savedForm],
+  );
+  const isDirtyRef = useRef(isDirty);
+  isDirtyRef.current = isDirty;
+
   useEffect(() => {
     merchantApi.profile()
       .then(({ data }) => {
         const apiKeyScopes = data.apiKeyScopes ?? [];
-        setForm({
+        const loaded = {
           businessName: data.businessName ?? '',
           country: data.country ?? '',
           bankAccountNumber: data.bankAccountNumber ?? '',
           bankCode: data.bankCode ?? '',
           bankName: data.bankName ?? '',
-        });
+        };
+        setForm(loaded);
+        setSavedForm(loaded);
         setCurrentScopes(apiKeyScopes);
         setSelectedScopes(apiKeyScopes.length > 0 ? apiKeyScopes : ['payments:read', 'settlements:read']);
       })
@@ -43,16 +55,48 @@ export default function SettingsPage() {
       });
   }, []);
 
+  // Warn on browser-level navigation (reload, tab close, external link) while dirty (#404)
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (!isDirtyRef.current) return;
+      e.preventDefault();
+      e.returnValue = '';
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
+
+  // Warn on in-app navigation (e.g. sidebar links) while dirty (#404)
+  useEffect(() => {
+    const handleClick = (e: MouseEvent) => {
+      if (!isDirtyRef.current) return;
+      if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+      const anchor = (e.target as HTMLElement | null)?.closest?.('a[href]') as HTMLAnchorElement | null;
+      if (!anchor) return;
+      const href = anchor.getAttribute('href');
+      if (!href || href.startsWith('#') || anchor.target === '_blank' || anchor.hasAttribute('download')) return;
+      const url = new URL(anchor.href, window.location.href);
+      if (url.origin !== window.location.origin) return;
+      if (url.pathname === window.location.pathname && url.search === window.location.search) return;
+      if (!window.confirm('You have unsaved changes. Leave this page and discard them?')) {
+        e.preventDefault();
+        e.stopPropagation();
+      }
+    };
+    document.addEventListener('click', handleClick, true);
+    return () => document.removeEventListener('click', handleClick, true);
+  }, []);
+
   const save = async (e: React.FormEvent) => {
     e.preventDefault();
     setSaving(true);
     setFieldErrors({});
     try {
       await merchantApi.update(form);
+      setSavedForm(form);
       toast.success('Profile updated');
     } catch (err: any) {
-      const data = err?.response?.data;
-      const errors = data?.errors;
+      const errors = err?.response?.data?.errors;
       if (errors && typeof errors === 'object') {
         const normalized: Record<string, string> = {};
         for (const [field, msg] of Object.entries(errors)) {
@@ -60,9 +104,9 @@ export default function SettingsPage() {
         }
         setFieldErrors(normalized);
         const first = Object.values(normalized)[0];
-        toast.error(first ?? data?.message ?? 'Failed to update profile');
+        toast.error(first ?? getErrorMessage(err));
       } else {
-        toast.error(data?.message ?? 'Failed to update profile');
+        toast.error(getErrorMessage(err));
       }
     } finally {
       setSaving(false);
@@ -125,21 +169,16 @@ export default function SettingsPage() {
             { key: 'bankCode', label: 'Bank Code', inputMode: 'numeric' as const, pattern: '[0-9]{3,6}' },
             { key: 'bankAccountNumber', label: 'Bank Account Number', inputMode: 'numeric' as const, pattern: '[0-9]{6,17}' },
           ].map(({ key, label, inputMode, pattern }) => (
-            <div key={key}>
-              {/* id derived from field key so htmlFor/id are always in sync (#157) */}
-              <label htmlFor={key} className="label">{label}</label>
-              <input
-                id={key}
-                className={`input ${fieldErrors[key] ? 'border-red-400 focus:border-red-400' : ''}`}
-                inputMode={inputMode}
-                pattern={pattern}
-                value={form[key as keyof typeof form]}
-                onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-              />
-              {fieldErrors[key] && (
-                <p className="text-xs text-red-500 mt-1">{fieldErrors[key]}</p>
-              )}
-            </div>
+            <FormField
+              key={key}
+              id={key}
+              label={label}
+              inputMode={inputMode}
+              pattern={pattern}
+              value={form[key as keyof typeof form]}
+              onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+              error={fieldErrors[key]}
+            />
           ))}
           <button type="submit" disabled={saving} className="btn-primary">
             {saving ? 'Saving...' : 'Save changes'}
@@ -207,22 +246,27 @@ export default function SettingsPage() {
                 className="shrink-0 p-1 text-gray-400 hover:text-gray-200"
                 aria-label="Copy API key"
               >
-                {keyCopied ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4" />}
+                {keyCopied ? <Check className="w-4 h-4 text-green-400" /> : <Copy className="w-4 h-4" />}
               </button>
             </div>
             <button
               type="button"
               onClick={dismissApiKey}
-              className="mt-3 text-sm font-medium text-brand-600 hover:underline"
+              className="mt-3 text-sm text-amber-900 underline"
             >
-              I&apos;ve saved it, dismiss
+              I&apos;ve saved it
             </button>
           </div>
-        ) : null}
-        <button onClick={() => window.confirm("Are you sure you want to generate a new API key? This will invalidate your current key.") && generateKey()} disabled={generatingKey} className="btn-secondary">
-          {generatingKey ? 'Generating...' : 'Generate new API key'}
-        </button>
-        <p className="text-xs text-red-500 mt-2">Generating a new key will invalidate the previous one.</p>
+        ) : (
+          <button
+            type="button"
+            onClick={generateKey}
+            disabled={generatingKey || selectedScopes.length === 0}
+            className="btn-primary"
+          >
+            {generatingKey ? 'Generating...' : 'Generate new API key'}
+          </button>
+        )}
       </div>
     </div>
   );

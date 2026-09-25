@@ -17,7 +17,11 @@ const nextConfig = {
             key: 'Content-Security-Policy',
             value: [
               "default-src 'self'",
-              "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
+              // script-src is set per-request in middleware.ts with a nonce so
+              // inline scripts (e.g. JSON-LD) can run without 'unsafe-inline'
+              // or 'unsafe-eval'. This static header is a fallback for routes
+              // that bypass middleware; it intentionally omits both directives.
+              "script-src 'self'",
               "style-src 'self' 'unsafe-inline'",
               `connect-src ${connectSrc.join(' ')}`,
               "img-src 'self' data: blob:",
