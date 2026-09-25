@@ -4,7 +4,9 @@ import { useState } from 'react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { MailCheck } from 'lucide-react';
+import { AxiosError } from 'axios';
 import { authApi } from '@/lib/api';
+import { getErrorMessage } from '@/lib/errors';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -17,13 +19,13 @@ export default function ForgotPasswordPage() {
     try {
       await authApi.forgotPassword({ email });
       setSent(true);
-    } catch (err: any) {
+    } catch (err: unknown) {
       // Avoid leaking whether an account exists — treat as success unless it's
       // clearly a transport/server error.
-      if (err.response && err.response.status < 500) {
+      if (err instanceof AxiosError && err.response && err.response.status < 500) {
         setSent(true);
       } else {
-        toast.error(err.response?.data?.message ?? 'Something went wrong. Please try again.');
+        toast.error(getErrorMessage(err));
       }
     } finally {
       setLoading(false);

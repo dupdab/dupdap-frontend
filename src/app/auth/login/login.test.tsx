@@ -49,6 +49,16 @@ async function fillAndSubmit(email = 'merchant@test.com', password = 'secret') {
   await userEvent.click(screen.getByTestId('login-submit-button'));
 }
 
+function makeAxiosError(status: number, message: string) {
+  return new AxiosError(
+    'Request failed',
+    'ERR_BAD_REQUEST',
+    undefined,
+    undefined,
+    { data: { message }, status, statusText: 'Error', headers: {}, config: {} as never },
+  );
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 describe('LoginPage', () => {
@@ -135,14 +145,7 @@ describe('LoginPage', () => {
   // ── Error path ────────────────────────────────────────────────────────────
 
   it('shows a toast with the server error message on API failure', async () => {
-    const axiosError = new AxiosError(
-      'Request failed',
-      'ERR_BAD_REQUEST',
-      undefined,
-      undefined,
-      { data: { message: 'Invalid credentials' }, status: 401, statusText: 'Unauthorized', headers: {}, config: {} as never },
-    );
-    mockLogin.mockRejectedValueOnce(axiosError);
+    mockLogin.mockRejectedValueOnce(makeAxiosError(401, 'Invalid credentials'));
 
     render(React.createElement(LoginPage));
     await fillAndSubmit();
@@ -183,6 +186,37 @@ describe('LoginPage', () => {
     await waitFor(() => expect(mockToastError).toHaveBeenCalled());
     expect(mockSetAuth).not.toHaveBeenCalled();
     expect(mockPush).not.toHaveBeenCalled();
+  });
+
+  // ── Rate limit / CAPTCHA ──────────────────────────────────────────────────
+
+  it('renders a persistent inline banner with the rate-limit message on 429', async () => {
+    mockLogin.mockRejectedValueOnce(makeAxiosError(429, 'Too many attempts. Try again later.'));
+
+    render(React.createElement(LoginPage));
+    await fillAndSubmit();
+
+    await waitFor(() => {
+      expect(screen.getByTestId('login-rate-limit-banner')).toHaveTextContent(
+        /too many attempts/i,
+      );
+    });
+  });
+
+  it('shows the CAPTCHA challenge after repeated failed attempts', async () => {
+    mockLogin.mockRejectedValue(new Error('bad'));
+
+    render(React.createElement(LoginPage));
+
+    for (let i = 0; i < 3; i += 1) {
+      await fillAndSubmit();
+      await waitFor(() => expect(mockToastError).toHaveBeenCalled());
+      mockToastError.mockClear();
+    }
+
+    await waitFor(() => {
+      expect(screen.getByTestId('login-captcha')).toBeInTheDocument();
+    });
   });
 
   // ── ?next= redirect ───────────────────────────────────────────────────────

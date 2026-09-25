@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, memo } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { Plus, Trash2, Copy, Check, Eye, EyeOff, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { webhooksApi } from '@/lib/api';
@@ -185,9 +185,14 @@ export default function WebhooksPage() {
 
   const toggleEvent = (e: string) => {
     setForm((f) => {
-      const events = f.events.includes(e) ? f.events.filter((x) => x !== e) : [...f.events, e];
-      if (events.length > 0) setFormError('');
-      return { ...f, events };
+      const nextEvents = f.events.includes(e) ? f.events.filter((x) => x !== e) : [...f.events, e];
+      if (nextEvents.length > 0) {
+        setFormError('');
+      }
+      return {
+        ...f,
+        events: nextEvents,
+      };
     });
   };
 
@@ -280,6 +285,39 @@ export default function WebhooksPage() {
                 className="input font-mono"
               />
             </div>
+            <div>
+              <label className="label">Events</label>
+              <div className="space-y-2 mt-1">
+                {WEBHOOK_EVENTS.map((evt) => {
+                  const id = `webhook-event-${evt}`;
+                  return (
+                    <div key={evt} className="flex items-center gap-2">
+                      <input
+                        id={id}
+                        type="checkbox"
+                        checked={form.events.includes(evt)}
+                        onChange={() => toggleEvent(evt)}
+                      />
+                      <label htmlFor={id} className="text-sm cursor-pointer">
+                        <code className="text-xs">{evt}</code>
+                      </label>
+                    </div>
+                  );
+                })}
+              </div>
+              {formError && (
+                <p
+                  data-testid="webhook-events-error"
+                  role="alert"
+                  className="text-xs text-red-500 mt-2"
+                >
+                  {formError}
+                </p>
+              )}
+            </div>
+            <button data-testid="webhook-submit-button" type="submit" disabled={creating} className="btn-primary w-full">
+              {creating ? 'Creating...' : 'Create Webhook'}
+            </button>
           </fieldset>
 
           <div className="flex justify-end gap-3 pt-2">

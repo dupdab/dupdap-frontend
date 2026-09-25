@@ -26,6 +26,8 @@ The customer-facing payment flow here is built around Stellar, not a generic mul
 /waitlist               public waitlist signup
 /auth/login             merchant login
 /auth/register          merchant registration
+/auth/forgot-password   request password reset link
+/auth/reset-password    set new password with token
 /pay/[paymentId]        customer-facing payment page (approve → deposit → status → receipt)
 /dashboard              merchant dashboard shell (layout.tsx wraps the routes below)
   /dashboard            overview
@@ -46,6 +48,15 @@ The customer-facing payment flow here is built around Stellar, not a generic mul
   - grouped API helpers (`authApi`, `paymentsApi`, …) rather than ad-hoc fetches scattered through components
 - **`src/lib/store.ts`** — Zustand + `persist` for auth state (`token`, `merchant`), persisted to `localStorage` under the `dupdub-auth` key. This is the only global client state; everything else (payment lists, analytics, etc.) is fetched per-page through `api.ts`.
 
+### `src/lib` overview
+
+- **`src/lib/api.ts`** — the Axios instance and grouped API helpers described above.
+- **`src/lib/store.ts`** — the Zustand auth store described above.
+- **`src/lib/errors.ts`** — the app-wide error-message utility. Pages and components should extract user-facing error text via `getErrorMessage` from this module.
+- **`src/lib/utils.ts`** — shared formatting/className helpers (`clsx` + `tailwind-merge`).
+
+> **Error handling:** always import `getErrorMessage` from `src/lib/errors.ts`. A second, differently-shaped `getErrorMessage` also exists in `src/lib/utils.ts`, but it is not the app-wide helper and is effectively dead — importing it there will not produce the error messages the rest of the app expects.
+
 ### Auth token security
 
 The access token is persisted in `localStorage` via Zustand. Any XSS vector can read it synchronously. Mitigations in this repo:
@@ -53,7 +64,6 @@ The access token is persisted in `localStorage` via Zustand. Any XSS vector can 
 - **Single storage key** — the Axios client reads from `useAuthStore`, not a duplicate `access_token` key, so 401 logout and UI auth state stay in sync.
 - **CSP headers** — `next.config.js` sets a restrictive Content-Security-Policy (plus `X-Frame-Options`, `Referrer-Policy`) to reduce XSS blast radius.
 - **Recommended long-term fix** — move to an `httpOnly`, `SameSite=Strict` session cookie issued by `dupdap-backend`, with the frontend never handling the raw JWT.
-- **`src/lib/utils.ts`** — shared formatting/className helpers (`clsx` + `tailwind-merge`).
 
 ### Customer payment flow (`/pay/[paymentId]`)
 
@@ -155,7 +165,7 @@ This app is a pure client of [`dupdap-backend`](../dupdap-backend)'s REST API �
 - `paymentsApi` — create/list/get/stats for payments
 - `adminApi` — list/retry/approve settlements (admin views)
 
-Extend `api.ts` with additional grouped helpers (e.g. `settlementsApi`, `webhooksApi`, `merchantsApi`) as dashboard pages need them, rather than calling `api.get(...)` directly from components, to keep endpoint paths in one place.
+Extend `api.ts` with additional grouped helpers (e.g. `settlementsApi`, `webhooksApi`, `merchantsApi`) as dashboard pages need them, rather than calling `api.get(...)` directly from components, to keep endpoint paths in one place and so the auth/401 interceptors keep applying everywhere.
 
 ## Testing & linting
 
@@ -172,3 +182,14 @@ vercel --prod
 ```
 
 The app is a standard Next.js app, so any platform that supports Next.js (Vercel, Railway, etc.) works. The only required runtime config is `NEXT_PUBLIC_API_URL` pointed at the deployed backend.
+
+## Handsoff notes
+
+<!-- handsoff-issue-381 -->
+- #381: No test coverage exists for the forgot-password or reset-password pages
+<!-- handsoff-issue-380 -->
+- #380: No test coverage exists for LandingNav or the landing page
+<!-- handsoff-issue-293 -->
+- #293: Login and register forms have no autocomplete attributes for email/password
+<!-- handsoff-issue-332 -->
+- #332: StatusPieChart and VolumeBarChart components are fully implemented but never rendered anywhere

@@ -35,7 +35,27 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body className={inter.className}>
         <AuthRedirectSetup />
         {children}
-        <Toaster position="top-right" />
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            ariaProps: {
+              role: 'status',
+              'aria-live': 'polite',
+            },
+            success: {
+              ariaProps: {
+                role: 'status',
+                'aria-live': 'polite',
+              },
+            },
+            error: {
+              ariaProps: {
+                role: 'alert',
+                'aria-live': 'assertive',
+              },
+            },
+          }}
+        />
       </body>
     </html>
   );
