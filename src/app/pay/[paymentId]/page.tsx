@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
 import { Clock, CheckCircle, XCircle, Loader2, Copy, Check, AlertTriangle } from 'lucide-react';
 import { paymentsApi } from '@/lib/api';
@@ -45,6 +45,7 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
   const [now, setNow] = useState(Date.now());
   const [copied, setCopied] = useState<string | null>(null);
   const [pollWarning, setPollWarning] = useState<string>('');
+  const pollNowRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     let pollAttempts = 0;
@@ -88,10 +89,22 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
         });
     };
 
+    // Expose an immediate poll trigger so visibilitychange can refresh
+    // without waiting for the next scheduled interval tick.
+    pollNowRef.current = () => {
+      if (cancelled) return;
+      if (timeout) {
+        clearTimeout(timeout);
+        timeout = null;
+      }
+      poll();
+    };
+
     scheduleNext();
 
     return () => {
       cancelled = true;
+      pollNowRef.current = null;
       if (timeout) clearTimeout(timeout);
     };
   }, [params.paymentId]);
@@ -106,6 +119,19 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
     const tick = setInterval(() => setNow(Date.now()), 1000);
     return () => clearInterval(tick);
   }, [isPending, expiresAt]);
+
+  // When the tab becomes visible again, background throttling may have left
+  // `now` and the polled `payment` state out of sync. Recompute `now` and
+  // trigger an immediate poll so the countdown matches the latest status.
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.visibilityState !== 'visible') return;
+      setNow(Date.now());
+      pollNowRef.current?.();
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+  }, []);
 
   const copy = async (text: string, key: string) => {
     try {
@@ -195,32 +221,13 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
                   </button>
                 </div>
               </div>
-
-              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3 text-xs">
-                <p className="font-semibold text-amber-800 mb-1">Important: Include memo</p>
-                <div className="flex items-center gap-2">
-                  <code className="text-amber-900 font-bold text-sm break-all flex-1">{payment.stellarMemo}</code>
-                  <button
-                    onClick={() => copy(payment.stellarMemo, 'memo')}
-                    aria-label="Copy memo"
-                    className="shrink-0"
-                  >
-                    {copied === 'memo' ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4 text-gray-400" />}
-                  </button>
-                </div>
-              </div>
             </>
           ) : (
             <div className="text-center py-6">
               {STATUS_ICONS[payment.status] ?? DEFAULT_STATUS_ICON}
-              <p className="mt-3 font-semibold capitalize">{payment.status}</p>
+              <p className="mt-3 text-sm font-medium text-gray-700 capitalize">{payment.status}</p>
+              {pollWarning && <p className="mt-2 text-xs text-amber-600">{pollWarning}</p>}
             </div>
-          )}
-
-          {pollWarning && (
-            <p className="mt-4 text-xs text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-2 text-center">
-              {pollWarning}
-            </p>
           )}
         </div>
       </div>
