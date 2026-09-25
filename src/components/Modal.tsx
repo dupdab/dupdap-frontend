@@ -14,7 +14,7 @@ interface ModalProps {
 }
 
 /** Selector for all focusable elements, used by the focus trap. */
-const FOCUSABLE_SELECTORS = [
+export const FOCUSABLE_SELECTORS = [
   'a[href]',
   'button:not([disabled])',
   'input:not([disabled])',
@@ -23,16 +23,19 @@ const FOCUSABLE_SELECTORS = [
   '[tabindex]:not([tabindex="-1"])',
 ].join(', ');
 
-export default function Modal({
-  open,
-  onClose,
-  title,
-  children,
-  testId,
-  contentClassName,
-}: ModalProps) {
-  const panelRef = useRef<HTMLDivElement>(null);
-  /** Remembers the element that had focus before the modal opened so we can restore it on close. */
+/**
+ * Shared focus-trap / focus-restore logic used by Modal and ConfirmDialog (#314).
+ *
+ * When `open` becomes true it saves the currently-focused (triggering) element,
+ * moves focus into `panelRef`, traps Tab / Shift+Tab within the panel, and on
+ * close restores focus to the triggering element.
+ */
+export function useFocusTrap(
+  open: boolean,
+  panelRef: React.RefObject<HTMLElement | null>,
+  onClose: () => void,
+) {
+  /** Remembers the element that had focus before the dialog opened so we can restore it on close. */
   const triggerRef = useRef<Element | null>(null);
 
   useEffect(() => {
@@ -41,10 +44,7 @@ export default function Modal({
     // Save the currently-focused element so we can restore it on close.
     triggerRef.current = document.activeElement;
 
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
-
-    // Move focus into the modal panel on open.
+    // Move focus into the panel on open.
     panelRef.current?.focus();
 
     const onKeyDown = (e: KeyboardEvent) => {
@@ -54,7 +54,7 @@ export default function Modal({
         return;
       }
 
-      // Focus trap: cycle focus within the modal on Tab / Shift+Tab.
+      // Focus trap: cycle focus within the panel on Tab / Shift+Tab.
       if (e.key === 'Tab') {
         const panel = panelRef.current;
         if (!panel) return;
@@ -82,13 +82,36 @@ export default function Modal({
 
     return () => {
       document.removeEventListener('keydown', onKeyDown);
-      document.body.style.overflow = previousOverflow;
-      // Restore focus to the triggering element when the modal closes.
+      // Restore focus to the triggering element when the dialog closes.
       if (triggerRef.current instanceof HTMLElement) {
         triggerRef.current.focus();
       }
     };
-  }, [open, onClose]);
+  }, [open, panelRef, onClose]);
+}
+
+export default function Modal({
+  open,
+  onClose,
+  title,
+  children,
+  testId,
+  contentClassName,
+}: ModalProps) {
+  const panelRef = useRef<HTMLDivElement>(null);
+
+  useFocusTrap(open, panelRef, onClose);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [open]);
 
   if (!open) return null;
 
