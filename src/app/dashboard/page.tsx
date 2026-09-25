@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { TrendingUp, CreditCard, Banknote, Clock } from 'lucide-react';
 import { paymentsApi } from '@/lib/api';
 import { formatUsd, formatDate, PAYMENT_STATUS_COLORS, DEFAULT_STATUS_COLOR } from '@/lib/utils';
@@ -29,6 +29,16 @@ export default function DashboardPage() {
 
   const { totalVolume, settledCount, pendingCount, totalPayments } = aggregatePaymentStats(stats);
 
+  const statCards = useMemo(
+    () => [
+      { label: 'Total Volume', value: formatUsd(totalVolume), icon: TrendingUp, color: 'text-blue-600' },
+      { label: 'Settled Payments', value: settledCount, icon: Banknote, color: 'text-green-600' },
+      { label: 'Pending Payments', value: pendingCount, icon: Clock, color: 'text-yellow-600' },
+      { label: 'Total Payments', value: totalPayments, icon: CreditCard, color: 'text-purple-600' },
+    ],
+    [totalVolume, settledCount, pendingCount, totalPayments],
+  );
+
   return (
     <div className="p-8">
       <div className="mb-8">
@@ -40,12 +50,7 @@ export default function DashboardPage() {
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
-        {[
-          { label: 'Total Volume', value: formatUsd(totalVolume), icon: TrendingUp, color: 'text-blue-600' },
-          { label: 'Settled Payments', value: settledCount, icon: Banknote, color: 'text-green-600' },
-          { label: 'Pending Payments', value: pendingCount, icon: Clock, color: 'text-yellow-600' },
-          { label: 'Total Payments', value: totalPayments, icon: CreditCard, color: 'text-purple-600' },
-        ].map(({ label, value, icon: Icon, color }) => (
+        {statCards.map(({ label, value, icon: Icon, color }) => (
           <div key={label} className="card p-5">
             <div className="flex items-center justify-between mb-3">
               <span className="text-sm text-gray-500">{label}</span>
