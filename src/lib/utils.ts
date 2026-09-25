@@ -17,6 +17,16 @@ export function getErrorMessage(err: unknown, fallback: string): string {
   return fallback;
 }
 
+/**
+ * Formats a timestamp for display.
+ *
+ * NOTE: This is intentionally client-only. All current call sites live inside
+ * `'use client'` components, and the output depends on the runtime's local time
+ * zone (via `Intl.DateTimeFormat`). Rendering it during SSR/build would risk a
+ * hydration mismatch, since the server's time zone can differ from the browser's.
+ * If a server-rendered call site is ever added, format against an explicit
+ * `timeZone` (e.g. `'UTC'`) so server and client output match.
+ */
 export function formatDate(date: string | Date | undefined | null): string {
   if (!date) return '—';
   const d = new Date(date);

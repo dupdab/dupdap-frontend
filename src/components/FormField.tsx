@@ -1,37 +1,43 @@
-import { ReactNode } from 'react';
+import { ReactNode, useId } from 'react';
 
 interface FormFieldProps {
   label: string;
-  htmlFor?: string;
   error?: string;
-  hint?: string;
-  required?: boolean;
-  children: ReactNode;
+  labelClassName?: string;
+  hideLabel?: boolean;
+  hint?: React.ReactNode;
+  /** Optional status indicator rendered next to the label (e.g. username availability). */
+  status?: React.ReactNode;
 }
 
-export default function FormField({
-  label,
-  htmlFor,
-  error,
-  hint,
-  required,
-  children,
-}: FormFieldProps) {
+export function FormField({ label, error, id, className, labelClassName, hideLabel, hint, status, ...props }: FormFieldProps) {
+  const generatedId = useId();
+  const inputId = id ?? generatedId;
+  const errorId = `${inputId}-error`;
+
+  const labelClasses = hideLabel
+    ? `sr-only ${labelClassName ?? ''}`.trim()
+    : `label ${labelClassName ?? ''}`.trim();
+
   return (
-    <div className="flex flex-col gap-1.5">
-      <label
-        htmlFor={htmlFor}
-        className="text-sm font-medium text-gray-700 dark:text-gray-200"
-      >
-        {label}
-        {required && <span className="ml-0.5 text-red-500 dark:text-red-400">*</span>}
-      </label>
-      {children}
-      {hint && !error && (
-        <p className="text-xs text-gray-500 dark:text-gray-400">{hint}</p>
-      )}
+    <div>
+      <div className="flex items-center justify-between">
+        <label htmlFor={inputId} className={labelClasses}>
+          {label}
+        </label>
+        {hint && <span className="text-xs text-gray-400">{hint}</span>}
+      </div>
+      <input
+        id={inputId}
+        className={`input ${error ? 'border-red-400 focus:border-red-400' : ''} ${className ?? ''}`.trim()}
+        aria-invalid={error ? true : undefined}
+        aria-describedby={error ? errorId : undefined}
+        {...props}
+      />
       {error && (
-        <p className="text-xs text-red-600 dark:text-red-400">{error}</p>
+        <p id={errorId} className="text-xs text-red-500 mt-1">
+          {error}
+        </p>
       )}
     </div>
   );

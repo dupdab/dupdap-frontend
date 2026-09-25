@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import toast from 'react-hot-toast';
 import { CheckCircle, Loader2, XCircle } from 'lucide-react';
@@ -15,26 +15,36 @@ export default function WaitlistPage() {
   const [loading, setLoading] = useState(false);
   const [joined, setJoined] = useState(false);
   const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>('idle');
+  const [formError, setFormError] = useState('');
+  // Monotonic id for the latest username check; stale responses are ignored (#304).
+  const usernameCheckId = useRef(0);
 
   // Debounced live availability check for the optional username field.
   useEffect(() => {
     const username = form.username.trim();
     if (!username) {
+      usernameCheckId.current += 1;
       setUsernameStatus('idle');
       return;
     }
     setUsernameStatus('checking');
+    const requestId = ++usernameCheckId.current;
     const handle = setTimeout(async () => {
       try {
         const { data } = await waitlistApi.checkUsername(username);
+        // Ignore responses superseded by a newer check or a changed username.
+        if (requestId !== usernameCheckId.current) return;
         // Tolerate a few common response shapes: { available }, { taken }, { exists }.
-        let available: boolean;
-        if (typeof data?.available === 'boolean') available = data.available;
-        else if (typeof data?.taken === 'boolean') available = !data.taken;
-        else if (typeof data?.exists === 'boolean') available = !data.exists;
-        else available = true;
-        setUsernameStatus(available ? 'available' : 'taken');
+        // Any unrecognized shape is treated as an error rather than optimistically
+        // assuming availability, so we never promise a username we can't confirm (#305).
+        let status: UsernameStatus;
+        if (typeof data?.available === 'boolean') status = data.available ? 'available' : 'taken';
+        else if (typeof data?.taken === 'boolean') status = data.taken ? 'taken' : 'available';
+        else if (typeof data?.exists === 'boolean') status = data.exists ? 'taken' : 'available';
+        else status = 'error';
+        setUsernameStatus(status);
       } catch {
+        if (requestId !== usernameCheckId.current) return;
         setUsernameStatus('error');
       }
     }, 400);
@@ -48,6 +58,7 @@ export default function WaitlistPage() {
       return;
     }
     setLoading(true);
+    setFormError('');
     try {
       await waitlistApi.join(form);
       setJoined(true);
@@ -97,11 +108,44 @@ export default function WaitlistPage() {
             <p className="sr-only" aria-live="polite" aria-atomic="true">
               {loading ? 'Submitting, please wait…' : ''}
             </p>
+            {formError && (
+              <p role="alert" className="text-sm text-red-600">
+                {formError}
+              </p>
+            )}
             <fieldset disabled={loading} className="space-y-4">
               <FormField label="Email" type="email" required value={form.email}
                 onChange={(e) => setForm({ ...form, email: e.target.value })} />
-              <FormField label="Username (optional)" type="text" required={false} value={form.username}
-                onChange={(e) => setForm({ ...form, username: e.target.value })} />
+              <div>
+                <FormField label="Username (optional)" type="text" required={false} value={form.username}
+                  onChange={(e) => setForm({ ...form, username: e.target.value })} />
+                <div className="mt-1 flex items-center gap-1.5 text-sm" aria-live="polite">
+                  {usernameStatus === 'checking' && (
+                    <>
+                      <Loader2 className="w-4 h-4 animate-spin text-gray-400" aria-hidden="true" />
+                      <span className="text-gray-500">Checking availability…</span>
+                    </>
+                  )}
+                  {usernameStatus === 'available' && (
+                    <>
+                      <CheckCircle className="w-4 h-4 text-green-500" aria-hidden="true" />
+                      <span className="text-green-600">Username is available</span>
+                    </>
+                  )}
+                  {usernameStatus === 'taken' && (
+                    <>
+                      <XCircle className="w-4 h-4 text-red-500" aria-hidden="true" />
+                      <span className="text-red-600">Username is already taken</span>
+                    </>
+                  )}
+                  {usernameStatus === 'error' && (
+                    <>
+                      <XCircle className="w-4 h-4 text-amber-500" aria-hidden="true" />
+                      <span className="text-amber-600">Couldn&apos;t verify username availability</span>
+                    </>
+                  )}
+                </div>
+              </div>
               <FormField label="Business Name (optional)" type="text" required={false} value={form.businessName}
                 onChange={(e) => setForm({ ...form, businessName: e.target.value })} />
               <FormField label="Country (optional)" type="text" required={false} value={form.country}
