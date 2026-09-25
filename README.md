@@ -26,6 +26,8 @@ The customer-facing payment flow here is built around Stellar, not a generic mul
 /waitlist               public waitlist signup
 /auth/login             merchant login
 /auth/register          merchant registration
+/auth/forgot-password   request password reset link
+/auth/reset-password    set new password with token
 /pay/[paymentId]        customer-facing payment page (approve → deposit → status → receipt)
 /dashboard              merchant dashboard shell (layout.tsx wraps the routes below)
   /dashboard            overview
@@ -172,3 +174,12 @@ vercel --prod
 ```
 
 The app is a standard Next.js app, so any platform that supports Next.js (Vercel, Railway, etc.) works. The only required runtime config is `NEXT_PUBLIC_API_URL` pointed at the deployed backend.
+
+## Handsoff notes
+
+<!-- handsoff-issue-380 -->
+- #380: No test coverage exists for LandingNav or the landing page
+<!-- handsoff-issue-293 -->
+- #293: Login and register forms have no autocomplete attributes for email/password
+<!-- handsoff-issue-332 -->
+- #332: StatusPieChart and VolumeBarChart components are fully implemented but never rendered anywhere

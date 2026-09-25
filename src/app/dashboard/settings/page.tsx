@@ -6,6 +6,7 @@ import toast from 'react-hot-toast';
 import { merchantApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { FormField } from '@/components/FormField';
+import { getErrorMessage } from '@/lib/errors';
 
 function maskApiKey(key: string): string {
   if (key.length <= 8) return '••••••••';
@@ -95,8 +96,7 @@ export default function SettingsPage() {
       setSavedForm(form);
       toast.success('Profile updated');
     } catch (err: any) {
-      const data = err?.response?.data;
-      const errors = data?.errors;
+      const errors = err?.response?.data?.errors;
       if (errors && typeof errors === 'object') {
         const normalized: Record<string, string> = {};
         for (const [field, msg] of Object.entries(errors)) {
@@ -104,9 +104,9 @@ export default function SettingsPage() {
         }
         setFieldErrors(normalized);
         const first = Object.values(normalized)[0];
-        toast.error(first ?? data?.message ?? 'Failed to update profile');
+        toast.error(first ?? getErrorMessage(err));
       } else {
-        toast.error(data?.message ?? 'Failed to update profile');
+        toast.error(getErrorMessage(err));
       }
     } finally {
       setSaving(false);
@@ -169,21 +169,16 @@ export default function SettingsPage() {
             { key: 'bankCode', label: 'Bank Code', inputMode: 'numeric' as const, pattern: '[0-9]{3,6}' },
             { key: 'bankAccountNumber', label: 'Bank Account Number', inputMode: 'numeric' as const, pattern: '[0-9]{6,17}' },
           ].map(({ key, label, inputMode, pattern }) => (
-            <div key={key}>
-              {/* id derived from field key so htmlFor/id are always in sync (#157) */}
-              <label htmlFor={key} className="label">{label}</label>
-              <input
-                id={key}
-                className={`input ${fieldErrors[key] ? 'border-red-400 focus:border-red-400' : ''}`}
-                inputMode={inputMode}
-                pattern={pattern}
-                value={form[key as keyof typeof form]}
-                onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-              />
-              {fieldErrors[key] && (
-                <p className="text-xs text-red-500 mt-1">{fieldErrors[key]}</p>
-              )}
-            </div>
+            <FormField
+              key={key}
+              id={key}
+              label={label}
+              inputMode={inputMode}
+              pattern={pattern}
+              value={form[key as keyof typeof form]}
+              onChange={(e) => setForm({ ...form, [key]: e.target.value })}
+              error={fieldErrors[key]}
+            />
           ))}
           <button type="submit" disabled={saving} className="btn-primary">
             {saving ? 'Saving...' : 'Save changes'}
@@ -259,7 +254,7 @@ export default function SettingsPage() {
               onClick={dismissApiKey}
               className="mt-3 text-sm text-amber-900 underline"
             >
-              I&apos;ve saved it, dismiss
+              I&apos;ve saved it
             </button>
           </div>
         ) : (
@@ -269,7 +264,7 @@ export default function SettingsPage() {
             disabled={generatingKey || selectedScopes.length === 0}
             className="btn-primary"
           >
-            {generatingKey ? 'Generating...' : 'Generate new key'}
+            {generatingKey ? 'Generating...' : 'Generate new API key'}
           </button>
         )}
       </div>
