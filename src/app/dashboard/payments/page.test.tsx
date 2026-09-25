@@ -207,4 +207,28 @@ describe('PaymentsPage', () => {
     const reopenedModal = await screen.findByTestId('create-payment-modal');
     expect(within(reopenedModal).getByLabelText('Amount (USD)')).toHaveValue('');
   });
+
+  it('resets the copy-success state when a different payment is selected', async () => {
+    const paymentA: Payment = { ...basePayment, id: 'pay-a', reference: 'REF-A', stellarMemo: 'MEMO-A' };
+    const paymentB: Payment = { ...basePayment, id: 'pay-b', reference: 'REF-B', stellarMemo: 'MEMO-B' };
+    mockListResponse([paymentA, paymentB], 2);
+
+    render(<PaymentsPage />);
+
+    const qrButtons = await screen.findAllByTestId('view-qr-button');
+
+    await userEvent.click(qrButtons[0]);
+    const modalA = await screen.findByTestId('payment-qr-modal');
+    await userEvent.click(within(modalA).getByTestId('copy-memo-button'));
+    expect(within(modalA).getByTestId('copy-memo-button')).toHaveAttribute('data-copied', 'true');
+
+    await userEvent.click(within(modalA).getByTestId('payment-qr-close'));
+    await waitFor(() => {
+      expect(screen.queryByTestId('payment-qr-modal')).not.toBeInTheDocument();
+    });
+
+    await userEvent.click(qrButtons[1]);
+    const modalB = await screen.findByTestId('payment-qr-modal');
+    expect(within(modalB).getByTestId('copy-memo-button')).toHaveAttribute('data-copied', 'false');
+  });
 });

@@ -103,6 +103,13 @@ export default function PaymentsPage() {
 
   useEffect(() => { load(page); }, [page]);
 
+  // Reset the copy-success indicator whenever a different payment is selected
+  // (or the modal is closed), so a stale checkmark from a previously copied
+  // memo never leaks into another payment's QR modal (#326).
+  useEffect(() => {
+    setCopied(false);
+  }, [selectedPayment]);
+
   const createPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     setCreating(true);
@@ -221,78 +228,6 @@ export default function PaymentsPage() {
         onClose={() => setSelectedPayment(null)}
         title="Payment QR Code"
         testId="payment-qr-modal"
-        contentClassName="max-w-sm text-center"
-      >
-        {selectedPayment && (
-          <div className="space-y-4">
-            <QRCodeSVG value={selectedPayment.checkoutUrl} className="mx-auto" />
-            <p className="text-sm text-gray-500 break-all">{selectedPayment.checkoutUrl}</p>
-            <button
-              onClick={() => copyMemo(selectedPayment.checkoutUrl)}
-              className="btn-secondary w-full flex items-center justify-center gap-2"
-            >
-              {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-              {copied ? 'Copied' : 'Copy Link'}
-            </button>
-          </div>
-        )}
-      </Modal>
+        con
 
-      <div className="card overflow-hidden">
-        {loading ? (
-          <SkeletonList rows={PAYMENT_TABLE_COLUMNS} />
-        ) : payments.length === 0 ? (
-          <div className="p-8 text-center text-gray-500">No payments yet</div>
-        ) : (
-          <>
-            <table className="w-full hidden md:table">
-              <thead className="bg-gray-50 text-left text-xs text-gray-500 uppercase">
-                <tr>
-                  <th className="px-6 py-3">Reference</th>
-                  <th className="px-6 py-3">Amount</th>
-                  <th className="px-6 py-3">Status</th>
-                  <th className="px-6 py-3">Created</th>
-                  <th className="px-6 py-3"></th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {payments.map((p) => (
-                  <PaymentTableRow key={p.id} payment={p} onShowQr={setSelectedPayment} />
-                ))}
-              </tbody>
-            </table>
-            <div className="md:hidden divide-y divide-gray-100">
-              {payments.map((p) => (
-                <PaymentMobileCard key={p.id} payment={p} onShowQr={setSelectedPayment} />
-              ))}
-            </div>
-          </>
-        )}
-      </div>
-
-      {showPagination && (
-        <nav aria-label="Pagination" className="flex items-center justify-between mt-4">
-          <button
-            data-testid="pagination-prev"
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-            disabled={page <= 1}
-            aria-label={`Go to previous page, page ${page - 1} of ${totalPages}`}
-            className="btn-secondary disabled:opacity-50"
-          >
-            Prev
-          </button>
-          <span className="text-sm text-gray-500">Page {page} of {totalPages}</span>
-          <button
-            data-testid="pagination-next"
-            onClick={() => setPage((p) => p + 1)}
-            disabled={page >= totalPages}
-            aria-label={`Go to next page, page ${page + 1} of ${totalPages}`}
-            className="btn-secondary disabled:opacity-50"
-          >
-            Next
-          </button>
-        </nav>
-      )}
-    </div>
-  );
-}
+/* … truncated 2875 chars — edit only what you need near the top … */
