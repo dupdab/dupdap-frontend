@@ -68,8 +68,7 @@ export default function DashboardPage() {
         <div className="divide-y divide-gray-50">
           {error ? (
             <div className="px-6 py-8 text-center text-red-500 text-sm">{error}</div>
-          ) : null}
-          {loading ? (
+          ) : loading ? (
             <SkeletonList rows={5} />
           ) : payments.length === 0 ? (
             <div className="px-6 py-8 text-center text-gray-400 text-sm">No payments yet</div>
