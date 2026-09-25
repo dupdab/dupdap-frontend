@@ -2,6 +2,9 @@
   "name": "dupdub-frontend",
   "version": "1.0.0",
   "private": true,
+  "engines": {
+    "node": ">=18.18.0"
+  },
   "scripts": {
     "dev": "next dev",
     "prebuild": "node scripts/validate-env.mjs",
@@ -10,7 +13,8 @@
     "lint": "next lint",
     "type-check": "tsc --noEmit",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "verify": "npm run type-check && npm run lint && npm test"
   },
   "dependencies": {
     "@stellar/stellar-sdk": "^12.0.0",

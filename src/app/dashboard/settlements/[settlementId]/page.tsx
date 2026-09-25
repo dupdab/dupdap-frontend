@@ -70,7 +70,7 @@ export default function SettlementDetailPage({ params }: { params: { settlementI
           </span>
         </div>
 
-        <div className="grid grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
           <div className="bg-gray-50 rounded-lg p-3">
             <p className="text-xs text-gray-500 mb-1">Gross</p>
             <p className="font-semibold text-gray-900">{formatUsd(settlement.totalAmountUsd)}</p>

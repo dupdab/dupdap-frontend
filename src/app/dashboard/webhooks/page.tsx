@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { memo, useEffect, useState } from 'react';
 import { Plus, Trash2, Copy, Check, Eye, EyeOff, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { webhooksApi } from '@/lib/api';
@@ -184,15 +184,22 @@ export default function WebhooksPage() {
   };
 
   const toggleEvent = (e: string) => {
-    setForm((f) => ({
-      ...f,
-      events: f.events.includes(e) ? f.events.filter((x) => x !== e) : [...f.events, e],
-    }));
+    setForm((f) => {
+      const nextEvents = f.events.includes(e) ? f.events.filter((x) => x !== e) : [...f.events, e];
+      if (nextEvents.length > 0) {
+        setFormError('');
+      }
+      return {
+        ...f,
+        events: nextEvents,
+      };
+    });
   };
 
   const closeCreateModal = () => {
     setShowCreate(false);
     setForm({ url: '', events: [], secret: '' });
+    setFormError('');
   };
 
   const updateWebhookSecret = (id: string, secret: string) => {
@@ -226,23 +233,57 @@ export default function WebhooksPage() {
           </p>
           <fieldset disabled={creating} className="space-y-4">
             <div>
-              <label htmlFor="webhook-url" className="label">Endpoint URL</label>
-              <input id="webhook-url" className="input" type="url" required placeholder="https://your-server.com/webhook"
-                value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} />
-            </div>
-            <div>
-              <label className="label">Signing secret (optional)</label>
+              <label htmlFor="webhook-url" className="label">
+                Endpoint URL
+              </label>
               <input
+                id="webhook-url"
+                data-testid="webhook-url-input"
+                type="url"
+                required
+                value={form.url}
+                onChange={(e) => setForm({ ...form, url: e.target.value })}
+                placeholder="https://example.com/webhooks"
                 className="input"
+              />
+            </div>
+
+            <div>
+              <p className="label">Events</p>
+              <div className="space-y-2 mt-1">
+                {WEBHOOK_EVENTS.map((event) => (
+                  <label key={event} className="flex items-center gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      data-testid={`event-checkbox-${event}`}
+                      checked={form.events.includes(event)}
+                      onChange={() => toggleEvent(event)}
+                      className="rounded border-gray-300"
+                    />
+                    {event}
+                  </label>
+                ))}
+              </div>
+              {formError && (
+                <p data-testid="webhook-form-error" role="alert" className="text-sm text-red-600 mt-2">
+                  {formError}
+                </p>
+              )}
+            </div>
+
+            <div>
+              <label htmlFor="webhook-secret" className="label">
+                Signing secret <span className="text-gray-400 font-normal">(optional)</span>
+              </label>
+              <input
+                id="webhook-secret"
+                data-testid="webhook-secret-input"
                 type="text"
-                placeholder="whsec_..."
                 value={form.secret}
                 onChange={(e) => setForm({ ...form, secret: e.target.value })}
-                data-testid="webhook-secret-input"
+                placeholder="whsec_…"
+                className="input font-mono"
               />
-              <p className="text-xs text-gray-500 mt-1">
-                Used to verify webhook payloads via HMAC signature. Leave blank to auto-generate.
-              </p>
             </div>
             <div>
               <label className="label">Events</label>
@@ -264,54 +305,51 @@ export default function WebhooksPage() {
                   );
                 })}
               </div>
-            </fieldset>
+              {formError && (
+                <p
+                  data-testid="webhook-events-error"
+                  role="alert"
+                  className="text-xs text-red-500 mt-2"
+                >
+                  {formError}
+                </p>
+              )}
+            </div>
             <button data-testid="webhook-submit-button" type="submit" disabled={creating} className="btn-primary w-full">
               {creating ? 'Creating...' : 'Create Webhook'}
             </button>
           </fieldset>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <button type="button" onClick={closeCreateModal} className="btn-secondary">
+              Cancel
+            </button>
+            <button type="submit" data-testid="create-webhook-submit" disabled={creating} className="btn-primary">
+              {creating ? 'Creating…' : 'Create Webhook'}
+            </button>
+          </div>
         </form>
       </Modal>
 
       <div className="space-y-3">
-        {webhooks.length === 0 ? (
-          <div className="card p-8 text-center text-gray-400 text-sm">No webhooks configured</div>
-        ) : (
-          webhooks.map((w) => (
-            <div key={w.id} data-testid={`webhook-row-${w.id}`} className="card p-5 flex items-start justify-between">
-              <div className="flex-1 min-w-0">
-                <p className="font-mono text-sm font-medium break-all">{w.url}</p>
-                <div className="flex flex-wrap gap-1 mt-2">
-                  {w.events.map((e: string) => (
-                    <span key={e} className="bg-gray-100 text-gray-600 text-xs px-2 py-0.5 rounded">{e}</span>
-                  ))}
-                </div>
-                <WebhookSecretRow
-                  webhook={w}
-                  onRotated={(secret) => updateWebhookSecret(w.id, secret)}
-                />
-                <p className="text-xs text-gray-400 mt-2">Created {formatDate(w.createdAt)}</p>
-              </div>
-              <button
-                data-testid={`delete-webhook-${w.id}`}
-                onClick={() => setDeletingId(w.id)}
-                className="text-red-400 hover:text-red-600 ml-4 shrink-0"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
-            </div>
-          ))
+        {webhooks.map((w) => (
+          <WebhookRow key={w.id} webhook={w} onDelete={setDeletingId} />
+        ))}
+        {webhooks.length === 0 && (
+          <div className="card p-12 text-center text-gray-400">
+            <p>No webhooks yet. Add one to start receiving events.</p>
+          </div>
         )}
       </div>
 
       <ConfirmDialog
         open={deletingId !== null}
-        title="Delete webhook?"
-        message="This will permanently remove the webhook and stop all future event notifications. This action cannot be undone."
-        confirmLabel="Delete"
-        danger
-        loading={deleting}
+        onClose={() => setDeletingId(null)}
         onConfirm={() => deletingId && remove(deletingId)}
-        onCancel={() => !deleting && setDeletingId(null)}
+        title="Remove webhook"
+        message="This webhook will stop receiving events. This action cannot be undone."
+        confirmLabel="Remove"
+        loading={deleting}
       />
     </div>
   );

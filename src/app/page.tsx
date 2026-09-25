@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { headers } from 'next/headers';
 import Link from 'next/link';
 import { ArrowRight, Zap, Shield, Globe, QrCode } from 'lucide-react';
 import { LandingNav } from '@/components/LandingNav';
@@ -25,10 +26,15 @@ const jsonLd = {
 };
 
 export default function LandingPage() {
+  // Read the per-request CSP nonce set by middleware so the inline JSON-LD
+  // script can be allowed without 'unsafe-inline' in script-src (#388).
+  const nonce = headers().get('x-nonce') ?? undefined;
+
   return (
     <div className="min-h-screen bg-white">
       <script
         type="application/ld+json"
+        nonce={nonce}
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
       <LandingNav />
