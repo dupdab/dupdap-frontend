@@ -26,6 +26,8 @@ The customer-facing payment flow here is built around Stellar, not a generic mul
 /waitlist               public waitlist signup
 /auth/login             merchant login
 /auth/register          merchant registration
+/auth/forgot-password   request a password reset link
+/auth/reset-password    set a new password from a reset link
 /pay/[paymentId]        customer-facing payment page (approve → deposit → status → receipt)
 /dashboard              merchant dashboard shell (layout.tsx wraps the routes below)
   /dashboard            overview
@@ -155,20 +157,6 @@ This app is a pure client of [`dupdap-backend`](../dupdap-backend)'s REST API �
 - `paymentsApi` — create/list/get/stats for payments
 - `adminApi` — list/retry/approve settlements (admin views)
 
-Extend `api.ts` with additional grouped helpers (e.g. `settlementsApi`, `webhooksApi`, `merchantsApi`) as dashboard pages need them, rather than calling `api.get(...)` directly from components, to keep endpoint paths in one place.
+Extend `api.ts` with additional grouped helpers (e.g. `settlementsApi`, `webhooksAp
 
-## Testing & linting
-
-```bash
-npm run lint      # next lint (ESLint, see .eslintrc.json)
-```
-
-There is no test suite in this repo yet — if you add one, wire it into this section and into CI.
-
-## Deployment
-
-```bash
-vercel --prod
-```
-
-The app is a standard Next.js app, so any platform that supports Next.js (Vercel, Railway, etc.) works. The only required runtime config is `NEXT_PUBLIC_API_URL` pointed at the deployed backend.
+/* … truncated 578 chars — edit only what you need near the top … */
