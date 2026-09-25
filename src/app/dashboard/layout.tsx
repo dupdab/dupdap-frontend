@@ -29,6 +29,9 @@ const navItems = [
   { href: '/dashboard/admin/settlements', label: 'Admin Settlements', icon: Shield, adminOnly: true },
 ];
 
+const UNSAVED_CHANGES_MESSAGE =
+  'You have unsaved changes. Are you sure you want to leave this page?';
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { merchant, token, logout, hasHydrated } = useAuthStore();
   const router = useRouter();
@@ -46,6 +49,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     setMobileNavOpen(false);
   }, [pathname]);
 
+  // Warn before browser-level navigation (reload, tab close, external link)
+  // while a form inside the dashboard has unsaved changes.
+  useEffect(() => {
+    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+      if (!window.__dashboardHasUnsavedChanges) return;
+      event.preventDefault();
+      event.returnValue = UNSAVED_CHANGES_MESSAGE;
+      return UNSAVED_CHANGES_MESSAGE;
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, []);
+
   // Show a neutral loading state while Zustand rehydrates from localStorage.
   // This prevents both the blank-page flash and the premature redirect.
   if (!hasHydrated) {
@@ -59,6 +75,18 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   if (!merchant) return null;
 
   const visibleNavItems = navItems.filter((item) => !item.adminOnly || isAdmin(merchant));
+
+  const confirmNavigation = () => {
+    if (!window.__dashboardHasUnsavedChanges) return true;
+    return window.confirm(UNSAVED_CHANGES_MESSAGE);
+  };
+
+  const handleNavClick = (event: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+    if (pathname === href) return;
+    if (!confirmNavigation()) {
+      event.preventDefault();
+    }
+  };
 
   const sidebarContent = (
     <>
@@ -84,6 +112,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               key={href}
               href={href}
               aria-current={active ? 'page' : undefined}
+              onClick={(event) => handleNavClick(event, href)}
               className={cn(
                 'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
                 active
@@ -100,7 +129,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       <div className="p-4 border-t border-gray-100">
         <button
-          onClick={() => { logout(); router.push('/auth/login'); }}
+          onClick={() => {
+            if (!confirmNavigation()) return;
+            logout();
+            router.push('/auth/login');
+          }}
           className="flex items-center gap-3 px-3 py-2 text-sm text-gray-500 hover:text-gray-900 w-full rounded-lg hover:bg-gray-50 transition-colors"
         >
           <LogOut className="w-4 h-4" />
