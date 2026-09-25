@@ -49,6 +49,8 @@ export interface Payment {
   qrCode?: string;
   createdAt: string;
   updatedAt?: string;
+  expiresAt?: string;
+  expiryMinutes?: number;
 }
 
 export interface PaymentStats {

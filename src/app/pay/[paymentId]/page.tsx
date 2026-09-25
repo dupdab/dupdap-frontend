@@ -18,9 +18,9 @@ const STATUS_ICONS: Record<string, React.ReactNode> = {
 
 const DEFAULT_STATUS_ICON = <Clock className="w-8 h-8 text-gray-400" />;
 
-function computeExpiresAt(payment: any): Date | null {
-  if (payment?.expiresAt) return new Date(payment.expiresAt);
-  if (payment?.expiryMinutes && payment?.createdAt) {
+function computeExpiresAt(payment: Payment): Date | null {
+  if (payment.expiresAt) return new Date(payment.expiresAt);
+  if (payment.expiryMinutes && payment.createdAt) {
     return new Date(new Date(payment.createdAt).getTime() + payment.expiryMinutes * 60_000);
   }
   return null;
@@ -179,35 +179,30 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
                     aria-label="Copy memo"
                     className="shrink-0"
                   >
-                    {copied === 'memo' ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4 text-amber-600" />}
+                    {copied === 'memo' ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4 text-gray-400" />}
                   </button>
                 </div>
-                <p className="text-amber-700 mt-1">Payment will not be detected without the memo.</p>
               </div>
-              {pollWarning ? (
-                <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-3 text-xs text-yellow-800 mt-4">
-                  {pollWarning}
-                </div>
-              ) : null}
             </>
           ) : (
-            <div className="text-center py-4">
-              <div className="flex justify-center mb-3">{STATUS_ICONS[payment.status] ?? DEFAULT_STATUS_ICON}</div>
-              <p className="font-semibold text-gray-900 capitalize">{payment.status}</p>
-              <p className="text-sm text-gray-500 mt-1">
-                {payment.status === 'settled' && 'Payment complete. Thank you!'}
-                {payment.status === 'confirmed' && 'Payment detected. Processing settlement...'}
-                {payment.status === 'settling' && 'Converting to fiat and transferring...'}
-                {payment.status === 'failed' && 'Payment failed. Please contact the merchant.'}
-                {payment.status === 'expired' && 'This payment request has expired.'}
-                {!['settled', 'confirmed', 'settling', 'failed', 'expired'].includes(payment.status) && 'Checking payment status...'}
-              </p>
+            <div className="text-center py-6">
+              {STATUS_ICONS[payment.status] ?? DEFAULT_STATUS_ICON}
+              <p className="mt-3 font-semibold capitalize">{payment.status}</p>
+              {payment.status === 'settled' && (
+                <p className="text-sm text-gray-500 mt-1">Payment complete</p>
+              )}
+              {payment.status === 'failed' && (
+                <p className="text-sm text-gray-500 mt-1">This payment could not be completed</p>
+              )}
+              {payment.status === 'expired' && (
+                <p className="text-sm text-gray-500 mt-1">This payment request has expired</p>
+              )}
             </div>
           )}
-        </div>
 
-        <div className="px-6 pb-4 text-center text-xs text-gray-400">
-          Ref: {payment.reference}
+          {pollWarning && (
+            <p className="text-xs text-amber-600 text-center mt-4">{pollWarning}</p>
+          )}
         </div>
       </div>
     </div>
