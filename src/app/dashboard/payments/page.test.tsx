@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import toast from 'react-hot-toast';
 import PaymentsPage from './page';
 import { paymentsApi } from '@/lib/api';
 import type { Payment } from '@/lib/types';
@@ -106,6 +107,44 @@ describe('PaymentsPage', () => {
         expiryMinutes: 60,
       });
     });
+  });
+
+  it('rejects an out-of-range expiryMinutes before calling the API', async () => {
+    render(<PaymentsPage />);
+
+    await userEvent.click(screen.getByTestId('new-payment-button'));
+
+    const modal = await screen.findByTestId('create-payment-modal');
+    const fields = within(modal);
+
+    await userEvent.type(fields.getByLabelText('Amount (USD)'), '10');
+    await userEvent.clear(fields.getByLabelText('Expires in (minutes)'));
+    await userEvent.type(fields.getByLabelText('Expires in (minutes)'), '2');
+    await userEvent.click(fields.getByTestId('create-payment-submit'));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalled();
+    });
+    expect(paymentsApi.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects an expiryMinutes above the upper bound before calling the API', async () => {
+    render(<PaymentsPage />);
+
+    await userEvent.click(screen.getByTestId('new-payment-button'));
+
+    const modal = await screen.findByTestId('create-payment-modal');
+    const fields = within(modal);
+
+    await userEvent.type(fields.getByLabelText('Amount (USD)'), '10');
+    await userEvent.clear(fields.getByLabelText('Expires in (minutes)'));
+    await userEvent.type(fields.getByLabelText('Expires in (minutes)'), '1441');
+    await userEvent.click(fields.getByTestId('create-payment-submit'));
+
+    await waitFor(() => {
+      expect(toast.error).toHaveBeenCalled();
+    });
+    expect(paymentsApi.create).not.toHaveBeenCalled();
   });
 
   it('clears the form and shows the QR modal after a successful create', async () => {
