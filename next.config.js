@@ -7,7 +7,7 @@ const nextConfig = {
     NEXT_PUBLIC_API_URL: apiUrl,
   },
   async headers() {
-    const connectSrc = ["'self'", apiUrl.replace(/\/api\/v1$/, '')];
+    const connectSrc = ["'self'", new URL(apiUrl).origin];
 
     return [
       {
