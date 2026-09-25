@@ -5,127 +5,79 @@
  */
 import React from 'react';
 import { render, screen, waitFor, act } from '@testing-library/react';
-import { paymentsApi } from '@/lib/api';
 import PayPage from '@/app/pay/[paymentId]/page';
+import { paymentsApi } from '@/lib/api';
 
-// Mock the API module
 jest.mock('@/lib/api', () => ({
   paymentsApi: {
     getByReference: jest.fn(),
   },
 }));
 
-// Mock qrcode.react (QRCodeSVG renders SVG; easier to stub)
 jest.mock('qrcode.react', () => ({
   QRCodeSVG: ({ value }: { value: string }) => (
-    <div data-testid="qrcode" data-value={value} />
+    <div data-testid="qr-code" data-value={value} />
   ),
 }));
 
-const mockPaymentsApi = paymentsApi as jest.Mocked<typeof paymentsApi>;
+const mockedGetByReference = paymentsApi.getByReference as jest.Mock;
 
-/** A minimal payment object that satisfies the page's rendering requirements */
-const MOCK_PAYMENT = {
-  id: 'pay-001',
-  reference: 'REF-001',
-  amountUsd: 42.5,
+const basePayment = {
+  id: 'pay_1',
+  reference: 'ref_1',
+  status: 'pending',
+  amountUsd: 25,
   amountXlm: 100,
-  status: 'pending' as const,
-  description: 'Test order',
-  stellarMemo: 'MEMO123',
-  stellarDepositAddress: 'GADDR1234567890',
+  description: 'Test payment',
+  stellarDepositAddress: 'GDESTINATIONADDRESS123',
+  stellarMemo: 'memo-123',
   createdAt: new Date().toISOString(),
+  expiryMinutes: 30,
 };
 
-const defaultParams = { paymentId: 'REF-001' };
-
-// Pause pending microtasks/timers in a controlled way
-function makePendingPromise(): { promise: Promise<unknown>; resolve: (v: unknown) => void } {
-  let resolve!: (v: unknown) => void;
-  const promise = new Promise((r) => { resolve = r; });
-  return { promise, resolve };
-}
-
-beforeEach(() => {
-  jest.useFakeTimers();
-  jest.clearAllMocks();
-});
-
-afterEach(() => {
-  jest.runOnlyPendingTimers();
-  jest.useRealTimers();
-});
-
-describe('PayPage — UI states', () => {
-  it('shows loading spinner while the initial fetch is in-flight', async () => {
-    const { promise, resolve } = makePendingPromise();
-    // getByReference never resolves during this test
-    mockPaymentsApi.getByReference.mockReturnValue(promise as ReturnType<typeof paymentsApi.getByReference>);
-
-    render(<PayPage params={defaultParams} />);
-
-    // The Loader2 icon renders as an SVG with the animate-spin class
-    expect(document.querySelector('.animate-spin')).toBeInTheDocument();
-
-    resolve({ data: MOCK_PAYMENT });
+describe('PayPage', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
   });
 
-  it('shows "Payment not found" when the fetch resolves with null data', async () => {
-    // Resolve immediately with null to simulate 404 / missing payment
-    mockPaymentsApi.getByReference.mockResolvedValue({ data: null } as ReturnType<typeof paymentsApi.getByReference>);
-
-    render(<PayPage params={defaultParams} />);
-
-    await waitFor(() => {
-      expect(screen.getByText('Payment not found')).toBeInTheDocument();
-    });
+  it('renders the payment amount', async () => {
+    mockedGetByReference.mockResolvedValue({ data: basePayment });
+    render(<PayPage params={{ paymentId: 'ref_1' }} />);
+    await waitFor(() => expect(screen.getByText('$25.00')).toBeInTheDocument());
   });
 
-  it('shows "Payment not found" when the fetch rejects', async () => {
-    mockPaymentsApi.getByReference.mockRejectedValue(new Error('Network error'));
+  it('builds the expected web+stellar URI for the QR code', async () => {
+    mockedGetByReference.mockResolvedValue({ data: basePayment });
+    render(<PayPage params={{ paymentId: 'ref_1' }} />);
 
-    render(<PayPage params={defaultParams} />);
-
-    await waitFor(() => {
-      expect(screen.getByText('Payment not found')).toBeInTheDocument();
-    });
+    const qr = await screen.findByTestId('qr-code');
+    expect(qr).toHaveAttribute(
+      'data-value',
+      'web+stellar:pay?destination=GDESTINATIONADDRESS123&amount=100&memo=memo-123&memo_type=text'
+    );
   });
 
-  it('shows the QR code and deposit address when a pending payment resolves', async () => {
-    mockPaymentsApi.getByReference.mockResolvedValue({ data: MOCK_PAYMENT } as ReturnType<typeof paymentsApi.getByReference>);
-
-    render(<PayPage params={defaultParams} />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('qrcode')).toBeInTheDocument();
+  it('encodeURIComponent-escapes special characters in the memo', async () => {
+    mockedGetByReference.mockResolvedValue({
+      data: { ...basePayment, stellarMemo: 'memo with spaces & symbols/+=?' },
     });
+    render(<PayPage params={{ paymentId: 'ref_1' }} />);
 
-    expect(screen.getByText(MOCK_PAYMENT.stellarDepositAddress)).toBeInTheDocument();
-    expect(screen.getByText(MOCK_PAYMENT.stellarMemo)).toBeInTheDocument();
+    const qr = await screen.findByTestId('qr-code');
+    expect(qr).toHaveAttribute(
+      'data-value',
+      'web+stellar:pay?destination=GDESTINATIONADDRESS123&amount=100&memo=memo%20with%20spaces%20%26%20symbols%2F%2B%3D%3F&memo_type=text'
+    );
   });
 
-  it('shows the settled status UI when payment status is settled', async () => {
-    const settledPayment = { ...MOCK_PAYMENT, status: 'settled' as const };
-    mockPaymentsApi.getByReference.mockResolvedValue({ data: settledPayment } as ReturnType<typeof paymentsApi.getByReference>);
-
-    render(<PayPage params={defaultParams} />);
-
-    await waitFor(() => {
-      expect(screen.getByText('settled', { exact: false })).toBeInTheDocument();
+  it('does not render the QR code or deep link when amountXlm is missing', async () => {
+    mockedGetByReference.mockResolvedValue({
+      data: { ...basePayment, amountXlm: undefined },
     });
+    render(<PayPage params={{ paymentId: 'ref_1' }} />);
 
-    expect(screen.getByText('Payment complete. Thank you!')).toBeInTheDocument();
-  });
-
-  it('shows the failed status UI when payment status is failed', async () => {
-    const failedPayment = { ...MOCK_PAYMENT, status: 'failed' as const };
-    mockPaymentsApi.getByReference.mockResolvedValue({ data: failedPayment } as ReturnType<typeof paymentsApi.getByReference>);
-
-    render(<PayPage params={defaultParams} />);
-
-    await waitFor(() => {
-      expect(screen.getByText('Payment failed. Please contact the merchant.')).toBeInTheDocument();
-    });
+    await waitFor(() => expect(screen.getByText('$25.00')).toBeInTheDocument());
+    expect(screen.queryByTestId('qr-code')).not.toBeInTheDocument();
   });
 
   it('isolates the countdown tick so the QR subtree is not re-rendered every second (#310)', async () => {

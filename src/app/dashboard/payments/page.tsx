@@ -18,6 +18,10 @@ const MAX_DESCRIPTION_LENGTH = 255;
 const EXPIRY_MIN_MINUTES = 5;
 const EXPIRY_MAX_MINUTES = 1440;
 
+// Maximum length for the optional payment description. Kept in sync with the
+// backend limit so the customer-facing pay page card never overflows (#396).
+const DESCRIPTION_MAX_LENGTH = 200;
+
 // ---------------------------------------------------------------------------
 // Memoized row components — re-render only when the payment data or the
 // callback reference changes, not on modal open/close or filter typing in
