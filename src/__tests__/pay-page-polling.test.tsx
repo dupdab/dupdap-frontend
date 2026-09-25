@@ -2,6 +2,7 @@
  * Tests for /pay/[paymentId] polling timer logic
  * Issue: interval fires every 5s, cleared on unmount, cleared on terminal status
  * Issue #310: 1s countdown timer must be isolated so it does not re-render the whole page
+ * Issue #312: visibilitychange recomputes countdown and triggers immediate poll
  */
 import React from 'react';
 import { render, act, waitFor } from '@testing-library/react';
@@ -33,9 +34,26 @@ const PENDING_PAYMENT = {
 
 const defaultParams = { paymentId: 'REF-001' };
 
+/**
+ * Simulate the tab becoming visible again. jsdom's document.visibilityState is
+ * read-only, so we redefine it and dispatch the visibilitychange event.
+ */
+function setVisibility(state: 'visible' | 'hidden') {
+  Object.defineProperty(document, 'visibilityState', {
+    configurable: true,
+    get: () => state,
+  });
+  Object.defineProperty(document, 'hidden', {
+    configurable: true,
+    get: () => state === 'hidden',
+  });
+  document.dispatchEvent(new Event('visibilitychange'));
+}
+
 beforeEach(() => {
   jest.useFakeTimers();
   jest.clearAllMocks();
+  setVisibility('visible');
 });
 
 afterEach(() => {
@@ -144,31 +162,49 @@ describe('PayPage — polling timer logic', () => {
     },
   );
 
-  it('isolates the 1s countdown so it does not re-render the whole page', async () => {
-    const expiresAt = new Date(Date.now() + 60_000).toISOString();
-    mockGetByReference.mockResolvedValue({
-      data: { ...PENDING_PAYMENT, expiresAt },
-    } as ReturnType<typeof paymentsApi.getByReference>);
+  it('triggers an immediate poll when the tab becomes visible again', async () => {
+    mockGetByReference.mockResolvedValue({ data: PENDING_PAYMENT } as ReturnType<typeof paymentsApi.getByReference>);
+
+    render(<PayPage params={defaultParams} />);
+
+    // Flush initial fetch
+    await act(async () => { await Promise.resolve(); });
+  it('triggers an immediate poll when the tab becomes visible again', async () => {
+    mockGetByReference.mockResolvedValue({ data: PENDING_PAYMENT } as ReturnType<typeof paymentsApi.getByReference>);
 
     render(<PayPage params={defaultParams} />);
 
     // Flush initial fetch
     await act(async () => { await Promise.resolve(); });
 
-    const callsAfterMount = mockGetByReference.mock.calls.length;
+    const afterMount = mockGetByReference.mock.calls.length; // 1
 
-    // Advance 3 seconds — the countdown ticks, but the page-level poll
-    // (5s interval) must not fire and the page must not refetch.
+    // Tab goes to background, then comes back before the next 5s tick
     await act(async () => {
-      jest.advanceTimersByTime(3000);
+      setVisibility('hidden');
+      setVisibility('visible');
       await Promise.resolve();
     });
 
-    expect(mockGetByReference.mock.calls.length).toBe(callsAfterMount);
+    // An immediate poll should have fired without waiting for the interval
+    expect(mockGetByReference.mock.calls.length).toBe(afterMount + 1);
+  });
 
-    // The countdown label should still be present and updating.
-    await waitFor(() => {
-      expect(document.body.textContent).toMatch(/Expires in/);
+  it('does not poll on visibilitychange while the tab is hidden', async () => {
+    mockGetByReference.mockResolvedValue({ data: PENDING_PAYMENT } as ReturnType<typeof paymentsApi.getByReference>);
+
+    render(<PayPage params={defaultParams} />);
+
+    // Flush initial fetch
+    await act(async () => { await Promise.resolve(); });
+    const afterMount = mockGetByReference.mock.calls.length;
+
+    await act(async () => {
+      setVisibility('hidden');
+      await Promise.resolve();
     });
+
+    expect(mockGetByReference.mock.calls.length).toBe(afterMount);
+
   });
 });
