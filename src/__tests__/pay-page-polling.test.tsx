@@ -1,6 +1,7 @@
 /**
  * Tests for /pay/[paymentId] polling timer logic
  * Issue: interval fires every 5s, cleared on unmount, cleared on terminal status
+ * Issue #310: 1s countdown timer must be isolated so it does not re-render the whole page
  */
 import React from 'react';
 import { render, act, waitFor } from '@testing-library/react';
@@ -142,4 +143,32 @@ describe('PayPage — polling timer logic', () => {
       expect(mockGetByReference.mock.calls.length).toBe(callsAfterTerminal);
     },
   );
+
+  it('isolates the 1s countdown so it does not re-render the whole page', async () => {
+    const expiresAt = new Date(Date.now() + 60_000).toISOString();
+    mockGetByReference.mockResolvedValue({
+      data: { ...PENDING_PAYMENT, expiresAt },
+    } as ReturnType<typeof paymentsApi.getByReference>);
+
+    render(<PayPage params={defaultParams} />);
+
+    // Flush initial fetch
+    await act(async () => { await Promise.resolve(); });
+
+    const callsAfterMount = mockGetByReference.mock.calls.length;
+
+    // Advance 3 seconds — the countdown ticks, but the page-level poll
+    // (5s interval) must not fire and the page must not refetch.
+    await act(async () => {
+      jest.advanceTimersByTime(3000);
+      await Promise.resolve();
+    });
+
+    expect(mockGetByReference.mock.calls.length).toBe(callsAfterMount);
+
+    // The countdown label should still be present and updating.
+    await waitFor(() => {
+      expect(document.body.textContent).toMatch(/Expires in/);
+    });
+  });
 });

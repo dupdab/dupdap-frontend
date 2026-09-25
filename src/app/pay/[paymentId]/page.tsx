@@ -9,6 +9,29 @@ import { formatUsd, formatDate, PAYMENT_STATUS_COLORS, DEFAULT_STATUS_COLOR } fr
 import { getErrorMessage } from '@/lib/errors';
 import type { Payment } from '@/lib/types';
 
+function ExpiresIn({ expiresAt, isPending }: { expiresAt: string | null; isPending: boolean }) {
+  const [now, setNow] = useState(() => Date.now());
+
+  useEffect(() => {
+    if (!isPending || !expiresAt) return;
+    const tick = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(tick);
+  }, [isPending, expiresAt]);
+
+  if (!isPending || !expiresAt) return null;
+
+  const remaining = Math.max(0, new Date(expiresAt).getTime() - now);
+  const totalSeconds = Math.floor(remaining / 1000);
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+
+  return (
+    <span>
+      Expires in {minutes}:{seconds.toString().padStart(2, '0')}
+    </span>
+  );
+}
+
 export default function PayPage({ params }: { params: { paymentId: string } }) {
   const [payment, setPayment] = useState<Payment | null>(null);
   const [loading, setLoading] = useState(true);
@@ -125,6 +148,7 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
         <div className="flex items-center gap-2 text-xs text-gray-500">
           <Clock className="w-4 h-4" />
           <span>Created {formatDate(payment.createdAt)}</span>
+          <ExpiresIn expiresAt={payment.expiresAt ?? null} isPending={payment.status === 'pending'} />
         </div>
       </div>
     </div>
