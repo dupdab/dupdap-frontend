@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { TrendingUp, CreditCard, Banknote, Clock } from 'lucide-react';
 import { paymentsApi } from '@/lib/api';
-import { formatUsd, formatDate, PAYMENT_STATUS_COLORS } from '@/lib/utils';
+import { formatUsd, formatDate, PAYMENT_STATUS_COLORS, DEFAULT_STATUS_COLOR } from '@/lib/utils';
 import { aggregatePaymentStats } from '@/lib/dashboard-stats';
 import { useAuthStore } from '@/lib/store';
 import { Skeleton, SkeletonList } from '@/components/Skeleton';
