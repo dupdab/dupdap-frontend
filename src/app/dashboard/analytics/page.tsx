@@ -73,24 +73,7 @@ export default function AnalyticsPage() {
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
             <div className="card p-6">
               <h2 className="font-semibold mb-4">Payment Count by Status</h2>
-              <ResponsiveContainer width="100%" height={250}>
-                <PieChart>
-                  <Pie
-                    data={pieData}
-                    dataKey="value"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={80}
-                    minAngle={8}
-                    label={({ name, value, percent }) => (percent && percent > 0.08 ? `${name}: ${value}` : '')}
-                  >
-                    {pieData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
-                  </Pie>
-                  <Tooltip />
-                  <Legend />
-                </PieChart>
-              </ResponsiveContainer>
+              <StatusPieChart data={pieData} />
               {/* Visually-hidden data table — same data as chart for screen readers */}
               <table className="sr-only">
                 <caption>Payment Count by Status</caption>
@@ -113,14 +96,7 @@ export default function AnalyticsPage() {
 
             <div className="card p-6">
               <h2 className="font-semibold mb-4">Volume by Status (USD)</h2>
-              <ResponsiveContainer width="100%" height={250}>
-                <BarChart data={pieData}>
-                  <XAxis dataKey="name" tick={{ fontSize: 12 }} />
-                  <YAxis tick={{ fontSize: 12 }} />
-                  <Tooltip formatter={(v: number) => formatUsd(v)} />
-                  <Bar dataKey="amount" fill="#eab308" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+              <VolumeBarChart data={pieData} />
               {/* Visually-hidden data table — same data as chart for screen readers */}
               <table className="sr-only">
                 <caption>Volume by Status (USD)</caption>
