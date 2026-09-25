@@ -152,6 +152,7 @@ export default function PaymentsPage() {
   };
 
   const showPagination = total > 20 || page > 1;
+  const totalPages = Math.max(1, Math.ceil(total / 20));
 
   return (
     <div className="p-8">
@@ -223,12 +224,75 @@ export default function PaymentsPage() {
         contentClassName="max-w-sm text-center"
       >
         {selectedPayment && (
-          <>
-            <div className="bg-white p-4 rounded-lg inline-block mb-4">
-              <QRCodeSVG value={selectedPayment.qrCode ?? selectedPayment.stellarDepositAddress ?? ''} size={200} />
-            </div>
-            <p className="text-sm font-semibold mb-1">{formatUsd(selectedPayment.amountUsd)}</p>
-            <p className="text-xs text-gray-500 mb-4">{selectedPayment.reference}</p>
-         
+          <div className="space-y-4">
+            <QRCodeSVG value={selectedPayment.checkoutUrl} className="mx-auto" />
+            <p className="text-sm text-gray-500 break-all">{selectedPayment.checkoutUrl}</p>
+            <button
+              onClick={() => copyMemo(selectedPayment.checkoutUrl)}
+              className="btn-secondary w-full flex items-center justify-center gap-2"
+            >
+              {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              {copied ? 'Copied' : 'Copy Link'}
+            </button>
+          </div>
+        )}
+      </Modal>
 
-/* … truncated 2575 chars — edit only what you need near the top … */
+      <div className="card overflow-hidden">
+        {loading ? (
+          <SkeletonList rows={PAYMENT_TABLE_COLUMNS} />
+        ) : payments.length === 0 ? (
+          <div className="p-8 text-center text-gray-500">No payments yet</div>
+        ) : (
+          <>
+            <table className="w-full hidden md:table">
+              <thead className="bg-gray-50 text-left text-xs text-gray-500 uppercase">
+                <tr>
+                  <th className="px-6 py-3">Reference</th>
+                  <th className="px-6 py-3">Amount</th>
+                  <th className="px-6 py-3">Status</th>
+                  <th className="px-6 py-3">Created</th>
+                  <th className="px-6 py-3"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {payments.map((p) => (
+                  <PaymentTableRow key={p.id} payment={p} onShowQr={setSelectedPayment} />
+                ))}
+              </tbody>
+            </table>
+            <div className="md:hidden divide-y divide-gray-100">
+              {payments.map((p) => (
+                <PaymentMobileCard key={p.id} payment={p} onShowQr={setSelectedPayment} />
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      {showPagination && (
+        <nav aria-label="Pagination" className="flex items-center justify-between mt-4">
+          <button
+            data-testid="pagination-prev"
+            onClick={() => setPage((p) => Math.max(1, p - 1))}
+            disabled={page <= 1}
+            aria-label={`Go to previous page, page ${page - 1} of ${totalPages}`}
+            className="btn-secondary disabled:opacity-50"
+          >
+            Prev
+          </button>
+          <span className="text-sm text-gray-500">Page {page} of {totalPages}</span>
+          <button
+            data-testid="pagination-next"
+            onClick={() => setPage((p) => p + 1)}
+            disabled={page >= totalPages}
+            aria-label={`Go to next page, page ${page + 1} of ${totalPages}`}
+            className="btn-secondary disabled:opacity-50"
+          >
+            Next
+          </button>
+        </nav>
+      )}
+    </div>
+  );
+}

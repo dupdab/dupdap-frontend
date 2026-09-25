@@ -79,6 +79,38 @@ describe('PaymentsPage', () => {
     expect(screen.getByTestId('pagination-prev')).not.toBeDisabled();
   });
 
+  it('exposes pagination controls in a labeled nav landmark with descriptive button labels', async () => {
+    mockListResponse([basePayment], 45);
+
+    render(<PaymentsPage />);
+
+    const nav = await screen.findByRole('navigation', { name: 'Pagination' });
+    const prev = within(nav).getByTestId('pagination-prev');
+    const next = within(nav).getByTestId('pagination-next');
+
+    expect(prev).toHaveAccessibleName(/page 1 of 3/i);
+    expect(next).toHaveAccessibleName(/page 2 of 3/i);
+  });
+
+  it('updates the Next button label to reflect the target page', async () => {
+    mockListResponse([basePayment], 45);
+
+    render(<PaymentsPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('pagination-next')).not.toBeDisabled();
+    });
+
+    await userEvent.click(screen.getByTestId('pagination-next'));
+
+    await waitFor(() => {
+      expect(paymentsApi.list).toHaveBeenCalledWith(2, 20);
+    });
+
+    const next = screen.getByTestId('pagination-next');
+    expect(next).toHaveAccessibleName(/page 3 of 3/i);
+  });
+
   it('submits the create-payment form with parsed numeric fields', async () => {
     const createdPayment = { ...basePayment, id: 'pay-new', reference: 'REF-NEW', amountUsd: 12.5 };
     vi.mocked(paymentsApi.create).mockResolvedValue({
