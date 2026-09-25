@@ -50,7 +50,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // This prevents both the blank-page flash and the premature redirect.
   if (!hasHydrated) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50" aria-busy="true" aria-label="Loading">
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-950" aria-busy="true" aria-label="Loading">
         <div className="w-8 h-8 rounded-full border-4 border-brand-200 border-t-brand-600 animate-spin" />
       </div>
     );
@@ -62,14 +62,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const sidebarContent = (
     <>
-      <div className="p-6 border-b border-gray-100 flex items-center justify-between">
+      <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
         <div>
           <span className="font-bold text-brand-600 text-lg">DupDub</span>
-          <p className="text-xs text-gray-500 mt-1 truncate">{merchant.businessName}</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate">{merchant.businessName}</p>
         </div>
         <button
           onClick={() => setMobileNavOpen(false)}
-          className="md:hidden text-gray-400 hover:text-gray-600"
+          className="md:hidden text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
           aria-label="Close menu"
         >
           <X className="w-5 h-5" />
@@ -87,8 +87,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
               className={cn(
                 'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
                 active
-                  ? 'bg-brand-50 text-brand-700'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900',
+                  ? 'bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-300'
+                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100',
               )}
             >
               <Icon className="w-4 h-4" />
@@ -98,10 +98,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         })}
       </nav>
 
-      <div className="p-4 border-t border-gray-100">
+      <div className="p-4 border-t border-gray-100 dark:border-gray-800">
         <button
           onClick={() => { logout(); router.push('/auth/login'); }}
-          className="flex items-center gap-3 px-3 py-2 text-sm text-gray-500 hover:text-gray-900 w-full rounded-lg hover:bg-gray-50 transition-colors"
+          className="flex items-center gap-3 px-3 py-2 text-sm text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 w-full rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
         >
           <LogOut className="w-4 h-4" />
           Sign out
@@ -111,12 +111,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   );
 
   return (
-    <div className="min-h-screen flex bg-gray-50">
+    <div className="min-h-screen flex bg-gray-50 dark:bg-gray-950">
       {/* Mobile top bar */}
-      <div className="md:hidden fixed top-0 inset-x-0 h-14 bg-white border-b border-gray-200 flex items-center px-4 z-30">
+      <div className="md:hidden fixed top-0 inset-x-0 h-14 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex items-center px-4 z-30">
         <button
           onClick={() => setMobileNavOpen(true)}
-          className="text-gray-500 hover:text-gray-900"
+          className="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
           aria-label="Open menu"
         >
           <Menu className="w-6 h-6" />
@@ -125,7 +125,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </div>
 
       {/* Sidebar - desktop */}
-      <aside className="hidden md:flex w-64 bg-white border-r border-gray-200 flex-col">
+      <aside className="hidden md:flex w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex-col">
         {sidebarContent}
       </aside>
 
@@ -136,7 +136,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             className="fixed inset-0 bg-black/40"
             onClick={() => setMobileNavOpen(false)}
           />
-          <aside className="relative w-64 bg-white border-r border-gray-200 flex flex-col">
+          <aside className="relative w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col">
             {sidebarContent}
           </aside>
         </div>

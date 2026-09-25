@@ -94,7 +94,7 @@ export default function Modal({
 
   return (
     <div
-      className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
+      className="fixed inset-0 bg-black/40 dark:bg-black/60 flex items-center justify-center z-50 p-4"
       onClick={onClose}
     >
       <div
@@ -112,7 +112,7 @@ export default function Modal({
             <h2 className="font-semibold text-lg">{title}</h2>
             {/* aria-label="Close dialog" gives screen readers an unambiguous action name (#161) */}
             <button type="button" onClick={onClose} aria-label="Close dialog">
-              <X className="w-5 h-5 text-gray-400" />
+              <X className="w-5 h-5 text-gray-400 dark:text-gray-500" />
             </button>
           </div>
         )}
