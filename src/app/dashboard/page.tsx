@@ -43,7 +43,7 @@ export default function DashboardPage() {
     <div className="p-8">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">
-          Welcome back, {merchant?.businessName}
+          Welcome back{merchant?.businessName ? `, ${merchant.businessName}` : ''}
         </h1>
         <p className="text-gray-500 text-sm mt-1">Here&apos;s what&apos;s happening with your payments</p>
       </div>
