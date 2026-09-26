@@ -3,6 +3,7 @@ export type PaymentStatus =
   | 'confirmed'
   | 'settling'
   | 'settled'
+  | 'completed'
   | 'failed'
   | 'expired';
 
