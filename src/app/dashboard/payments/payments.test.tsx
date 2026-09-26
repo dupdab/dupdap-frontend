@@ -11,6 +11,24 @@ vi.mock('@/lib/api', () => ({
   },
 }));
 
+vi.mock('@/components/Modal', () => ({
+  default: ({ open, children }: { open: boolean; children: React.ReactNode }) =>
+    open ? <div>{children}</div> : null,
+}));
+
+vi.mock('@/components/FormField', () => ({
+  FormField: ({ label, hint, ...props }: React.InputHTMLAttributes<HTMLInputElement> & {
+    label: string;
+    hint?: React.ReactNode;
+  }) => (
+    <label>
+      {label}
+      <input {...props} />
+      {hint}
+    </label>
+  ),
+}));
+
 vi.mock('qrcode.react', () => ({
   QRCodeSVG: ({ value }: { value: string }) => <div data-testid="qr-svg" data-qr-value={value} />,
 }));
@@ -45,6 +63,32 @@ describe('PaymentsPage — Description character limit and counter (#396)', () =
       expect(screen.getAllByText('PAY-001').length).toBeGreaterThanOrEqual(1);
       expect(screen.getAllByText('$50.00').length).toBeGreaterThanOrEqual(1);
     });
+  });
+
+  it('renders decorative status icons and omits them for unknown statuses', async () => {
+    const { container } = render(<PaymentsPage />);
+
+    await screen.findAllByText('completed');
+    const statusIcons = container.querySelectorAll('svg[aria-hidden="true"]');
+    expect(statusIcons).toHaveLength(2);
+
+    vi.mocked(paymentsApi.list).mockResolvedValue({
+      data: {
+        payments: [{
+          id: 'pay_unknown',
+          reference: 'PAY-UNKNOWN',
+          amountUsd: 25,
+          status: 'on_hold',
+          createdAt: '2026-09-25T10:00:00Z',
+        }],
+        total: 1,
+      },
+    } as any);
+    cleanup();
+    const unknownRender = render(<PaymentsPage />);
+
+    expect(await screen.findAllByText('on_hold')).toHaveLength(2);
+    expect(unknownRender.container.querySelectorAll('svg[aria-hidden="true"]')).toHaveLength(0);
   });
 
   it('opens create modal with description maxLength and character counter (#396)', async () => {

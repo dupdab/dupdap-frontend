@@ -47,6 +47,11 @@ vi.mock('@/lib/store', () => ({
 vi.mock('@/lib/utils', () => ({
   formatUsd: (v: number) => `$${Number(v).toFixed(2)}`,
   formatDate: (s: string) => s.slice(0, 10),
+  DEFAULT_STATUS_COLOR: 'bg-gray-100 text-gray-600',
+  STATUS_ICONS: {
+    completed: (props: { className?: string; 'aria-hidden'?: boolean }) => <svg data-testid="status-icon" {...props} />,
+    pending: (props: { className?: string; 'aria-hidden'?: boolean }) => <svg data-testid="status-icon" {...props} />,
+  },
   PAYMENT_STATUS_COLORS: {
     completed: 'bg-green-100 text-green-700',
     pending: 'bg-yellow-100 text-yellow-700',
@@ -168,6 +173,19 @@ describe('DashboardPage — data loaded', () => {
     expect(screen.getByText('REF-002')).toBeInTheDocument();
     expect(screen.getByText('$110.00')).toBeInTheDocument(); // 100 + 1*10
     expect(screen.getAllByText(/completed|pending/).length).toBeGreaterThan(0);
+    const statusIcons = screen.getAllByTestId('status-icon');
+    expect(statusIcons).toHaveLength(2);
+    statusIcons.forEach((icon) => expect(icon).toHaveAttribute('aria-hidden', 'true'));
+  });
+
+  it('renders an unknown status without an icon and keeps the fallback color', async () => {
+    mockList.mockResolvedValue({ data: { payments: [makePayment(3, 'on_hold')], total: 1 } });
+    mockStats.mockResolvedValue({ data: [] });
+    render(<DashboardPage />);
+
+    const status = await screen.findByText('on_hold');
+    expect(status).toHaveClass('bg-gray-100', 'text-gray-600');
+    expect(screen.queryByTestId('status-icon')).not.toBeInTheDocument();
   });
 
   it('renders "Recent Payments" section heading', async () => {
