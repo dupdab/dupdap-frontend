@@ -21,6 +21,7 @@
 
 import { describe, it, expect, vi, beforeAll, afterEach } from 'vitest';
 import { render, screen, waitFor, cleanup } from '@testing-library/react';
+import type { Payment } from '@/lib/types';
 
 /* ── Global stubs ─────────────────────────────────────────────────────────── */
 /* DEFAULT_STATUS_COLOR is used as a global in page.tsx without an import */
@@ -79,11 +80,12 @@ const statsData = [
   { status: 'failed', count: 1, totalUsd: 200 },
 ];
 
-const makePayment = (i: number, status = 'completed') => ({
+const makePayment = (i: number, status: Payment['status'] = 'completed'): Payment => ({
   id: `pay-${i}`,
   reference: `REF-00${i}`,
   amountUsd: 100 + i * 10,
   status,
+  stellarMemo: `MEMO-${i}`,
   createdAt: '2024-01-15T10:00:00Z',
   description: `Payment ${i}`,
 });
