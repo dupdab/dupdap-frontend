@@ -48,6 +48,11 @@ vi.mock('@/components/Skeleton', () => ({
 vi.mock('@/lib/utils', () => ({
   formatUsd: (v: number) => `$${v.toFixed(2)}`,
   formatDate: (s: string) => s.slice(0, 10),
+  STATUS_ICONS: {
+    pending: (props: { className?: string; 'aria-hidden'?: boolean }) => <svg data-testid="status-icon" {...props} />,
+    completed: (props: { className?: string; 'aria-hidden'?: boolean }) => <svg data-testid="status-icon" {...props} />,
+    failed: (props: { className?: string; 'aria-hidden'?: boolean }) => <svg data-testid="status-icon" {...props} />,
+  },
   STATUS_COLORS: { pending: 'bg-yellow-100', completed: 'bg-green-100', failed: 'bg-red-100' },
 }));
 
@@ -94,6 +99,17 @@ describe('SettlementsPage — list rendering', () => {
     // Status badge
     expect(screen.getAllByText('completed').length).toBeGreaterThan(0);
     expect(screen.getAllByText('pending').length).toBeGreaterThan(0);
+    const statusIcons = screen.getAllByTestId('status-icon');
+    expect(statusIcons.length).toBeGreaterThan(0);
+    statusIcons.forEach((icon) => expect(icon).toHaveAttribute('aria-hidden', 'true'));
+  });
+
+  it('renders unknown statuses without an icon', async () => {
+    mockList.mockResolvedValue({ data: { settlements: [makeSettlement(3, 'on_hold')], total: 1 } });
+    render(<SettlementsPage />);
+
+    expect(await screen.findAllByText('on_hold')).toHaveLength(2);
+    expect(screen.queryByTestId('status-icon')).not.toBeInTheDocument();
   });
 
   it('renders settlement ID links to detail page', async () => {
