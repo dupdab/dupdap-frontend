@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import { isAdmin } from '@/lib/auth';
+import { useAdminGuard, useAdminRedirect } from '@/lib/useAdminGuard';
 import { cn } from '@/lib/utils';
 
 const navItems = [
@@ -45,6 +46,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const pathname = usePathname();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  // Admin authorization is gated here, in the layout that wraps the admin
+  // routes, so a non-admin merchant deep-linking to /dashboard/admin/* never
+  // gets the admin children rendered — not even for a frame (#357).
+  const adminStatus = useAdminGuard();
+  useAdminRedirect(adminStatus);
 
   useEffect(() => {
     if (!token) {
@@ -80,6 +86,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // effect above navigates unauthenticated users away, avoiding a flash of
   // blank content.
   if (!token || !merchant) {
+    return <LoadingState />;
+  }
+
+  // The admin routes live under this layout, so an unauthorized merchant is
+  // stopped here before `children` is ever returned — the admin page never
+  // mounts for them, closing the flash-of-unauthorized-content window (#357).
+  if (adminStatus !== 'authorized') {
     return <LoadingState />;
   }
 
