@@ -13,6 +13,7 @@ import {
 import { useAuthStore } from '@/lib/store';
 import { adminApi } from '@/lib/api';
 import { formatUsd, formatDate, STATUS_COLORS } from '@/lib/utils';
+import { getErrorMessage } from '@/lib/errors';
 import { SkeletonList, SkeletonTableRows } from '@/components/Skeleton';
 
 interface Settlement {
@@ -104,9 +105,9 @@ export default function AdminSettlementsPage() {
         ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v)),
       });
 
-  useEffect(() => {
-    if (!token) return;
-
+      // Pass the query string only — adminApi.listSettlements appends it to the
+      // path and the axios instance already carries the /api/v1 base URL.
+      const response = await adminApi.listSettlements(params.toString());
       setSettlements(response.data.data);
       setTotal(response.data.total);
     } catch (error) {
