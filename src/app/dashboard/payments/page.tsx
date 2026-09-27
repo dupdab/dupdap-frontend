@@ -5,7 +5,7 @@ import { Plus, Copy, Check } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { QRCodeSVG } from 'qrcode.react';
 import { paymentsApi } from '@/lib/api';
-import { formatUsd, formatDate, PAYMENT_STATUS_COLORS, DEFAULT_STATUS_COLOR } from '@/lib/utils';
+import { formatUsd, formatDate, PAYMENT_STATUS_COLORS, STATUS_ICONS, DEFAULT_STATUS_COLOR } from '@/lib/utils';
 import { FormField } from '@/components/FormField';
 import Modal from '@/components/Modal';
 import { SkeletonList } from '@/components/Skeleton';
@@ -33,6 +33,25 @@ interface PaymentRowProps {
   onShowQr: (payment: Payment) => void;
 }
 
+interface PaymentStatusBadgeProps {
+  status: string;
+  testId?: string;
+}
+
+function PaymentStatusBadge({ status, testId }: PaymentStatusBadgeProps) {
+  const StatusIcon = STATUS_ICONS[status];
+
+  return (
+    <span
+      data-testid={testId}
+      className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${PAYMENT_STATUS_COLORS[status] ?? DEFAULT_STATUS_COLOR}`}
+    >
+      {StatusIcon && <StatusIcon aria-hidden="true" className="w-3 h-3 shrink-0" />}
+      {status}
+    </span>
+  );
+}
+
 /** Desktop table row */
 const PaymentTableRow = memo(function PaymentTableRow({ payment: p, onShowQr }: PaymentRowProps) {
   return (
@@ -40,12 +59,7 @@ const PaymentTableRow = memo(function PaymentTableRow({ payment: p, onShowQr }: 
       <td className="px-6 py-4 font-mono text-xs">{p.reference}</td>
       <td className="px-6 py-4 font-semibold">{formatUsd(p.amountUsd)}</td>
       <td className="px-6 py-4">
-        <span
-          data-testid="payment-status-badge"
-          className={`text-xs px-2 py-0.5 rounded-full font-medium ${PAYMENT_STATUS_COLORS[p.status]}`}
-        >
-          {p.status}
-        </span>
+        <PaymentStatusBadge status={p.status} testId="payment-status-badge" />
       </td>
       <td className="px-6 py-4 text-gray-500">{formatDate(p.createdAt)}</td>
       <td className="px-6 py-4">
@@ -69,9 +83,7 @@ const PaymentMobileCard = memo(function PaymentMobileCard({ payment: p, onShowQr
     <div key={p.id} className="px-6 py-4 space-y-1">
       <div className="flex items-center justify-between">
         <span className="font-mono text-xs text-gray-500">{p.reference}</span>
-        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${PAYMENT_STATUS_COLORS[p.status]}`}>
-          {p.status}
-        </span>
+        <PaymentStatusBadge status={p.status} />
       </div>
       <div className="font-semibold">{formatUsd(p.amountUsd)}</div>
       <div className="text-xs text-gray-500">{formatDate(p.createdAt)}</div>
@@ -95,7 +107,6 @@ export default function PaymentsPage() {
   const [form, setForm] = useState({ amountUsd: '', description: '', customerEmail: '', expiryMinutes: '30' });
   const [creating, setCreating] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [error, setError] = useState('');
 
   const load = async (p = 1) => {
     setLoading(true);
@@ -270,9 +281,7 @@ export default function PaymentsPage() {
               <div key={p.id} className="px-6 py-4 space-y-1">
                 <div className="flex items-center justify-between">
                   <span className="font-mono text-xs text-gray-500">{p.reference}</span>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${PAYMENT_STATUS_COLORS[p.status] ?? DEFAULT_STATUS_COLOR}`}>
-                    {p.status}
-                  </span>
+                  <PaymentStatusBadge status={p.status} />
                 </div>
                 <div className="font-semibold">{formatUsd(p.amountUsd)}</div>
                 <div className="text-xs text-gray-500">{formatDate(p.createdAt)}</div>
@@ -308,9 +317,7 @@ export default function PaymentsPage() {
                     <td className="px-6 py-4 font-mono text-xs">{p.reference}</td>
                     <td className="px-6 py-4 font-semibold">{formatUsd(p.amountUsd)}</td>
                     <td className="px-6 py-4">
-                      <span data-testid="payment-status-badge" className={`text-xs px-2 py-0.5 rounded-full font-medium ${PAYMENT_STATUS_COLORS[p.status] ?? DEFAULT_STATUS_COLOR}`}>
-                        {p.status}
-                      </span>
+                      <PaymentStatusBadge status={p.status} testId="payment-status-badge" />
                     </td>
                     <td className="px-6 py-4 text-gray-500">{formatDate(p.createdAt)}</td>
                     <td className="px-6 py-4">

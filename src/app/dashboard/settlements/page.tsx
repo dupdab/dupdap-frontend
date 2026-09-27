@@ -3,7 +3,7 @@
 import { memo, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { settlementsApi } from '@/lib/api';
-import { formatUsd, formatDate, STATUS_COLORS } from '@/lib/utils';
+import { formatUsd, formatDate, STATUS_COLORS, STATUS_ICONS } from '@/lib/utils';
 import { SkeletonList, SkeletonTableRows } from '@/components/Skeleton';
 import type { Settlement } from '@/lib/types';
 
@@ -18,6 +18,7 @@ interface SettlementRowProps {
 
 /** Desktop table row */
 const SettlementTableRow = memo(function SettlementTableRow({ settlement: s }: SettlementRowProps) {
+  const StatusIcon = STATUS_ICONS[s.status];
   return (
     <tr className="hover:bg-gray-50">
       <td className="px-6 py-4 font-mono text-xs text-gray-500">
@@ -29,7 +30,8 @@ const SettlementTableRow = memo(function SettlementTableRow({ settlement: s }: S
       <td className="px-6 py-4 text-red-600">-{formatUsd(s.feeAmountUsd)}</td>
       <td className="px-6 py-4 font-semibold text-green-700">{formatUsd(s.netAmountUsd)}</td>
       <td className="px-6 py-4">
-        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[s.status]}`}>
+        <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[s.status]}`}>
+          {StatusIcon && <StatusIcon aria-hidden="true" className="w-3 h-3 shrink-0" />}
           {s.status}
         </span>
       </td>
@@ -40,6 +42,7 @@ const SettlementTableRow = memo(function SettlementTableRow({ settlement: s }: S
 
 /** Mobile card */
 const SettlementMobileCard = memo(function SettlementMobileCard({ settlement: s }: SettlementRowProps) {
+  const StatusIcon = STATUS_ICONS[s.status];
   return (
     <div className="px-6 py-4 space-y-1">
       <div className="flex items-center justify-between">
@@ -49,7 +52,8 @@ const SettlementMobileCard = memo(function SettlementMobileCard({ settlement: s 
         >
           {s.id.slice(0, 8)}...
         </Link>
-        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[s.status]}`}>
+        <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[s.status]}`}>
+          {StatusIcon && <StatusIcon aria-hidden="true" className="w-3 h-3 shrink-0" />}
           {s.status}
         </span>
       </div>

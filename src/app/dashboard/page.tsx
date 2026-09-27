@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { TrendingUp, CreditCard, Banknote, Clock } from 'lucide-react';
 import { paymentsApi } from '@/lib/api';
-import { formatUsd, formatDate, PAYMENT_STATUS_COLORS, DEFAULT_STATUS_COLOR } from '@/lib/utils';
+import { formatUsd, formatDate, PAYMENT_STATUS_COLORS, STATUS_ICONS, DEFAULT_STATUS_COLOR } from '@/lib/utils';
 import { aggregatePaymentStats } from '@/lib/dashboard-stats';
 import { useAuthStore } from '@/lib/store';
 import { Skeleton, SkeletonList } from '@/components/Skeleton';
@@ -78,20 +78,24 @@ export default function DashboardPage() {
           ) : payments.length === 0 ? (
             <div className="px-6 py-8 text-center text-gray-400 text-sm">No payments yet</div>
           ) : (
-            payments.map((p) => (
-              <div key={p.id} className="px-6 py-4 flex items-center justify-between">
-                <div>
-                  <p className="text-sm font-medium text-gray-900">{p.reference}</p>
-                  <p className="text-xs text-gray-400">{formatDate(p.createdAt)}</p>
+            payments.map((p) => {
+              const StatusIcon = STATUS_ICONS[p.status];
+              return (
+                <div key={p.id} className="px-6 py-4 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm font-medium text-gray-900">{p.reference}</p>
+                    <p className="text-xs text-gray-400">{formatDate(p.createdAt)}</p>
+                  </div>
+                  <div className="flex items-center gap-3">
+                    <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${PAYMENT_STATUS_COLORS[p.status] ?? DEFAULT_STATUS_COLOR}`}>
+                      {StatusIcon && <StatusIcon aria-hidden="true" className="w-3 h-3 shrink-0" />}
+                      {p.status}
+                    </span>
+                    <span className="text-sm font-semibold">{formatUsd(p.amountUsd)}</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-3">
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${PAYMENT_STATUS_COLORS[p.status] ?? DEFAULT_STATUS_COLOR}`}>
-                    {p.status}
-                  </span>
-                  <span className="text-sm font-semibold">{formatUsd(p.amountUsd)}</span>
-                </div>
-              </div>
-            ))
+              );
+            })
           )}
         </div>
       </div>
