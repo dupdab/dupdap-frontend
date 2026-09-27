@@ -70,6 +70,7 @@ The access token is persisted in `localStorage` via Zustand. Any XSS vector can 
 Several helpers exist in more than one place in this codebase. To keep new work from adding a third copy, use the canonical source below and extend it in place rather than redefining it per-page:
 
 - **Error messages** — import `getErrorMessage` from `src/lib/errors.ts`. That is the canonical helper; a duplicate `getErrorMessage` exists elsewhere in the codebase and should not be used or extended. If you need to change error-message behavior, change it in `errors.ts`.
+- **Dashboard nav active state** — use `isNavItemActive` from `src/lib/nav-active.ts` (used by `src/app/dashboard/layout.tsx`) rather than a bare `pathname.startsWith(href)`. It matches on path-segment boundaries and ignores trailing slashes and query strings, so a sibling route like `/dashboard/settlements-export` never highlights "Settlements".
 - **Status colors/icons** — import `STATUS_COLORS`, `STATUS_ICONS`, and `DEFAULT_STATUS_COLOR` from `src/lib/utils.ts`. Do not redefine per-page status→color or status→icon maps; add new statuses to the shared maps in `utils.ts` so every page stays consistent.
 - **Destructive confirmations** — use the shared `ConfirmDialog` component rather than `window.confirm`. It matches the app's styling, is accessible, and keeps confirmation UX consistent across the dashboard.
 

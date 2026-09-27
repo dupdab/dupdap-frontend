@@ -17,6 +17,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import { isAdmin } from '@/lib/auth';
+import { isNavItemActive } from '@/lib/nav-active';
 import { cn } from '@/lib/utils';
 
 const navItems = [
@@ -115,7 +116,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       <nav className="flex-1 p-4 space-y-1">
         {visibleNavItems.map(({ href, label, icon: Icon, exact }) => {
-          const active = exact ? pathname === href : pathname.startsWith(href);
+          // Segment-aware match so a sibling route that merely shares a
+          // prefix (e.g. /dashboard/settlements-export) is not highlighted (#358).
+          const active = isNavItemActive(pathname, href, exact);
           return (
             <Link
               key={href}
