@@ -72,6 +72,7 @@ Several helpers exist in more than one place in this codebase. To keep new work 
 - **Error messages** — import `getErrorMessage` from `src/lib/errors.ts`. That is the canonical helper; a duplicate `getErrorMessage` exists elsewhere in the codebase and should not be used or extended. If you need to change error-message behavior, change it in `errors.ts`.
 - **Status colors/icons** — import `STATUS_COLORS`, `STATUS_ICONS`, and `DEFAULT_STATUS_COLOR` from `src/lib/utils.ts`. Do not redefine per-page status→color or status→icon maps; add new statuses to the shared maps in `utils.ts` so every page stays consistent.
 - **Destructive confirmations** — use the shared `ConfirmDialog` component rather than `window.confirm`. It matches the app's styling, is accessible, and keeps confirmation UX consistent across the dashboard.
+- **Overlays (modal, off-canvas drawer)** — wrap the panel with `useFocusTrap` from `src/lib/useFocusTrap.ts` and add an Escape handler. The dashboard's mobile nav drawer does both, so focus moves into the drawer on open, cycles within it on Tab/Shift+Tab, and returns to the hamburger button on close. Panels should carry `role="dialog"` and `aria-modal="true"`.
 
 When in doubt, grep for the helper name first — if it already exists in `src/lib`, reuse it instead of writing a local copy.
 

@@ -18,6 +18,10 @@ import {
 import { useAuthStore } from '@/lib/store';
 import { isAdmin } from '@/lib/auth';
 import { cn } from '@/lib/utils';
+import { useAuthStore } from '@/lib/store';
+import { isAdmin } from '@/lib/auth';
+import { useFocusTrap } from '@/lib/useFocusTrap';
+import { cn } from '@/lib/utils';
 
 const navItems = [
   { href: '/dashboard', label: 'Overview', icon: LayoutDashboard, exact: true },
@@ -45,6 +49,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const pathname = usePathname();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  // The off-canvas mobile drawer is a modal surface: it reuses the shared
+  // focus-trap so focus moves into the drawer on open, Tab cycles inside it,
+  // and focus returns to the hamburger button on close (#356).
+  const drawerRef = useFocusTrap<HTMLElement>(mobileNavOpen);
 
   useEffect(() => {
     if (!token) {
@@ -56,6 +64,29 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     setMobileNavOpen(false);
   }, [pathname]);
+
+  // Escape closes the mobile drawer, matching Modal.tsx / ConfirmDialog.tsx.
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setMobileNavOpen(false);
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [mobileNavOpen]);
+
+  // Prevent the page behind the drawer from scrolling while it is open.
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [mobileNavOpen]);
 
   // Warn before browser-level navigation (reload, tab close, external link)
   // while a form inside the dashboard has unsaved changes.
@@ -178,7 +209,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             className="fixed inset-0 bg-black/40"
             onClick={() => setMobileNavOpen(false)}
           />
-          <aside className="relative w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col">
+          <aside
+            ref={drawerRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Navigation menu"
+            tabIndex={-1}
+            className="relative w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col outline-none"
+          >
             {sidebarContent}
           </aside>
         </div>
