@@ -104,9 +104,7 @@ export default function AdminSettlementsPage() {
         ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v)),
       });
 
-  useEffect(() => {
-    if (!token) return;
-
+      const response = await adminApi.listSettlements(params.toString());
       setSettlements(response.data.data);
       setTotal(response.data.total);
     } catch (error) {

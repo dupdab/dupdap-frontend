@@ -94,8 +94,6 @@ describe('Axios 401 response interceptor', () => {
     const mockHandler = vi.fn();
     setAuthRedirectHandler(mockHandler);
 
-    const err = { response: { status: 401 
-
     const err = { response: { status: 401 } };
     await expect(responseErrorHandler?.(err)).rejects.toEqual(err);
 

@@ -128,5 +128,3 @@ describe('Modal accessibility, focus trap & restore (#376)', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 });
-  });
-});
