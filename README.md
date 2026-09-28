@@ -180,10 +180,22 @@ Extend `api.ts` with additional grouped helpers (e.g. `settlementsApi`, `webhook
 ## Testing & linting
 
 ```bash
-npm run lint      # next lint (ESLint, see .eslintrc.json)
+npm run type-check  # tsc --noEmit
+npm run lint        # next lint (ESLint, see .eslintrc.json)
+npm test            # vitest run (single pass)
+npm run test:watch  # vitest (watch mode)
+npm run verify      # type-check + lint + test
 ```
 
-There is no test suite in this repo yet — if you add one, wire it into this section and into CI.
+The suite runs on [Vitest](https://vitest.dev) with [React Testing Library](https://testing-library.com/react) in a `jsdom` environment — the fastest thing to wire into a Next.js 14 App Router project. Config lives in `vitest.config.ts`, and `vitest.setup.ts` registers `@testing-library/jest-dom` matchers, cleans up between tests, and stubs `matchMedia`.
+
+**Conventions**
+
+- Tests are colocated with the code they cover as `*.test.ts` / `*.test.tsx` (e.g. `src/lib/utils.ts` → `src/lib/formatDate.test.ts`), plus broader integration suites under `src/__tests__/`.
+- Mock network boundaries at the module level (`vi.mock('@/lib/api', …)`) rather than stubbing fetch, and mock third-party UI libs only for what the component under test actually needs.
+- Assert on user-visible behavior (roles, labels, text) rather than implementation details, so refactors don't break the suite.
+- Any helper added to `src/lib` should come with a test next to it.
+
 
 ## Deployment
 

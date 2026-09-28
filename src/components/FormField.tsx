@@ -1,16 +1,14 @@
-import { ReactNode, useId } from 'react';
+import { useId } from 'react';
 
-interface FormFieldProps {
+interface FormFieldProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label: string;
   error?: string;
   labelClassName?: string;
   hideLabel?: boolean;
   hint?: React.ReactNode;
-  /** Optional status indicator rendered next to the label (e.g. username availability). */
-  status?: React.ReactNode;
 }
 
-export function FormField({ label, error, id, className, labelClassName, hideLabel, hint, status, ...props }: FormFieldProps) {
+export function FormField({ label, error, id, className, labelClassName, hideLabel, hint, ...props }: FormFieldProps) {
   const generatedId = useId();
   const inputId = id ?? generatedId;
   const errorId = `${inputId}-error`;

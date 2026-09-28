@@ -13,6 +13,7 @@ import {
 import { useAuthStore } from '@/lib/store';
 import { adminApi } from '@/lib/api';
 import { formatUsd, formatDate, STATUS_COLORS } from '@/lib/utils';
+import { getErrorMessage } from '@/lib/errors';
 import { SkeletonList, SkeletonTableRows } from '@/components/Skeleton';
 
 interface Settlement {

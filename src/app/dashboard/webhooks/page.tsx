@@ -4,16 +4,11 @@ import { memo, useEffect, useState } from 'react';
 import { Plus, Trash2, Copy, Check, Eye, EyeOff, RefreshCw } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { webhooksApi } from '@/lib/api';
-import { WEBHOOK_EVENTS, formatDate } from '@/lib/utils';
+import { WEBHOOK_EVENTS, formatDate, maskSecret } from '@/lib/utils';
 import { getErrorMessage } from '@/lib/errors';
 import Modal from '@/components/Modal';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import type { Webhook } from '@/lib/types';
-
-function maskSecret(secret: string) {
-  if (secret.length <= 8) return '••••••••';
-  return `${secret.slice(0, 4)}${'•'.repeat(Math.min(secret.length - 8, 16))}${secret.slice(-4)}`;
-}
 
 function WebhookSecretRow({ webhook, onRotated }: { webhook: Webhook; onRotated: (secret: string) => void }) {
   const [revealed, setRevealed] = useState(false);
@@ -344,7 +339,7 @@ export default function WebhooksPage() {
 
       <ConfirmDialog
         open={deletingId !== null}
-        onClose={() => setDeletingId(null)}
+        onCancel={() => setDeletingId(null)}
         onConfirm={() => deletingId && remove(deletingId)}
         title="Remove webhook"
         message="This webhook will stop receiving events. This action cannot be undone."

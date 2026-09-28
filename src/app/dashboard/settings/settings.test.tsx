@@ -53,8 +53,11 @@ vi.mock('@/lib/store', () => ({
   useAuthStore: () => ({ merchant: { id: 'merch-1', businessName: 'Acme' } }),
 }));
 
-/* lucide-react — lightweight stubs so SVG renders as text labels */
-vi.mock('lucide-react', () => ({
+/* lucide-react — lightweight stubs so SVG renders as text labels.
+ * Partial mock (via importOriginal) so transitively-imported icons — e.g. the
+ * close icon inside ConfirmDialog's sibling Modal — still resolve (#335). */
+vi.mock('lucide-react', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('lucide-react')>()),
   Copy: () => <span data-testid="icon-copy">copy</span>,
   Check: () => <span data-testid="icon-check">check</span>,
   Eye: () => <span data-testid="icon-eye">eye</span>,
@@ -217,46 +220,76 @@ describe('SettingsPage — API key scopes', () => {
 describe('SettingsPage — API key generation', () => {
   const generatedKey = 'sk_live_abcdefghijklmnop';
 
+  /** Clicks "Generate new API key" then confirms in the shared ConfirmDialog (#335). */
+  async function confirmGenerate() {
+    fireEvent.click(screen.getByRole('button', { name: /generate new api key/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /^generate key$/i }));
+  }
+
   beforeEach(() => {
     mockProfile.mockResolvedValue({ data: profileData });
     mockGenerateApiKey.mockResolvedValue({ data: { apiKey: generatedKey } });
     mockConfirm.mockReturnValue(true);
   });
 
+  it('confirms generation via the shared ConfirmDialog, not window.confirm (#335)', async () => {
+    renderPage();
+    await waitFor(() => expect(mockProfile).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByRole('button', { name: /generate new api key/i }));
+
+    // The app's own dialog is used — no native confirm, nothing generated yet.
+    expect(screen.getByRole('alertdialog')).toBeInTheDocument();
+    expect(mockConfirm).not.toHaveBeenCalled();
+    expect(mockGenerateApiKey).not.toHaveBeenCalled();
+
+    fireEvent.click(screen.getByRole('button', { name: /^generate key$/i }));
+
+    await waitFor(() => expect(mockGenerateApiKey).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByText(/save this key now/i)).toBeInTheDocument());
+  });
+
   it('generates API key on confirmation and shows masked value', async () => {
     renderPage();
     await waitFor(() => expect(mockProfile).toHaveBeenCalled());
 
-    fireEvent.click(screen.getByRole('button', { name: /generate new api key/i }));
-
-    await waitFor(() =>
-      expect(mockGenerateApiKey).toHaveBeenCalled(),
-    );
+    await confirmGenerate();
 
     // Key should be masked by default — dots visible, not the raw key
-    await waitFor(() =>
-      expect(screen.getByText(/save this key now/i)).toBeInTheDocument(),
-    );
+    await waitFor(() => expect(screen.getByText(/save this key now/i)).toBeInTheDocument());
     expect(screen.queryByText(generatedKey)).not.toBeInTheDocument();
   });
 
   it('does NOT generate key when user cancels confirmation', async () => {
-    mockConfirm.mockReturnValueOnce(false);
-
     renderPage();
     await waitFor(() => expect(mockProfile).toHaveBeenCalled());
 
     fireEvent.click(screen.getByRole('button', { name: /generate new api key/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /^cancel$/i }));
 
     await new Promise((r) => setTimeout(r, 50));
     expect(mockGenerateApiKey).not.toHaveBeenCalled();
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+  });
+
+  it('masks a short generated key entirely (#337)', async () => {
+    mockGenerateApiKey.mockResolvedValue({ data: { apiKey: 'abc123xy' } });
+    renderPage();
+    await waitFor(() => expect(mockProfile).toHaveBeenCalled());
+
+    await confirmGenerate();
+
+    await waitFor(() => expect(screen.getByText(/save this key now/i)).toBeInTheDocument());
+    // An 8-character key reveals at most 2 + 2 characters (#337).
+    expect(screen.getByText('ab••••••••xy')).toBeInTheDocument();
+    expect(screen.queryByText('abc123xy')).not.toBeInTheDocument();
   });
 
   it('reveals full key on eye button click, hides again', async () => {
     renderPage();
     await waitFor(() => expect(mockProfile).toHaveBeenCalled());
 
-    fireEvent.click(screen.getByRole('button', { name: /generate new api key/i }));
+    await confirmGenerate();
     await waitFor(() => expect(screen.getByText(/save this key now/i)).toBeInTheDocument());
 
     const revealBtn = screen.getByRole('button', { name: /reveal api key/i });
@@ -272,7 +305,7 @@ describe('SettingsPage — API key generation', () => {
     renderPage();
     await waitFor(() => expect(mockProfile).toHaveBeenCalled());
 
-    fireEvent.click(screen.getByRole('button', { name: /generate new api key/i }));
+    await confirmGenerate();
     await waitFor(() => expect(screen.getByText(/save this key now/i)).toBeInTheDocument());
 
     fireEvent.click(screen.getByRole('button', { name: /copy api key/i }));
@@ -286,10 +319,86 @@ describe('SettingsPage — API key generation', () => {
     renderPage();
     await waitFor(() => expect(mockProfile).toHaveBeenCalled());
 
-    fireEvent.click(screen.getByRole('button', { name: /generate new api key/i }));
+    await confirmGenerate();
     await waitFor(() => expect(screen.getByText(/save this key now/i)).toBeInTheDocument());
 
-    fireEvent.click(screen.getByRole('button', { name: /i've saved it, dismiss/i }));
+    fireEvent.click(screen.getByRole('button', { name: /i've saved it/i }));
+
+
+describe('SettingsPage — undismissed API key navigation guard (#336)', () => {
+  const generatedKey = 'sk_live_abcdefghijklmnop';
+
+  beforeEach(() => {
+    mockProfile.mockResolvedValue({ data: profileData });
+    mockGenerateApiKey.mockResolvedValue({ data: { apiKey: generatedKey } });
+    mockConfirm.mockReturnValue(true);
+  });
+
+  /** Renders the page alongside an in-app nav link, as the sidebar provides. */
+  async function renderWithNavLink() {
+    renderPage();
+    await waitFor(() => expect(mockProfile).toHaveBeenCalled());
+
+    const link = document.createElement('a');
+    link.href = '/dashboard/payments';
+    link.textContent = 'Payments';
+    document.body.appendChild(link);
+    return link;
+  }
+
+  async function generateKey() {
+    fireEvent.click(screen.getByRole('button', { name: /generate new api key/i }));
+    fireEvent.click(await screen.findByRole('button', { name: /^generate key$/i }));
+    await waitFor(() => expect(screen.getByText(/save this key now/i)).toBeInTheDocument());
+  }
+
+  function clickLink(link: HTMLAnchorElement) {
+    const event = new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 });
+    link.dispatchEvent(event);
+    return event;
+  }
+
+  it('warns before navigating away while the key is still on screen', async () => {
+    const link = await renderWithNavLink();
+    await generateKey();
+
+    const event = clickLink(link);
+
+    expect(mockConfirm).toHaveBeenCalledWith(expect.stringMatching(/only shown once/i));
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it('blocks the navigation when the merchant cancels the warning', async () => {
+    mockConfirm.mockReturnValue(false);
+    const link = await renderWithNavLink();
+    await generateKey();
+
+    expect(clickLink(link).defaultPrevented).toBe(true);
+  });
+
+  it('registers a beforeunload guard while the key is on screen', async () => {
+    await renderWithNavLink();
+    await generateKey();
+
+    const event = new Event('beforeunload', { cancelable: true });
+    window.dispatchEvent(event);
+
+    expect(event.defaultPrevented).toBe(true);
+  });
+
+  it('stops guarding once the merchant dismisses the key', async () => {
+    const link = await renderWithNavLink();
+    await generateKey();
+
+    fireEvent.click(screen.getByRole('button', { name: /i've saved it/i }));
+    expect(screen.queryByText(/save this key now/i)).not.toBeInTheDocument();
+
+    mockConfirm.mockClear();
+    // No key to lose and the form is untouched, so navigation is not blocked.
+    expect(clickLink(link).defaultPrevented).toBe(false);
+    expect(mockConfirm).not.toHaveBeenCalled();
+  });
+});
 
     expect(screen.queryByText(/save this key now/i)).not.toBeInTheDocument();
   });

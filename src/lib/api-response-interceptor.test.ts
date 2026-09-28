@@ -97,6 +97,7 @@ describe('Axios 401 response interceptor', () => {
     const err = { response: { status: 401 } };
     await expect(responseErrorHandler?.(err)).rejects.toEqual(err);
 
+    const { redirectToLogin } = await import('./auth-redirect');
     expect(redirectToLogin).toHaveBeenCalled();
     expect(window.location.href).not.toBe('/auth/login');
   });

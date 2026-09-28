@@ -6,12 +6,9 @@ import toast from 'react-hot-toast';
 import { merchantApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { FormField } from '@/components/FormField';
+import ConfirmDialog from '@/components/ConfirmDialog';
 import { getErrorMessage } from '@/lib/errors';
-
-function maskApiKey(key: string): string {
-  if (key.length <= 8) return '••••••••';
-  return `${key.slice(0, 4)}${'•'.repeat(Math.min(key.length - 8, 24))}${key.slice(-4)}`;
-}
+import { maskSecret } from '@/lib/utils';
 
 const EMPTY_FORM = { businessName: '', country: '', bankAccountNumber: '', bankCode: '', bankName: '' };
 
@@ -27,12 +24,19 @@ export default function SettingsPage() {
   const [keyCopied, setKeyCopied] = useState(false);
   const [generatingKey, setGeneratingKey] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [confirmingGenerate, setConfirmingGenerate] = useState(false);
 
   const isDirty = Object.keys(form).some(
     (key) => form[key as keyof typeof form] !== savedForm[key as keyof typeof savedForm],
   );
   const isDirtyRef = useRef(isDirty);
   isDirtyRef.current = isDirty;
+
+  // A freshly generated key is only ever shown once, so leaving the page while it
+  // is still on screen loses it for good — guard navigation until it's dismissed (#336).
+  const hasUndismissedKey = apiKey !== null;
+  const hasUndismissedKeyRef = useRef(hasUndismissedKey);
+  hasUndismissedKeyRef.current = hasUndismissedKey;
 
   useEffect(() => {
     merchantApi.profile()
@@ -56,9 +60,10 @@ export default function SettingsPage() {
   }, []);
 
   // Warn on browser-level navigation (reload, tab close, external link) while dirty (#404)
+  // or while a one-time API key is still on screen (#336).
   useEffect(() => {
     const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-      if (!isDirtyRef.current) return;
+      if (!isDirtyRef.current && !hasUndismissedKeyRef.current) return;
       e.preventDefault();
       e.returnValue = '';
     };
@@ -66,10 +71,12 @@ export default function SettingsPage() {
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, []);
 
-  // Warn on in-app navigation (e.g. sidebar links) while dirty (#404)
+  // Warn on in-app navigation (e.g. sidebar links) while dirty (#404) or while a
+  // one-time API key is still on screen (#336).
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
-      if (!isDirtyRef.current) return;
+      const keyPending = hasUndismissedKeyRef.current;
+      if (!isDirtyRef.current && !keyPending) return;
       if (e.defaultPrevented || e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
       const anchor = (e.target as HTMLElement | null)?.closest?.('a[href]') as HTMLAnchorElement | null;
       if (!anchor) return;
@@ -78,7 +85,10 @@ export default function SettingsPage() {
       const url = new URL(anchor.href, window.location.href);
       if (url.origin !== window.location.origin) return;
       if (url.pathname === window.location.pathname && url.search === window.location.search) return;
-      if (!window.confirm('You have unsaved changes. Leave this page and discard them?')) {
+      const message = keyPending
+        ? 'Your new API key is only shown once. Leave this page and lose it?'
+        : 'You have unsaved changes. Leave this page and discard them?';
+      if (!window.confirm(message)) {
         e.preventDefault();
         e.stopPropagation();
       }
@@ -104,9 +114,9 @@ export default function SettingsPage() {
         }
         setFieldErrors(normalized);
         const first = Object.values(normalized)[0];
-        toast.error(first ?? getErrorMessage(err));
+        toast.error(first ?? getErrorMessage(err) ?? 'Failed to update profile');
       } else {
-        toast.error(getErrorMessage(err));
+        toast.error(getErrorMessage(err) ?? 'Failed to update profile');
       }
     } finally {
       setSaving(false);
@@ -230,7 +240,7 @@ export default function SettingsPage() {
             </p>
             <div className="flex items-center gap-2 bg-gray-900 text-green-400 font-mono text-sm p-3 rounded-lg">
               <code className="flex-1 break-all">
-                {keyRevealed ? apiKey : maskApiKey(apiKey)}
+                {keyRevealed ? apiKey : maskSecret(apiKey)}
               </code>
               <button
                 type="button"
@@ -260,7 +270,7 @@ export default function SettingsPage() {
         ) : (
           <button
             type="button"
-            onClick={generateKey}
+            onClick={() => setConfirmingGenerate(true)}
             disabled={generatingKey || selectedScopes.length === 0}
             className="btn-primary"
           >
@@ -268,6 +278,21 @@ export default function SettingsPage() {
           </button>
         )}
       </div>
+
+      {/* Destructive confirmation uses the shared dialog, matching webhooks (#335) */}
+      <ConfirmDialog
+        open={confirmingGenerate}
+        onCancel={() => setConfirmingGenerate(false)}
+        onConfirm={() => {
+          setConfirmingGenerate(false);
+          generateKey();
+        }}
+        title="Generate new API key"
+        message="Generating a new API key will invalidate your current key. This cannot be undone."
+        confirmLabel="Generate key"
+        loading={generatingKey}
+        destructive
+      />
     </div>
   );
 }
