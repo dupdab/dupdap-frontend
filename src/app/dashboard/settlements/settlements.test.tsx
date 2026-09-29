@@ -7,7 +7,8 @@
  *  - Settlements rendered in table rows (desktop) with correct amounts and status
  *  - Empty-state message when no settlements exist
  *  - API error message rendered
- *  - Pagination: Prev/Next buttons and page counter
+ *  - Pagination: Prev/Next buttons and page counter (#338)
+ *  - Unknown statuses fall back to the default badge color (#339)
  *  - Settlement IDs rendered as links to detail page
  */
 
@@ -54,6 +55,7 @@ vi.mock('@/lib/utils', () => ({
     failed: (props: { className?: string; 'aria-hidden'?: boolean }) => <svg data-testid="status-icon" {...props} />,
   },
   STATUS_COLORS: { pending: 'bg-yellow-100', completed: 'bg-green-100', failed: 'bg-red-100' },
+  DEFAULT_STATUS_COLOR: 'bg-gray-100 text-gray-600',
 }));
 
 /* ── Fixtures ───────────────────────────────────────────────────────────── */
@@ -112,6 +114,29 @@ describe('SettlementsPage — list rendering', () => {
     expect(screen.queryByTestId('status-icon')).not.toBeInTheDocument();
   });
 
+  it('falls back to the default color for unknown statuses (#339)', async () => {
+    mockList.mockResolvedValue({ data: { settlements: [makeSettlement(3, 'on_hold')], total: 1 } });
+    render(<SettlementsPage />);
+
+    const badges = await screen.findAllByText('on_hold');
+    // Both the desktop table row and the mobile card badge must degrade
+    // gracefully rather than interpolating the literal string "undefined".
+    for (const badge of badges) {
+      expect(badge.className).toContain('bg-gray-100 text-gray-600');
+      expect(badge.className).not.toContain('undefined');
+    }
+  });
+
+  it('uses the mapped status color for known statuses', async () => {
+    mockList.mockResolvedValue({ data: { settlements: [makeSettlement(3, 'completed')], total: 1 } });
+    render(<SettlementsPage />);
+
+    const badges = await screen.findAllByText('completed');
+    for (const badge of badges) {
+      expect(badge.className).toContain('bg-green-100');
+    }
+  });
+
   it('renders settlement ID links to detail page', async () => {
     mockList.mockResolvedValue({ data: { settlements: twoSettlements, total: 2 } });
     render(<SettlementsPage />);
@@ -154,23 +179,44 @@ describe('SettlementsPage — error state', () => {
 });
 
 describe('SettlementsPage — pagination', () => {
-  it('hides pagination buttons on page 1 when total > 20 (source operator-precedence bug)', async () => {
-    // Source code: `{total > 20 || page > 1 && (<div>...)}` — due to JS operator
-    // precedence this evaluates as `total > 20 || (page > 1 && <div>)`.
-    // When page=1, the && side is false, so the entire expression is `true` (a
-    // boolean), not the <div> — React renders nothing. Pagination only appears
-    // when page > 1 (i.e., the user already navigated forward).
+  it('shows pagination controls on page 1 when total > 20', async () => {
+    // Regression test for #338: the condition used to be written as
+    // `total > 20 || page > 1 && (<div>...)`, which parses as
+    // `total > 20 || (page > 1 && <div>)`. With page = 1 the right side is
+    // false, so the expression short-circuits to the boolean `true` and React
+    // renders nothing — hiding the controls exactly when they're needed.
     mockList.mockResolvedValue({
       data: { settlements: [makeSettlement(1)], total: 40 },
     });
     render(<SettlementsPage />);
 
-    await waitFor(() =>
-      expect(screen.queryByTestId('skeleton-table-rows')).not.toBeInTheDocument(),
-    );
-    // On page 1, neither Prev nor Next should be visible
-    expect(screen.queryByRole('button', { name: /prev/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /next/i })).not.toBeInTheDocument();
+    expect(await screen.findByTestId('pagination-next')).toBeInTheDocument();
+    const prev = screen.getByTestId('pagination-prev');
+    expect(prev).toBeDisabled();
+    expect(screen.getByText('Page 1 of 2')).toBeInTheDocument();
+  });
+
+  it('hides pagination controls on page 1 when total <= 20', async () => {
+    mockList.mockResolvedValue({
+      data: { settlements: [makeSettlement(1)], total: 2 },
+    });
+    render(<SettlementsPage />);
+
+    await waitFor(() => expect(screen.getByText('2 total settlements')).toBeInTheDocument());
+    expect(screen.queryByTestId('pagination-next')).not.toBeInTheDocument();
+  });
+
+  it('navigates to the next page when Next is clicked', async () => {
+    mockList.mockResolvedValue({
+      data: { settlements: [makeSettlement(1)], total: 40 },
+    });
+    render(<SettlementsPage />);
+
+    fireEvent.click(await screen.findByTestId('pagination-next'));
+
+    await waitFor(() => expect(mockList).toHaveBeenCalledWith(2, 20));
+    expect(await screen.findByText('Page 2 of 2')).toBeInTheDocument();
+    expect(screen.getByTestId('pagination-next')).toBeDisabled();
   });
 
   it('renders page counter text in subtitle (total always visible)', async () => {

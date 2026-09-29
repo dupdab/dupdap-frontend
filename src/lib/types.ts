@@ -75,6 +75,16 @@ export interface Settlement {
   status: string;
   partnerReference?: string;
   createdAt: string;
+  // Detail-only fields returned by GET /settlements/:id (#341).
+  fiatCurrency?: string;
+  fiatAmount?: number;
+  bankReference?: string;
+  requiresApproval?: boolean;
+  approvedBy?: string;
+  approvedAt?: string;
+  completedAt?: string;
+  failureReason?: string;
+  updatedAt?: string;
 }
 
 export interface SettlementListResponse {

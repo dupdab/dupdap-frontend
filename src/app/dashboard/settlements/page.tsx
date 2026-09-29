@@ -3,7 +3,7 @@
 import { memo, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { settlementsApi } from '@/lib/api';
-import { formatUsd, formatDate, STATUS_COLORS, STATUS_ICONS } from '@/lib/utils';
+import { formatUsd, formatDate, STATUS_COLORS, STATUS_ICONS, DEFAULT_STATUS_COLOR } from '@/lib/utils';
 import { SkeletonList, SkeletonTableRows } from '@/components/Skeleton';
 import type { Settlement } from '@/lib/types';
 
@@ -30,7 +30,7 @@ const SettlementTableRow = memo(function SettlementTableRow({ settlement: s }: S
       <td className="px-6 py-4 text-red-600">-{formatUsd(s.feeAmountUsd)}</td>
       <td className="px-6 py-4 font-semibold text-green-700">{formatUsd(s.netAmountUsd)}</td>
       <td className="px-6 py-4">
-        <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[s.status]}`}>
+        <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[s.status] ?? DEFAULT_STATUS_COLOR}`}>
           {StatusIcon && <StatusIcon aria-hidden="true" className="w-3 h-3 shrink-0" />}
           {s.status}
         </span>
@@ -52,7 +52,7 @@ const SettlementMobileCard = memo(function SettlementMobileCard({ settlement: s 
         >
           {s.id.slice(0, 8)}...
         </Link>
-        <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[s.status]}`}>
+        <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[s.status] ?? DEFAULT_STATUS_COLOR}`}>
           {StatusIcon && <StatusIcon aria-hidden="true" className="w-3 h-3 shrink-0" />}
           {s.status}
         </span>
@@ -82,6 +82,11 @@ export default function SettlementsPage() {
       setError("Couldn't load settlements.");
     }).finally(() => setLoading(false));
   }, [page]);
+
+  // Parenthesized explicitly: `total > 20 || page > 1 && <controls>` parses as
+  // `total > 20 || (page > 1 && <controls>)` because && binds tighter than ||,
+  // which short-circuits to the boolean `true` and renders no controls (#338).
+  const showPagination = total > 20 || page > 1;
 
   return (
     <div className="p-8">
@@ -135,12 +140,12 @@ export default function SettlementsPage() {
             </tbody>
           </table>
         </div>
-        {total > 20 || page > 1 && (
+        {showPagination && (
           <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
             <span className="text-sm text-gray-500">Page {page} of {Math.ceil(total / 20)}</span>
             <div className="flex gap-2">
-              <button onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="btn-secondary text-sm px-3 py-1">Prev</button>
-              <button onClick={() => setPage(p => p + 1)} disabled={page * 20 >= total} className="btn-secondary text-sm px-3 py-1">Next</button>
+              <button data-testid="pagination-prev" onClick={() => setPage(p => Math.max(1, p - 1))} disabled={page === 1} className="btn-secondary text-sm px-3 py-1">Prev</button>
+              <button data-testid="pagination-next" onClick={() => setPage(p => p + 1)} disabled={page * 20 >= total} className="btn-secondary text-sm px-3 py-1">Next</button>
             </div>
           </div>
         )}
