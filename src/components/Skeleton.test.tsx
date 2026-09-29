@@ -19,16 +19,25 @@ describe("Skeleton", () => {
 });
 
 describe("SkeletonList", () => {
+  // Each row renders a fixed set of placeholder bars (two in the leading
+  // column, one trailing), so the skeleton count scales with the row count.
+  const SKELETONS_PER_ROW = 3;
+  const DEFAULT_ROWS = 5;
+
   it("renders the requested number of rows", () => {
     const { container } = render(<SkeletonList rows={4} />);
 
-    expect(container.querySelectorAll("[aria-hidden='true']")).toHaveLength(4);
+    expect(container.querySelectorAll("[aria-hidden='true']")).toHaveLength(
+      4 * SKELETONS_PER_ROW,
+    );
   });
 
-  it("defaults to a single row", () => {
+  it("defaults to five rows", () => {
     const { container } = render(<SkeletonList />);
 
-    expect(container.querySelectorAll("[aria-hidden='true']")).toHaveLength(1);
+    expect(container.querySelectorAll("[aria-hidden='true']")).toHaveLength(
+      DEFAULT_ROWS * SKELETONS_PER_ROW,
+    );
   });
 });
 

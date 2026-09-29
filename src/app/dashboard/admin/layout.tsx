@@ -7,7 +7,12 @@ import { isAdmin } from '@/lib/auth';
 
 function LoadingState() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50" aria-busy="true" aria-label="Loading">
+    <div
+      role="status"
+      className="min-h-screen flex items-center justify-center bg-gray-50"
+      aria-busy="true"
+      aria-label="Loading"
+    >
       <div className="w-8 h-8 rounded-full border-4 border-brand-200 border-t-brand-600 animate-spin" />
     </div>
   );

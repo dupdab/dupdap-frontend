@@ -4,14 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { ArrowLeft, Loader2, XCircle } from 'lucide-react';
 import { settlementsApi } from '@/lib/api';
-import { formatUsd, formatDate } from '@/lib/utils';
-
-const STATUS_COLORS: Record<string, string> = {
-  pending: 'bg-yellow-100 text-yellow-800',
-  processing: 'bg-blue-100 text-blue-800',
-  completed: 'bg-green-100 text-green-800',
-  failed: 'bg-red-100 text-red-800',
-};
+import { formatUsd, formatDate, STATUS_COLORS } from '@/lib/utils';
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   if (value === undefined || value === null || value === '') return null;

@@ -5,21 +5,22 @@
  * Issue #312: visibilitychange recomputes countdown and triggers immediate poll
  */
 import React from 'react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, act, waitFor } from '@testing-library/react';
 import { paymentsApi } from '@/lib/api';
 import PayPage from '@/app/pay/[paymentId]/page';
 
-jest.mock('@/lib/api', () => ({
+vi.mock('@/lib/api', () => ({
   paymentsApi: {
-    getByReference: jest.fn(),
+    getByReference: vi.fn(),
   },
 }));
 
-jest.mock('qrcode.react', () => ({
+vi.mock('qrcode.react', () => ({
   QRCodeSVG: ({ value }: { value: string }) => <div data-testid="qrcode" data-value={value} />,
 }));
 
-const mockGetByReference = paymentsApi.getByReference as jest.MockedFunction<typeof paymentsApi.getByReference>;
+const mockGetByReference = vi.mocked(paymentsApi.getByReference);
 
 const PENDING_PAYMENT = {
   id: 'pay-001',
@@ -51,19 +52,19 @@ function setVisibility(state: 'visible' | 'hidden') {
 }
 
 beforeEach(() => {
-  jest.useFakeTimers();
-  jest.clearAllMocks();
+  vi.useFakeTimers();
+  vi.clearAllMocks();
   setVisibility('visible');
 });
 
 afterEach(() => {
-  jest.runOnlyPendingTimers();
-  jest.useRealTimers();
+  vi.runOnlyPendingTimers();
+  vi.useRealTimers();
 });
 
 describe('PayPage — polling timer logic', () => {
   it('calls getByReference once on mount (initial fetch)', async () => {
-    mockGetByReference.mockResolvedValue({ data: PENDING_PAYMENT } as ReturnType<typeof paymentsApi.getByReference>);
+    mockGetByReference.mockResolvedValue({ data: PENDING_PAYMENT } as never);
 
     render(<PayPage params={defaultParams} />);
 
@@ -77,7 +78,7 @@ describe('PayPage — polling timer logic', () => {
   });
 
   it('fires the poll interval every 5000ms', async () => {
-    mockGetByReference.mockResolvedValue({ data: PENDING_PAYMENT } as ReturnType<typeof paymentsApi.getByReference>);
+    mockGetByReference.mockResolvedValue({ data: PENDING_PAYMENT } as never);
 
     render(<PayPage params={defaultParams} />);
 
@@ -87,21 +88,21 @@ describe('PayPage — polling timer logic', () => {
 
     // Advance 5s → 1 poll tick
     await act(async () => {
-      jest.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(5000);
       await Promise.resolve();
     });
     expect(mockGetByReference.mock.calls.length).toBe(afterMount + 1);
 
     // Advance another 5s → 2nd poll tick
     await act(async () => {
-      jest.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(5000);
       await Promise.resolve();
     });
     expect(mockGetByReference.mock.calls.length).toBe(afterMount + 2);
   });
 
   it('clears the interval on unmount', async () => {
-    mockGetByReference.mockResolvedValue({ data: PENDING_PAYMENT } as ReturnType<typeof paymentsApi.getByReference>);
+    mockGetByReference.mockResolvedValue({ data: PENDING_PAYMENT } as never);
 
     const { unmount } = render(<PayPage params={defaultParams} />);
 
@@ -111,7 +112,7 @@ describe('PayPage — polling timer logic', () => {
 
     // Advance 5s to confirm polling is running
     await act(async () => {
-      jest.advanceTimersByTime(5000);
+      vi.advanceTimersByTime(5000);
       await Promise.resolve();
     });
     expect(mockGetByReference.mock.calls.length).toBe(afterMount + 1);
@@ -121,7 +122,7 @@ describe('PayPage — polling timer logic', () => {
 
     // Advance more time — no additional calls should happen
     await act(async () => {
-      jest.advanceTimersByTime(15000);
+      vi.advanceTimersByTime(15000);
       await Promise.resolve();
     });
     expect(mockGetByReference.mock.calls.length).toBe(afterMount + 1);
@@ -133,10 +134,10 @@ describe('PayPage — polling timer logic', () => {
       // First call (initial): returns pending
       // Second call (first poll tick): returns terminal status
       mockGetByReference
-        .mockResolvedValueOnce({ data: PENDING_PAYMENT } as ReturnType<typeof paymentsApi.getByReference>)
+        .mockResolvedValueOnce({ data: PENDING_PAYMENT } as never)
         .mockResolvedValue({
           data: { ...PENDING_PAYMENT, status: terminalStatus },
-        } as ReturnType<typeof paymentsApi.getByReference>);
+        } as never);
 
       render(<PayPage params={defaultParams} />);
 
@@ -145,7 +146,7 @@ describe('PayPage — polling timer logic', () => {
 
       // First poll tick → triggers terminal status → clears interval
       await act(async () => {
-        jest.advanceTimersByTime(5000);
+        vi.advanceTimersByTime(5000);
         await Promise.resolve();
         await Promise.resolve(); // flush the .then()
       });
@@ -154,7 +155,7 @@ describe('PayPage — polling timer logic', () => {
 
       // Advance much further — no new calls expected
       await act(async () => {
-        jest.advanceTimersByTime(30000);
+        vi.advanceTimersByTime(30000);
         await Promise.resolve();
       });
 
@@ -163,14 +164,7 @@ describe('PayPage — polling timer logic', () => {
   );
 
   it('triggers an immediate poll when the tab becomes visible again', async () => {
-    mockGetByReference.mockResolvedValue({ data: PENDING_PAYMENT } as ReturnType<typeof paymentsApi.getByReference>);
-
-    render(<PayPage params={defaultParams} />);
-
-    // Flush initial fetch
-    await act(async () => { await Promise.resolve(); });
-  it('triggers an immediate poll when the tab becomes visible again', async () => {
-    mockGetByReference.mockResolvedValue({ data: PENDING_PAYMENT } as ReturnType<typeof paymentsApi.getByReference>);
+    mockGetByReference.mockResolvedValue({ data: PENDING_PAYMENT } as never);
 
     render(<PayPage params={defaultParams} />);
 
@@ -191,7 +185,7 @@ describe('PayPage — polling timer logic', () => {
   });
 
   it('does not poll on visibilitychange while the tab is hidden', async () => {
-    mockGetByReference.mockResolvedValue({ data: PENDING_PAYMENT } as ReturnType<typeof paymentsApi.getByReference>);
+    mockGetByReference.mockResolvedValue({ data: PENDING_PAYMENT } as never);
 
     render(<PayPage params={defaultParams} />);
 
@@ -211,7 +205,7 @@ describe('PayPage — polling timer logic', () => {
 
 describe('PayPage — stellarUri construction', () => {
   it('encodes the QR value as a web+stellar:pay URI with destination, amount, memo and memo_type', async () => {
-    mockGetByReference.mockResolvedValue({ data: PENDING_PAYMENT } as ReturnType<typeof paymentsApi.getByReference>);
+    mockGetByReference.mockResolvedValue({ data: PENDING_PAYMENT } as never);
 
     const { getByTestId } = render(<PayPage params={defaultParams} />);
 
@@ -226,7 +220,7 @@ describe('PayPage — stellarUri construction', () => {
   it('does not render the QR/deep link and surfaces a loading state when amountXlm is absent', async () => {
     mockGetByReference.mockResolvedValue({
       data: { ...PENDING_PAYMENT, amountXlm: undefined },
-    } as ReturnType<typeof paymentsApi.getByReference>);
+    } as never);
 
     const { queryByTestId, getByText } = render(<PayPage params={defaultParams} />);
 
@@ -241,7 +235,7 @@ describe('PayPage — stellarUri construction', () => {
   it('encodeURIComponent-escapes special characters in the memo', async () => {
     mockGetByReference.mockResolvedValue({
       data: { ...PENDING_PAYMENT, stellarMemo: 'a b&c=d/e?f' },
-    } as ReturnType<typeof paymentsApi.getByReference>);
+    } as never);
 
     const { getByTestId } = render(<PayPage params={defaultParams} />);
 

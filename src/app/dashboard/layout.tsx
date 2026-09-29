@@ -19,6 +19,16 @@ import { useAuthStore } from '@/lib/store';
 import { isAdmin } from '@/lib/auth';
 import { cn } from '@/lib/utils';
 
+declare global {
+  interface Window {
+    /**
+     * Set by dashboard forms that have unsaved changes, so the layout can guard
+     * browser-level navigation (reload, tab close, external link) (#349).
+     */
+    __dashboardHasUnsavedChanges?: boolean;
+  }
+}
+
 const navItems = [
   { href: '/dashboard', label: 'Overview', icon: LayoutDashboard, exact: true },
   { href: '/dashboard/payments', label: 'Payments', icon: CreditCard },
@@ -31,7 +41,12 @@ const navItems = [
 
 function LoadingState() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50" aria-busy="true" aria-label="Loading">
+    <div
+      role="status"
+      className="min-h-screen flex items-center justify-center bg-gray-50"
+      aria-busy="true"
+      aria-label="Loading"
+    >
       <div className="w-8 h-8 rounded-full border-4 border-brand-200 border-t-brand-600 animate-spin" />
     </div>
   );

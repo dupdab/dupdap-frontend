@@ -2,7 +2,7 @@
 
 import { memo, useEffect, useState } from 'react';
 import { Plus, Copy, Check } from 'lucide-react';
-import toast from 'react-hot-toast';
+import toast from '@/lib/toast';
 import { QRCodeSVG } from 'qrcode.react';
 import { paymentsApi } from '@/lib/api';
 import { formatUsd, formatDate, PAYMENT_STATUS_COLORS, STATUS_ICONS, DEFAULT_STATUS_COLOR } from '@/lib/utils';
@@ -235,11 +235,13 @@ export default function PaymentsPage() {
             <FormField
               label="Expires in (minutes)"
               type="number"
-              min="5"
-              max="1440"
+              aria-describedby="expiry-minutes-hint"
               value={form.expiryMinutes}
               onChange={(e) => setForm({ ...form, expiryMinutes: e.target.value })}
             />
+            <p id="expiry-minutes-hint" className="text-xs text-gray-500">
+              Must be a whole number between {EXPIRY_MIN_MINUTES} and {EXPIRY_MAX_MINUTES} minutes.
+            </p>
             <button data-testid="create-payment-submit" type="submit" disabled={creating} className="btn-primary w-full">
               {creating ? 'Creating...' : 'Create Payment'}
             </button>
@@ -261,6 +263,21 @@ export default function PaymentsPage() {
             </div>
             <p className="text-sm font-semibold mb-1">{formatUsd(selectedPayment.amountUsd)}</p>
             <p className="text-xs text-gray-500 mb-4">{selectedPayment.reference}</p>
+            {selectedPayment.stellarMemo && (
+              <div className="flex items-center justify-center gap-2">
+                <code className="text-xs font-mono break-all">{selectedPayment.stellarMemo}</code>
+                <button
+                  type="button"
+                  data-testid="copy-memo-button"
+                  data-copied={copied}
+                  onClick={() => copyMemo(selectedPayment.stellarMemo!)}
+                  aria-label={copied ? 'Memo copied' : 'Copy memo'}
+                  className="text-brand-600 text-xs hover:underline shrink-0"
+                >
+                  {copied ? 'Copied' : 'Copy memo'}
+                </button>
+              </div>
+            )}
           </>
         )}
       </Modal>
@@ -286,7 +303,12 @@ export default function PaymentsPage() {
                 <div className="font-semibold">{formatUsd(p.amountUsd)}</div>
                 <div className="text-xs text-gray-500">{formatDate(p.createdAt)}</div>
                 {p.status === 'pending' && (
-                  <button onClick={() => setSelectedPayment(p)} className="text-brand-600 text-xs hover:underline">
+                  <button
+                    data-testid="view-qr-button"
+                    onClick={() => setSelectedPayment(p)}
+                    aria-label={`Show QR code for ${p.reference}`}
+                    className="text-brand-600 text-xs hover:underline"
+                  >
                     Show QR
                   </button>
                 )}
@@ -334,13 +356,19 @@ export default function PaymentsPage() {
           </table>
         </div>
         {showPagination && (
-          <div className="px-6 py-4 border-t border-gray-100 flex items-center justify-between">
-            <span className="text-sm text-gray-500">Page {page} of {Math.ceil(total / 20)}</span>
+          <nav
+            aria-label="Pagination"
+            className="px-6 py-4 border-t border-gray-100 flex items-center justify-between"
+          >
+            <span className="text-sm text-gray-500">Page {page} of {totalPages}</span>
             <div className="flex gap-2">
               <button
                 data-testid="pagination-prev"
                 onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page === 1}
+                // The visible text is abbreviated, so name the button after the
+                // page it actually navigates to.
+                aria-label={`Go to page ${Math.max(1, page - 1)} of ${totalPages}`}
                 className="btn-secondary text-sm px-3 py-1"
               >
                 Prev
@@ -348,13 +376,14 @@ export default function PaymentsPage() {
               <button
                 data-testid="pagination-next"
                 onClick={() => setPage((p) => p + 1)}
-                disabled={page * 20 >= total}
+                disabled={page >= totalPages}
+                aria-label={`Go to page ${page + 1} of ${totalPages}`}
                 className="btn-secondary text-sm px-3 py-1"
               >
                 Next
               </button>
             </div>
-          </div>
+          </nav>
         )}
       </div>
     </div>

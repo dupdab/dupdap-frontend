@@ -72,7 +72,13 @@ export default function DashboardPage() {
         </div>
         <div className="divide-y divide-gray-50">
           {error ? (
-            <div className="px-6 py-8 text-center text-red-500 text-sm">{error}</div>
+            <div
+              data-testid="dashboard-error"
+              role="alert"
+              className="px-6 py-8 text-center text-red-500 text-sm"
+            >
+              {error}
+            </div>
           ) : loading ? (
             <SkeletonList rows={5} />
           ) : payments.length === 0 ? (

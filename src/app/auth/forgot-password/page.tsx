@@ -2,9 +2,8 @@
 
 import { useState } from 'react';
 import Link from 'next/link';
-import toast from 'react-hot-toast';
+import toast from '@/lib/toast';
 import { MailCheck } from 'lucide-react';
-import { AxiosError } from 'axios';
 import { authApi } from '@/lib/api';
 import { getErrorMessage } from '@/lib/errors';
 
@@ -21,11 +20,14 @@ export default function ForgotPasswordPage() {
       setSent(true);
     } catch (err: unknown) {
       // Avoid leaking whether an account exists — treat as success unless it's
-      // clearly a transport/server error.
-      if (err instanceof AxiosError && err.response && err.response.status < 500) {
+      // clearly a transport/server error. The status is read structurally so
+      // the guard holds for both real AxiosError instances and the plain
+      // `{ response: { status } }` shapes surfaced by fetch-based clients.
+      const status = (err as { response?: { status?: unknown } } | null)?.response?.status;
+      if (typeof status === 'number' && status < 500) {
         setSent(true);
       } else {
-        toast.error(getErrorMessage(err));
+        toast.error(getErrorMessage(err) ?? 'Something went wrong. Please try again.');
       }
     } finally {
       setLoading(false);

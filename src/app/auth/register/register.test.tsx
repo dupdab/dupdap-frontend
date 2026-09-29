@@ -260,7 +260,7 @@ describe('RegisterPage', () => {
     await userEvent.click(screen.getByTestId('register-submit-button'));
 
     await waitFor(() => {
-      expect(mockToastError).toHaveBeenCalledWith('Email already in use');
+      expect(mockToastError).toHaveBeenCalledWith('Email already in use', expect.anything());
     });
   });
   it('falls back to "Registration failed" when no error message is present', async () => {
@@ -271,7 +271,7 @@ describe('RegisterPage', () => {
     await userEvent.click(screen.getByTestId('register-submit-button'));
 
     await waitFor(() => {
-      expect(mockToastError).toHaveBeenCalledWith('Registration failed');
+      expect(mockToastError).toHaveBeenCalledWith('Registration failed', expect.anything());
     });
   });
 
@@ -342,6 +342,4 @@ describe('RegisterPage', () => {
       expect(screen.queryByTestId('register-form-error')).not.toBeInTheDocument();
     });
   });
-
-});
 });

@@ -3,6 +3,7 @@ import { render, screen, waitFor, cleanup, fireEvent } from '@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import WebhooksPage from '@/app/dashboard/webhooks/page';
 import { webhooksApi } from '@/lib/api';
+import { WEBHOOK_EVENTS } from '@/lib/utils';
 
 vi.mock('@/lib/api', () => ({
   webhooksApi: {
@@ -79,7 +80,7 @@ describe('WebhooksPage (#405)', () => {
     fireEvent.click(submitBtn);
 
     // Assert toast error and inline error banner are both active
-    expect(mockToastError).toHaveBeenCalledWith('Select at least one event');
+    expect(mockToastError).toHaveBeenCalledWith('Select at least one event', expect.anything());
     const inlineError = screen.getByTestId('webhook-events-error');
     expect(inlineError).toBeInTheDocument();
     expect(inlineError).toHaveTextContent('Select at least one event');
@@ -134,7 +135,7 @@ describe('WebhooksPage (#405)', () => {
           events: ['payment.created'],
         }),
       );
-      expect(mockToastSuccess).toHaveBeenCalledWith('Webhook created');
+      expect(mockToastSuccess).toHaveBeenCalledWith('Webhook created', expect.anything());
     });
   });
 
@@ -155,5 +156,115 @@ describe('WebhooksPage (#405)', () => {
     // Reopen modal and verify error is gone
     fireEvent.click(screen.getByTestId('new-webhook-button'));
     expect(screen.queryByTestId('webhook-events-error')).not.toBeInTheDocument();
+  });
+
+  it('renders each webhook secret row inside the memoized WebhookRow (#345)', async () => {
+    render(<WebhooksPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('webhook-row-wh_1')).toBeInTheDocument();
+    });
+
+    // The row is the single source of markup: the signing secret block lives
+    // inside it, so it is not duplicated alongside the list.
+    const row = screen.getByTestId('webhook-row-wh_1');
+    expect(row.querySelector('[data-testid="reveal-secret-wh_1"]')).not.toBeNull();
+    expect(screen.getAllByTestId('reveal-secret-wh_1')).toHaveLength(1);
+  });
+
+  it('re-renders rows with the rotated secret through the WebhookRow callback (#345)', async () => {
+    const rotatedSecret = 'whsec_rotated_12345678';
+    vi.mocked(webhooksApi.rotateSecret).mockResolvedValueOnce({
+      data: { secret: rotatedSecret },
+    } as any);
+
+    render(<WebhooksPage />);
+
+    await waitFor(() => {
+      expect(screen.getByTestId('reveal-secret-wh_1')).toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByTestId('rotate-secret-wh_1'));
+
+    await waitFor(() => {
+      expect(webhooksApi.rotateSecret).toHaveBeenCalledWith('wh_1');
+      expect(screen.getByText(rotatedSecret)).toBeInTheDocument();
+    });
+  });
+});
+
+describe('WebhooksPage — signing secret masking (#346)', () => {
+  const openCreateModal = () => {
+    render(<WebhooksPage />);
+    fireEvent.click(screen.getByTestId('new-webhook-button'));
+  };
+
+  it('masks the signing secret input by default', () => {
+    openCreateModal();
+    expect(screen.getByTestId('webhook-secret-input')).toHaveAttribute('type', 'password');
+  });
+
+  it('reveals and re-hides the secret via the toggle button', () => {
+    openCreateModal();
+    const input = screen.getByTestId('webhook-secret-input');
+    const toggle = screen.getByTestId('toggle-webhook-secret');
+
+    expect(toggle).toHaveAccessibleName('Show signing secret');
+
+    fireEvent.click(toggle);
+    expect(input).toHaveAttribute('type', 'text');
+    expect(toggle).toHaveAccessibleName('Hide signing secret');
+    expect(toggle).toHaveAttribute('aria-pressed', 'true');
+
+    fireEvent.click(toggle);
+    expect(input).toHaveAttribute('type', 'password');
+    expect(toggle).toHaveAccessibleName('Show signing secret');
+    expect(toggle).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  it('still submits the typed secret value when masked', () => {
+    openCreateModal();
+    const input = screen.getByTestId('webhook-secret-input');
+    fireEvent.change(input, { target: { value: 'mycustomsecret' } });
+
+    // Masking is presentation-only — the controlled value is untouched.
+    expect((input as HTMLInputElement).value).toBe('mycustomsecret');
+  });
+});
+
+describe('WebhooksPage — events checkbox grouping (#347)', () => {
+  const openCreateModal = () => {
+    render(<WebhooksPage />);
+    fireEvent.click(screen.getByTestId('new-webhook-button'));
+  };
+
+  it('groups the event checkboxes in a fieldset with an "Events" legend', () => {
+    openCreateModal();
+    const fieldset = screen.getByTestId('webhook-events-fieldset');
+    expect(fieldset.tagName).toBe('FIELDSET');
+    expect(fieldset.querySelector('legend')?.textContent).toBe('Events');
+  });
+
+  it('exposes the checkbox group as a named group of the expected size', () => {
+    openCreateModal();
+    const group = screen.getByRole('group', { name: 'Events' });
+    expect(group).toBeInTheDocument();
+    expect(screen.getAllByRole('checkbox')).toHaveLength(WEBHOOK_EVENTS.length);
+  });
+
+  it('keeps the event checkboxes individually labelled and togglable', () => {
+    openCreateModal();
+    const checkbox = screen.getByRole('checkbox', { name: 'payment.created' });
+    expect(checkbox).not.toBeChecked();
+
+    fireEvent.click(checkbox);
+    expect(checkbox).toBeChecked();
+  });
+
+  it('nests the events fieldset inside the submission-disabling fieldset', () => {
+    openCreateModal();
+    const outer = screen.getByTestId('webhook-submit-button').closest('fieldset');
+    expect(outer).not.toBeNull();
+    expect(outer?.contains(screen.getByTestId('webhook-events-fieldset'))).toBe(true);
   });
 });

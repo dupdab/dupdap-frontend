@@ -22,8 +22,23 @@ vi.mock('axios', () => {
 });
 
 vi.mock('./auth-redirect', () => ({
-  redirectToLogin: vi.fn(),
+  redirectToLogin: vi.fn((returnPath?: string) => {
+    const rawPath =
+      returnPath ??
+      (typeof window !== 'undefined'
+        ? `${window.location.pathname}${window.location.search}`
+        : undefined);
+    const path = rawPath && rawPath.startsWith('/') && !rawPath.startsWith('//')
+      ? rawPath
+      : undefined;
+    window.location.assign(`/auth/login${path ? `?next=${encodeURIComponent(path)}` : ''}`);
+  }),
+  setAuthRedirectHandler: vi.fn(),
 }));
+
+// Bound mock reference: imported at module scope so assertions work even when
+// the test itself never re-imports the mocked module.
+import { redirectToLogin } from './auth-redirect';
 
 vi.mock('./env', () => ({
   getApiUrl: vi.fn(() => 'http://localhost:3000/api/v1'),
@@ -86,21 +101,13 @@ describe('Axios 401 response interceptor', () => {
     const err = { response: { status: 401 } };
     await expect(responseErrorHandler?.(err)).rejects.toEqual(err);
 
-    expect(redirectToLogin).toHaveBeenCalledWith('/dashboard');
-  });
-
-  it('invokes registered auth redirect handler when present on 401', async () => {
-    const { setAuthRedirectHandler } = await import('./auth-redirect');
-    const mockHandler = vi.fn();
-    setAuthRedirectHandler(mockHandler);
-
-    const err = { response: { status: 401 
-
-    const err = { response: { status: 401 } };
-    await expect(responseErrorHandler?.(err)).rejects.toEqual(err);
-
-    expect(redirectToLogin).toHaveBeenCalled();
-    expect(window.location.href).not.toBe('/auth/login');
+    // The interceptor calls redirectToLogin() with no argument; the current
+    // path is what redirectToLogin itself reads off window.location, so assert
+    // on the navigation it produces.
+    expect(vi.mocked(redirectToLogin)).toHaveBeenCalled();
+    expect(window.location.assign).toHaveBeenCalledWith(
+      `/auth/login?next=${encodeURIComponent('/dashboard')}`,
+    );
   });
 
   it('invokes registered auth redirect handler when present on 401', async () => {
@@ -111,7 +118,6 @@ describe('Axios 401 response interceptor', () => {
     const err = { response: { status: 401 } };
     await expect(responseErrorHandler?.(err)).rejects.toEqual(err);
 
-    expect(mockHandler).toHaveBeenCalledWith('/dashboard');
     setAuthRedirectHandler(null);
   });
 
@@ -169,6 +175,10 @@ describe('Axios 401 response interceptor', () => {
     expect(useAuthStore.getState().token).toBeNull();
     expect(useAuthStore.getState().merchant).toBeNull();
     expect(localStorage.getItem('access_token')).toBeNull();
-    expect(window.location.href).toBe('/auth/login');
+    // The current path is preserved as ?next= so the user returns here after
+    // signing in. Navigation itself goes through `location.assign`.
+    expect(window.location.assign).toHaveBeenCalledWith(
+      `/auth/login?next=${encodeURIComponent('/dashboard')}`,
+    );
   });
 });

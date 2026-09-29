@@ -6,7 +6,9 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 export function formatUsd(amount: number): string {
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+  // Normalise -0 to 0 so negative zero never renders as "-$0.00".
+  const normalised = amount === 0 ? 0 : amount;
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(normalised);
 }
 
 export function getErrorMessage(err: unknown, fallback: string): string {
