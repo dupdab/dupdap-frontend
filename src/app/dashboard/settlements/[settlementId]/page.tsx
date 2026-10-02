@@ -17,17 +17,37 @@ function Row({ label, value }: { label: string; value: React.ReactNode }) {
 }
 
 export default function SettlementDetailPage({ params }: { params: { settlementId: string } }) {
-  const [settlement, setSettlement] = useState<any>(null);
+  const [settlement, setSettlement] = useState<Settlement | null>(null);
   const [loading, setLoading] = useState(true);
+  // Distinguishes a failed request from a genuinely missing settlement (#340).
+  const [loadError, setLoadError] = useState(false);
 
   useEffect(() => {
-    settlementsApi.get(params.settlementId).then(({ data }) => setSettlement(data)).finally(() => setLoading(false));
+    setLoadError(false);
+    settlementsApi.get(params.settlementId)
+      .then(({ data }) => setSettlement(data))
+      .catch(() => setLoadError(true))
+      .finally(() => setLoading(false));
   }, [params.settlementId]);
 
   if (loading) {
     return (
       <div className="p-8 flex items-center justify-center">
         <Loader2 className="w-8 h-8 animate-spin text-brand-500" />
+      </div>
+    );
+  }
+
+  if (loadError) {
+    return (
+      <div className="p-8">
+        <Link href="/dashboard/settlements" className="text-brand-600 text-sm hover:underline flex items-center gap-1 mb-6">
+          <ArrowLeft className="w-4 h-4" /> Back to settlements
+        </Link>
+        <div className="card p-8 text-center" role="alert">
+          <XCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
+          <p className="text-gray-600">Couldn&apos;t load settlement</p>
+        </div>
       </div>
     );
   }
