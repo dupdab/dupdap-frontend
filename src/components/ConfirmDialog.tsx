@@ -10,6 +10,8 @@ interface ConfirmDialogProps {
   message: string;
   confirmLabel?: string;
   cancelLabel?: string;
+  danger?: boolean;
+  loading?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
   destructive?: boolean;
@@ -24,6 +26,8 @@ export default function ConfirmDialog({
   message,
   confirmLabel = 'Confirm',
   cancelLabel = 'Cancel',
+  danger = false,
+  loading = false,
   onConfirm,
   onCancel,
   destructive = false,
@@ -39,9 +43,6 @@ export default function ConfirmDialog({
   useFocusTrap(open, panelRef, onCancel, dialogIdRef.current);
 
   if (!open) return null;
-
-  const titleId = 'confirm-dialog-title';
-  const messageId = 'confirm-dialog-message';
 
   return (
     <div

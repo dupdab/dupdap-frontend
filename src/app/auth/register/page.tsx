@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import toast from '@/lib/toast';
 import { authApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { COUNTRIES } from '@/lib/countries';
@@ -49,48 +50,22 @@ export default function RegisterPage() {
     setLoading(true);
 
     try {
-      const data = await authApi.register(form);
-      if (!isAuthResponse(data)) {
+      const response = await authApi.register(form);
+      if (!isAuthResponse(response.data)) {
         throw new Error('Unexpected response from server');
       }
-      setAuth(data.accessToken, data.merchant);
+      setAuth(response.data.accessToken, response.data.merchant);
       router.push('/dashboard');
     } catch (err) {
-      setError(getErrorMessage(err));
+      // Surface the failure both inline (persistent banner) and as a toast so
+      // it is announced immediately without losing context on scroll (#408).
+      const message = getErrorMessage(err) ?? 'Registration failed';
+      setError(message);
+      toast.error(message);
     } finally {
       setLoading(false);
     }
   };
-
-  // Each field key doubles as the input id so htmlFor/id are always in sync (#156).
-  const field = (
-    key: keyof typeof form,
-    label: string,
-    type = 'text',
-    required = true,
-    autoComplete?: string,
-  ) => (
-    <div>
-      <label htmlFor={key} className="label">{label}</label>
-      <input
-        id={key}
-        className="input"
-        type={type}
-        required={required}
-        autoComplete={autoComplete}
-        value={form[key]}
-        onChange={(e) => setForm({ ...form, [key]: e.target.value })}
-      />
-    </div>
-  );
-
-  const requirements: { key: keyof PasswordChecks; label: string }[] = [
-    { key: 'length', label: 'At least 8 characters' },
-    { key: 'upper', label: 'An uppercase letter' },
-    { key: 'lower', label: 'A lowercase letter' },
-    { key: 'number', label: 'A number' },
-    { key: 'special', label: 'A special character' },
-  ];
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
@@ -102,19 +77,19 @@ export default function RegisterPage() {
           </p>
         </div>
 
-        <form onSubmit={submit} className="space-y-4" aria-busy={loading}>
+        <form onSubmit={handleSubmit} className="space-y-4" aria-busy={loading}>
           {/* Visually-hidden live region announces submit outcomes to screen readers (#158) */}
           <p className="sr-only" aria-live="polite" aria-atomic="true">
             {loading ? 'Creating account, please wait…' : ''}
           </p>
 
-          {formError && (
+          {error && (
             <div
               data-testid="register-form-error"
               role="alert"
               className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700"
             >
-              {formError}
+              {error}
             </div>
           )}
 
@@ -213,7 +188,6 @@ export default function RegisterPage() {
             <select
               id="country"
               name="country"
-              required
               value={form.country}
               onChange={handleChange}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
@@ -227,7 +201,10 @@ export default function RegisterPage() {
             </select>
           </div>
 
+          </fieldset>
+
           <button
+            data-testid="register-submit-button"
             type="submit"
             disabled={loading || !passwordValid || !passwordsMatch}
             className="w-full flex justify-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-50"

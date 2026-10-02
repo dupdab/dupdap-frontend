@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { Copy, Check, Eye, EyeOff } from 'lucide-react';
-import toast from 'react-hot-toast';
+import toast from '@/lib/toast';
 import { merchantApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { FormField } from '@/components/FormField';
@@ -130,6 +130,11 @@ export default function SettingsPage() {
   };
 
   const generateKey = async () => {
+    // Generating a key invalidates any existing one and the secret is only
+    // shown once, so confirm before calling the API.
+    if (!window.confirm('Generating a new API key will replace your current key. Continue?')) {
+      return;
+    }
     setGeneratingKey(true);
     try {
       const { data } = await merchantApi.generateApiKey(selectedScopes);
@@ -264,7 +269,7 @@ export default function SettingsPage() {
               onClick={dismissApiKey}
               className="mt-3 text-sm text-amber-900 underline"
             >
-              I&apos;ve saved it
+              I&apos;ve saved it, dismiss
             </button>
           </div>
         ) : (

@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, cleanup } from '@testing-library/react';
+import { render, screen, cleanup, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import PayPage from '@/app/pay/[paymentId]/page';
 import { paymentsApi } from '@/lib/api';
@@ -52,7 +52,7 @@ describe('PayPage — stellarUri construction', () => {
     expect(uri).toBe(expectedUri);
   });
 
-  it('falls back to amountUsd in stellarUri when amountXlm is omitted', async () => {
+  it('never substitutes amountUsd into the stellarUri when amountXlm is omitted (#398)', async () => {
     mockGetByReference.mockResolvedValueOnce({
       data: {
         id: 'pay-002',
@@ -69,12 +69,12 @@ describe('PayPage — stellarUri construction', () => {
 
     render(<PayPage params={{ paymentId: 'REF-002' }} />);
 
-    const qrElement = await screen.findByTestId('qrcode');
-    const uri = qrElement.getAttribute('data-value');
-
-    const expectedUri =
-      'web+stellar:pay?destination=GADDR9876543210ZYXWVU&amount=75.5&memo=MEMO-USD&memo_type=text';
-    expect(uri).toBe(expectedUri);
+    // A USD figure is not a valid crypto amount, so the QR/deep link must stay
+    // hidden behind the "calculating exchange rate" placeholder instead.
+    await waitFor(() => {
+      expect(screen.getByTestId('crypto-amount-pending')).toBeInTheDocument();
+    });
+    expect(screen.queryByTestId('qrcode')).not.toBeInTheDocument();
   });
 
   it('properly encodes special characters in memo and address', async () => {

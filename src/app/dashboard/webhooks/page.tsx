@@ -1,8 +1,8 @@
 'use client';
 
-import { memo, useEffect, useState } from 'react';
+import { memo, useCallback, useEffect, useState } from 'react';
 import { Plus, Trash2, Copy, Check, Eye, EyeOff, RefreshCw } from 'lucide-react';
-import toast from 'react-hot-toast';
+import toast from '@/lib/toast';
 import { webhooksApi } from '@/lib/api';
 import { WEBHOOK_EVENTS, formatDate, maskSecret } from '@/lib/utils';
 import { getErrorMessage } from '@/lib/errors';
@@ -95,12 +95,13 @@ function WebhookSecretRow({ webhook, onRotated }: { webhook: Webhook; onRotated:
 interface WebhookRowProps {
   webhook: Webhook;
   onDelete: (id: string) => void;
+  onSecretRotated: (id: string, secret: string) => void;
 }
 
-const WebhookRow = memo(function WebhookRow({ webhook: w, onDelete }: WebhookRowProps) {
+const WebhookRow = memo(function WebhookRow({ webhook: w, onDelete, onSecretRotated }: WebhookRowProps) {
   return (
-    <div key={w.id} data-testid={`webhook-row-${w.id}`} className="card p-5 flex items-start justify-between">
-      <div>
+    <div data-testid={`webhook-row-${w.id}`} className="card p-5 flex items-start justify-between">
+      <div className="flex-1 min-w-0">
         <p className="font-mono text-sm font-medium break-all">{w.url}</p>
         <div className="flex flex-wrap gap-1 mt-2">
           {w.events.map((e: string) => (
@@ -108,10 +109,15 @@ const WebhookRow = memo(function WebhookRow({ webhook: w, onDelete }: WebhookRow
           ))}
         </div>
         <p className="text-xs text-gray-400 mt-2">Created {formatDate(w.createdAt)}</p>
+        <WebhookSecretRow
+          webhook={w}
+          onRotated={(secret) => onSecretRotated(w.id, secret)}
+        />
       </div>
       <button
         data-testid={`delete-webhook-${w.id}`}
         onClick={() => onDelete(w.id)}
+        aria-label={`Delete webhook ${w.url}`}
         className="text-red-400 hover:text-red-600 ml-4"
       >
         <Trash2 className="w-4 h-4" />
@@ -128,6 +134,7 @@ export default function WebhooksPage() {
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [formError, setFormError] = useState('');
+  const [secretRevealed, setSecretRevealed] = useState(false);
 
   const load = () => webhooksApi.list().then(({ data }) => setWebhooks(data));
 
@@ -194,14 +201,15 @@ export default function WebhooksPage() {
   const closeCreateModal = () => {
     setShowCreate(false);
     setForm({ url: '', events: [], secret: '' });
+    setSecretRevealed(false);
     setFormError('');
   };
 
-  const updateWebhookSecret = (id: string, secret: string) => {
+  const updateWebhookSecret = useCallback((id: string, secret: string) => {
     setWebhooks((current) => current.map((webhook) => (
       webhook.id === id ? { ...webhook, secret } : webhook
     )));
-  };
+  }, []);
 
   return (
     <div className="p-8">
@@ -244,7 +252,37 @@ export default function WebhooksPage() {
             </div>
 
             <div>
-              <p className="label">Events</p>
+              <label htmlFor="webhook-secret" className="label">
+                Signing secret <span className="text-gray-400 font-normal">(optional)</span>
+              </label>
+              <div className="flex items-center gap-2">
+                <input
+                  id="webhook-secret"
+                  data-testid="webhook-secret-input"
+                  /* Masked by default so the HMAC secret is never shown in
+                     cleartext while it is typed; revealed on explicit request. */
+                  type={secretRevealed ? 'text' : 'password'}
+                  value={form.secret}
+                  onChange={(e) => setForm({ ...form, secret: e.target.value })}
+                  placeholder="whsec_…"
+                  className="input font-mono"
+                />
+                <button
+                  type="button"
+                  data-testid="toggle-webhook-secret"
+                  onClick={() => setSecretRevealed((value) => !value)}
+                  aria-pressed={secretRevealed}
+                  aria-label={secretRevealed ? 'Hide signing secret' : 'Show signing secret'}
+                  className="text-gray-400 hover:text-gray-600 shrink-0"
+                >
+                  {secretRevealed ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                </button>
+              </div>
+            </div>
+            {/* Nested fieldset/legend gives screen readers a programmatic group
+                name for the event checkboxes (#347). */}
+            <fieldset data-testid="webhook-events-fieldset">
+              <legend className="label">Events</legend>
               <div className="space-y-2 mt-1">
                 {WEBHOOK_EVENTS.map((event) => (
                   <label key={event} className="flex items-center gap-2 text-sm">
@@ -259,57 +297,16 @@ export default function WebhooksPage() {
                   </label>
                 ))}
               </div>
-              {formError && (
-                <p data-testid="webhook-form-error" role="alert" className="text-sm text-red-600 mt-2">
-                  {formError}
-                </p>
-              )}
-            </div>
-
-            <div>
-              <label htmlFor="webhook-secret" className="label">
-                Signing secret <span className="text-gray-400 font-normal">(optional)</span>
-              </label>
-              <input
-                id="webhook-secret"
-                data-testid="webhook-secret-input"
-                type="text"
-                value={form.secret}
-                onChange={(e) => setForm({ ...form, secret: e.target.value })}
-                placeholder="whsec_…"
-                className="input font-mono"
-              />
-            </div>
-            <div>
-              <label className="label">Events</label>
-              <div className="space-y-2 mt-1">
-                {WEBHOOK_EVENTS.map((evt) => {
-                  const id = `webhook-event-${evt}`;
-                  return (
-                    <div key={evt} className="flex items-center gap-2">
-                      <input
-                        id={id}
-                        type="checkbox"
-                        checked={form.events.includes(evt)}
-                        onChange={() => toggleEvent(evt)}
-                      />
-                      <label htmlFor={id} className="text-sm cursor-pointer">
-                        <code className="text-xs">{evt}</code>
-                      </label>
-                    </div>
-                  );
-                })}
-              </div>
-              {formError && (
-                <p
-                  data-testid="webhook-events-error"
-                  role="alert"
-                  className="text-xs text-red-500 mt-2"
-                >
-                  {formError}
-                </p>
-              )}
-            </div>
+            </fieldset>
+            {formError && (
+              <p
+                data-testid="webhook-events-error"
+                role="alert"
+                className="text-xs text-red-500"
+              >
+                {formError}
+              </p>
+            )}
             <button data-testid="webhook-submit-button" type="submit" disabled={creating} className="btn-primary w-full">
               {creating ? 'Creating...' : 'Create Webhook'}
             </button>
@@ -328,11 +325,16 @@ export default function WebhooksPage() {
 
       <div className="space-y-3">
         {webhooks.map((w) => (
-          <WebhookRow key={w.id} webhook={w} onDelete={setDeletingId} />
+          <WebhookRow
+            key={w.id}
+            webhook={w}
+            onDelete={setDeletingId}
+            onSecretRotated={updateWebhookSecret}
+          />
         ))}
         {webhooks.length === 0 && (
           <div className="card p-12 text-center text-gray-400">
-            <p>No webhooks yet. Add one to start receiving events.</p>
+            <p>No webhooks configured. Add one to start receiving events.</p>
           </div>
         )}
       </div>
@@ -341,9 +343,9 @@ export default function WebhooksPage() {
         open={deletingId !== null}
         onCancel={() => setDeletingId(null)}
         onConfirm={() => deletingId && remove(deletingId)}
-        title="Remove webhook"
+        title="Delete webhook?"
         message="This webhook will stop receiving events. This action cannot be undone."
-        confirmLabel="Remove"
+        confirmLabel="Delete"
         loading={deleting}
       />
     </div>

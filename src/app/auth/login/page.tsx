@@ -3,29 +3,25 @@
 import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { AxiosError } from 'axios';
-import toast from 'react-hot-toast';
+import toast from '@/lib/toast';
 import { authApi } from '@/lib/api';
-import { useAuthStore } from '@/store/auth';
-import { FormField } from '@/components/ui/FormField';
+import { useAuthStore } from '@/lib/store';
+import { FormField } from '@/components/FormField';
 import { isAuthResponse } from '@/lib/types';
-import { getErrorMessage } from '@/lib/errors';
+import {
+  CAPTCHA_THRESHOLD as SHARED_CAPTCHA_THRESHOLD,
+  getErrorMessage,
+  getRateLimitMessage as getRateLimitErrorMessage,
+} from '@/lib/errors';
 
-const CAPTCHA_THRESHOLD = 3;
+const CAPTCHA_THRESHOLD = SHARED_CAPTCHA_THRESHOLD;
 
 function getRateLimitMessage(err: unknown): string {
-  if (err instanceof AxiosError && err.response?.status === 429) {
-    const retryAfter = err.response.headers?.['retry-after'];
-    if (retryAfter) {
-      return `Too many attempts. Please try again in ${retryAfter} seconds.`;
-    }
-    return 'Too many attempts. Please try again later.';
-  }
-  return getErrorMessage(err);
+  return getRateLimitErrorMessage(err) ?? getErrorMessage(err) ?? 'Login failed';
 }
 
 function isRateLimited(err: unknown): boolean {
-  return err instanceof AxiosError && err.response?.status === 429;
+  return getRateLimitErrorMessage(err) !== undefined;
 }
 
 function LoginForm() {
@@ -47,16 +43,23 @@ function LoginForm() {
     setLoading(true);
 
     try {
-      const data = await authApi.login({ email, password });
+      const response = await authApi.login({ email, password });
 
-      if (!isAuthResponse(data)) {
+      if (!isAuthResponse(response.data)) {
         throw new Error('Unexpected response from server');
       }
 
-      setAuth(data.accessToken, data.merchant);
+      const { accessToken, merchant } = response.data;
+      setAuth(accessToken, merchant);
       toast.success('Signed in successfully');
 
-      const redirect = searchParams.get('redirect') || '/dashboard';
+      // Guard against open redirects: only same-origin, single-leading-slash
+      // paths are forwarded (mirrors AuthRedirectSetup's `next` param writing).
+      const requested = searchParams.get('redirect');
+      const redirect =
+        requested && requested.startsWith('/') && !requested.startsWith('//')
+          ? requested
+          : '/dashboard';
       router.push(redirect);
     } catch (err) {
       setFailedAttempts((prev) => prev + 1);
@@ -83,6 +86,7 @@ function LoginForm() {
 
         {rateLimited && rateLimitMessage && (
           <div
+            data-testid="login-rate-limit-banner"
             role="alert"
             className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
           >
@@ -111,6 +115,7 @@ function LoginForm() {
 
           {showCaptcha && (
             <div
+              data-testid="login-captcha"
               role="alert"
               className="rounded-md border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-700"
             >
@@ -124,6 +129,7 @@ function LoginForm() {
           )}
 
           <button
+            data-testid="login-submit-button"
             type="submit"
             disabled={loading}
             className="w-full rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"

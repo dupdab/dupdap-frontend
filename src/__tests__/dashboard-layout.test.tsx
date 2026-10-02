@@ -189,6 +189,17 @@ describe('DashboardLayout — auth guards and hydration', () => {
 });
 
 describe('AdminLayout — admin authorization guard', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.useFakeTimers();
+  });
+
+  afterEach(() => {
+    cleanup();
+    vi.runOnlyPendingTimers();
+    vi.useRealTimers();
+  });
+
   it('[admin merchant] renders the admin children', async () => {
     stubAuth({ token: 'valid-token', merchant: MOCK_ADMIN_MERCHANT });
 
@@ -199,7 +210,7 @@ describe('AdminLayout — admin authorization guard', () => {
     );
 
     expect(screen.getByTestId('admin-child')).toBeInTheDocument();
-    await act(async () => { jest.runAllTimers(); });
+    await act(async () => { vi.runAllTimers(); });
     expect(mockReplace).not.toHaveBeenCalled();
   });
 
@@ -221,7 +232,7 @@ describe('AdminLayout — admin authorization guard', () => {
     expect(screen.queryByTestId('admin-child')).not.toBeInTheDocument();
 
     // The redirect is triggered in a useEffect — flush it
-    await act(async () => { jest.runAllTimers(); });
+    await act(async () => { vi.runAllTimers(); });
     expect(mockReplace).toHaveBeenCalledWith('/dashboard');
   });
 });

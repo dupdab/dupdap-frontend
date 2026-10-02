@@ -1,11 +1,18 @@
+import { afterEach, describe, expect, it } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
-import toast, { Toaster } from 'react-hot-toast';
+import { Toaster } from 'react-hot-toast';
+import toast from '@/lib/toast';
 
 /**
  * Smoke test for issue #394: the root layout's <Toaster /> must render
  * toasts in an accessibility-queryable form so screen readers announce
  * success and error feedback.
+ *
+ * A bare <Toaster /> is rendered because react-hot-toast ignores per-type
+ * `ariaProps` in `toastOptions`; the live-region semantics come from the
+ * per-call options applied by '@/lib/toast' (#394).
  */
+
 describe('Toaster accessibility', () => {
   afterEach(() => {
     act(() => {
@@ -32,7 +39,8 @@ describe('Toaster accessibility', () => {
       toast.error('Something went wrong');
     });
 
-    const alert = await screen.findByRole('status');
+    // Errors use role="alert", which is an assertive live region.
+    const alert = await screen.findByRole('alert');
     expect(alert).toHaveTextContent('Something went wrong');
     expect(alert).toHaveAttribute('aria-live', 'assertive');
   });

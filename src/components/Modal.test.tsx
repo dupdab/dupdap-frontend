@@ -116,8 +116,23 @@ describe('Modal accessibility, focus trap & restore (#376)', () => {
     const dialog = screen.getByRole('dialog');
     const backdrop = dialog.parentElement!;
 
+    // The backdrop only closes when mousedown *and* click both land on it, so
+    // dragging a text selection out of the panel does not dismiss the modal (#409).
+    fireEvent.mouseDown(backdrop);
     fireEvent.click(backdrop);
     expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+  });
+
+  it('does not close modal when a click follows a mousedown inside the panel (#409)', () => {
+    render(<ModalTestHarness defaultOpen={true} />);
+    const dialog = screen.getByRole('dialog');
+    const backdrop = dialog.parentElement!;
+
+    // Selection starts inside the panel and the click lands on the backdrop —
+    // this is a drag, not a backdrop dismissal.
+    fireEvent.mouseDown(dialog);
+    fireEvent.click(backdrop);
+    expect(screen.getByRole('dialog')).toBeInTheDocument();
   });
 
   it('does not close modal when clicking inside dialog panel', () => {
