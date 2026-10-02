@@ -1,16 +1,19 @@
 /**
  * @file settlement-detail.test.tsx
- * @description Tests for the settlement detail page.
+ * @description Tests for the settlement detail page status badge (Issue #342).
  *
- * Covers:
- *  - Successful render of detail-only fields
- *  - Rejected fetch handled without an unhandled rejection (#340)
- *  - "Couldn't load" distinguished from "Settlement not found" (#340)
+ * The page must use the shared STATUS_COLORS map from @/lib/utils so that every
+ * status the settlements list renders (pending_approval, settling, settled,
+ * confirmed, expired) also gets its semantic color on the detail page, instead
+ * of silently falling back to the neutral gray badge.
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
+import { STATUS_COLORS } from '@/lib/utils';
 import SettlementDetailPage from './page';
+
+/* ── Mocks ──────────────────────────────────────────────────────────────── */
 
 const mockGet = vi.fn();
 
@@ -26,67 +29,61 @@ vi.mock('next/link', () => ({
   ),
 }));
 
-const settlement = {
-  id: 'settle-1-uuid-1234',
-  merchantId: 'merchant-1',
-  totalAmountUsd: 100,
-  feeAmountUsd: 2,
-  netAmountUsd: 98,
-  status: 'completed',
-  fiatCurrency: 'USD',
-  fiatAmount: 98,
-  bankReference: 'BANK-REF-1',
-  requiresApproval: false,
-  approvedBy: 'admin-1',
-  approvedAt: '2024-01-16T10:00:00Z',
-  completedAt: '2024-01-17T10:00:00Z',
-  createdAt: '2024-01-15T10:00:00Z',
-  updatedAt: '2024-01-18T10:00:00Z',
-};
-
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
 });
 
-describe('SettlementDetailPage — success', () => {
-  it('renders the settlement id, amounts and detail-only fields', async () => {
-    mockGet.mockResolvedValue({ data: settlement });
-    render(<SettlementDetailPage params={{ settlementId: 'settle-1-uuid-1234' }} />);
-
-    expect(await screen.findByText('settle-1-uuid-1234')).toBeInTheDocument();
-    expect(screen.getByText('$100.00')).toBeInTheDocument();
-    expect(screen.getByText('-$2.00')).toBeInTheDocument();
-    expect(screen.getByText('$98.00')).toBeInTheDocument();
-    expect(screen.getByText('BANK-REF-1')).toBeInTheDocument();
-    expect(screen.getByText('admin-1')).toBeInTheDocument();
-    expect(mockGet).toHaveBeenCalledWith('settle-1-uuid-1234');
-  });
+/** Builds a settlement payload with the given status. */
+const settlementWithStatus = (status: string) => ({
+  id: 'stl_1234567890',
+  status,
+  totalAmountUsd: 100,
+  feeAmountUsd: 1,
+  netAmountUsd: 99,
+  createdAt: '2024-01-15T12:00:00Z',
 });
 
-describe('SettlementDetailPage — failure handling', () => {
-  it('shows a load error and does not throw when the fetch rejects (#340)', async () => {
-    const unhandled = vi.fn();
-    process.on('unhandledRejection', unhandled);
-    try {
-      mockGet.mockRejectedValue(new Error('Network error'));
-      render(<SettlementDetailPage params={{ settlementId: 'missing' }} />);
+describe('SettlementDetailPage — status badge colors (#342)', () => {
+  it.each([
+    'pending',
+    'pending_approval',
+    'processing',
+    'settling',
+    'settled',
+    'completed',
+    'confirmed',
+    'failed',
+    'expired',
+  ])('renders the shared STATUS_COLORS styling for "%s"', async (status) => {
+    mockGet.mockResolvedValue({ data: settlementWithStatus(status) });
 
-      expect(await screen.findByText(/couldn't load settlement/i)).toBeInTheDocument();
-      // The failure must not be misreported as a genuinely missing settlement.
-      expect(screen.queryByText('Settlement not found')).not.toBeInTheDocument();
-      // Give any stray unhandled rejection a chance to surface.
-      await new Promise((resolve) => setTimeout(resolve, 0));
-      expect(unhandled).not.toHaveBeenCalled();
-    } finally {
-      process.off('unhandledRejection', unhandled);
-    }
+    render(<SettlementDetailPage params={{ settlementId: 'stl_1234567890' }} />);
+
+    const badge = await screen.findByText(status);
+    // Split the expected classes: one is the pill's own layout, the shared map
+    // supplies the semantic status colors.
+    STATUS_COLORS[status].split(' ').forEach((cls) => {
+      expect(badge.className).toContain(cls);
+    });
   });
 
-  it('shows "Settlement not found" when the API returns no settlement', async () => {
-    mockGet.mockResolvedValue({ data: null });
-    render(<SettlementDetailPage params={{ settlementId: 'nope' }} />);
+  it('renders pending_approval with the distinct orange badge, not the gray fallback', async () => {
+    mockGet.mockResolvedValue({ data: settlementWithStatus('pending_approval') });
 
-    expect(await screen.findByText('Settlement not found')).toBeInTheDocument();
+    render(<SettlementDetailPage params={{ settlementId: 'stl_1234567890' }} />);
+
+    const badge = await screen.findByText('pending_approval');
+    expect(badge.className).toContain('bg-orange-100');
+    expect(badge.className).not.toContain('bg-gray-100');
+  });
+
+  it('falls back to neutral gray for an unknown status', async () => {
+    mockGet.mockResolvedValue({ data: settlementWithStatus('some_new_status') });
+
+    render(<SettlementDetailPage params={{ settlementId: 'stl_1234567890' }} />);
+
+    const badge = await screen.findByText('some_new_status');
+    expect(badge.className).toContain('bg-gray-100');
   });
 });

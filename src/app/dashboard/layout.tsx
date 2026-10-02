@@ -17,7 +17,22 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import { isAdmin } from '@/lib/auth';
+import { isNavItemActive } from '@/lib/nav-active';
 import { cn } from '@/lib/utils';
+import { useAuthStore } from '@/lib/store';
+import { isAdmin } from '@/lib/auth';
+import { useFocusTrap } from '@/lib/useFocusTrap';
+import { cn } from '@/lib/utils';
+
+declare global {
+  interface Window {
+    /**
+     * Set by dashboard forms that have unsaved changes, so the layout can guard
+     * browser-level navigation (reload, tab close, external link) (#349).
+     */
+    __dashboardHasUnsavedChanges?: boolean;
+  }
+}
 
 const navItems = [
   { href: '/dashboard', label: 'Overview', icon: LayoutDashboard, exact: true },
@@ -31,7 +46,12 @@ const navItems = [
 
 function LoadingState() {
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50" aria-busy="true" aria-label="Loading">
+    <div
+      role="status"
+      className="min-h-screen flex items-center justify-center bg-gray-50"
+      aria-busy="true"
+      aria-label="Loading"
+    >
       <div className="w-8 h-8 rounded-full border-4 border-brand-200 border-t-brand-600 animate-spin" />
     </div>
   );
@@ -45,6 +65,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const router = useRouter();
   const pathname = usePathname();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
+  // The off-canvas mobile drawer is a modal surface: it reuses the shared
+  // focus-trap so focus moves into the drawer on open, Tab cycles inside it,
+  // and focus returns to the hamburger button on close (#356).
+  const drawerRef = useFocusTrap<HTMLElement>(mobileNavOpen);
 
   useEffect(() => {
     if (!token) {
@@ -56,6 +80,29 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   useEffect(() => {
     setMobileNavOpen(false);
   }, [pathname]);
+
+  // Escape closes the mobile drawer, matching Modal.tsx / ConfirmDialog.tsx.
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setMobileNavOpen(false);
+      }
+    };
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [mobileNavOpen]);
+
+  // Prevent the page behind the drawer from scrolling while it is open.
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [mobileNavOpen]);
 
   // Warn before browser-level navigation (reload, tab close, external link)
   // while a form inside the dashboard has unsaved changes.
@@ -80,6 +127,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // effect above navigates unauthenticated users away, avoiding a flash of
   // blank content.
   if (!token || !merchant) {
+    return <LoadingState />;
+  }
+
+  // The admin routes live under this layout, so an unauthorized merchant is
+  // stopped here before `children` is ever returned — the admin page never
+  // mounts for them, closing the flash-of-unauthorized-content window (#357).
+  if (adminStatus !== 'authorized') {
     return <LoadingState />;
   }
 
@@ -115,7 +169,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       <nav className="flex-1 p-4 space-y-1">
         {visibleNavItems.map(({ href, label, icon: Icon, exact }) => {
-          const active = exact ? pathname === href : pathname.startsWith(href);
+          // Segment-aware match so a sibling route that merely shares a
+          // prefix (e.g. /dashboard/settlements-export) is not highlighted (#358).
+          const active = isNavItemActive(pathname, href, exact);
           return (
             <Link
               key={href}
@@ -178,7 +234,14 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             className="fixed inset-0 bg-black/40"
             onClick={() => setMobileNavOpen(false)}
           />
-          <aside className="relative w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col">
+          <aside
+            ref={drawerRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Navigation menu"
+            tabIndex={-1}
+            className="relative w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col outline-none"
+          >
             {sidebarContent}
           </aside>
         </div>

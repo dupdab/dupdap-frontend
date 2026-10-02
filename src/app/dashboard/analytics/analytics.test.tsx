@@ -2,15 +2,10 @@
  * @file analytics.test.tsx
  * @description Test suite for the Analytics page (Issue #375).
  *
- * The analytics page.tsx uses recharts components (ResponsiveContainer,
- * PieChart, BarChart, Cell, Tooltip, Legend) and a COLORS constant directly
- * in JSX without importing them — they are resolved as globals at runtime by
- * the Next.js bundle (imported in layout or _app). In jsdom these globals are
- * absent, causing ReferenceError when the data branch renders.
- *
- * Strategy: inject lightweight stubs for the missing globals BEFORE the page
- * module is loaded, then test all branches: loading, error, and the
- * data-loaded branch (including sr-only accessibility tables and summary cards).
+ * The chart components import recharts directly and are lazily loaded via
+ * next/dynamic, so this suite exercises loading, error, and data-loaded branches
+ * (including sr-only accessibility tables and summary cards) without stubbing
+ * the charting library.
  *
  * Covers:
  *  - Analytics heading always visible
@@ -23,34 +18,8 @@
  *  - Empty state: zero totals when stats is empty
  */
 
-import { describe, it, expect, vi, beforeAll, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, waitFor, cleanup } from '@testing-library/react';
-
-/* ── Global stubs for recharts + COLORS ─────────────────────────────────── */
-/*
- * Must run BEFORE AnalyticsPage is imported so the module top-level sees the
- * globals when the JSX factory functions reference them.
- */
-
-function stubEl(tag = 'div') {
-  return function Stub({ children }: { children?: React.ReactNode }) {
-    return <>{children}</>;
-  };
-}
-
-beforeAll(() => {
-  (globalThis as Record<string, unknown>).ResponsiveContainer = stubEl();
-  (globalThis as Record<string, unknown>).PieChart = stubEl();
-  (globalThis as Record<string, unknown>).BarChart = stubEl();
-  (globalThis as Record<string, unknown>).Pie = () => null;
-  (globalThis as Record<string, unknown>).Cell = () => null;
-  (globalThis as Record<string, unknown>).Bar = () => null;
-  (globalThis as Record<string, unknown>).XAxis = () => null;
-  (globalThis as Record<string, unknown>).YAxis = () => null;
-  (globalThis as Record<string, unknown>).Tooltip = () => null;
-  (globalThis as Record<string, unknown>).Legend = () => null;
-  (globalThis as Record<string, unknown>).COLORS = ['#6366f1', '#10b981', '#f59e0b', '#ef4444'];
-});
 
 /* ── Mocks ──────────────────────────────────────────────────────────────── */
 
@@ -160,11 +129,11 @@ describe('AnalyticsPage — data loaded', () => {
     render(<AnalyticsPage />);
     await waitFor(() =>
       expect(
-        screen.getAllByText(/payment count by status/i, { hidden: true }).length,
+        screen.getAllByText(/payment count by status/i, { ignore: 'script, style' }).length,
       ).toBeGreaterThan(0),
     );
     expect(
-      screen.getAllByText(/volume by status/i, { hidden: true }).length,
+      screen.getAllByText(/volume by status/i, { ignore: 'script, style' }).length,
     ).toBeGreaterThan(0);
   });
 
@@ -175,12 +144,12 @@ describe('AnalyticsPage — data loaded', () => {
     // sr-only caption — use { hidden: true } to include visually hidden elements
     await waitFor(() =>
       expect(
-        screen.getAllByText('Payment Count by Status', { hidden: true }).length,
+        screen.getAllByText('Payment Count by Status', { ignore: 'script, style' }).length,
       ).toBeGreaterThan(0),
     );
-    expect(screen.getAllByText('completed', { hidden: true }).length).toBeGreaterThan(0);
-    expect(screen.getAllByText('pending', { hidden: true }).length).toBeGreaterThan(0);
-    expect(screen.getAllByText('failed', { hidden: true }).length).toBeGreaterThan(0);
+    expect(screen.getAllByText('completed', { ignore: 'script, style' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByText('pending', { ignore: 'script, style' }).length).toBeGreaterThan(0);
+    expect(screen.getAllByText('failed', { ignore: 'script, style' }).length).toBeGreaterThan(0);
   });
 });
 

@@ -24,6 +24,8 @@ vi.mock('qrcode.react', () => ({
   QRCodeSVG: () => <div data-testid="qr-code" />,
 }));
 
+const mockWriteText = vi.fn().mockResolvedValue(undefined);
+
 const basePayment: Payment = {
   id: 'pay-1',
   reference: 'REF-001',
@@ -44,6 +46,10 @@ function mockListResponse(payments: Payment[], total: number) {
 describe('PaymentsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText: mockWriteText },
+    });
     mockListResponse([], 0);
   });
 
@@ -226,20 +232,8 @@ describe('PaymentsPage', () => {
     expect(screen.queryByText('No payments yet')).not.toBeInTheDocument();
   });
 
-  it('renders fallback error message when error object has no message property', async () => {
-    vi.mocked(paymentsApi.list).mockRejectedValue({});
-
-    render(<PaymentsPage />);
-
-    await waitFor(() => {
-      expect(screen.getByTestId('payments-error')).toBeInTheDocument();
-      expect(screen.getByTestId('payments-error')).toHaveTextContent('Network error loading payments');
-    });
-    expect(screen.queryByText('No payments yet')).not.toBeInTheDocument();
-  });
-
   it('renders fallback error message when error has no specific message', async () => {
-    vi.mocked(paymentsApi.list).mockRejectedValueOnce({});
+    vi.mocked(paymentsApi.list).mockRejectedValue({});
 
     render(<PaymentsPage />);
 
@@ -264,7 +258,7 @@ describe('PaymentsPage', () => {
     await userEvent.click(within(modalA).getByTestId('copy-memo-button'));
     expect(within(modalA).getByTestId('copy-memo-button')).toHaveAttribute('data-copied', 'true');
 
-    await userEvent.click(within(modalA).getByTestId('payment-qr-close'));
+    await userEvent.click(within(modalA).getByTestId('payment-qr-modal-close'));
     await waitFor(() => {
       expect(screen.queryByTestId('payment-qr-modal')).not.toBeInTheDocument();
     });

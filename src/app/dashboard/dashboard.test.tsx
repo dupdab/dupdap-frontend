@@ -181,7 +181,7 @@ describe('DashboardPage — data loaded', () => {
   });
 
   it('renders an unknown status without an icon and keeps the fallback color', async () => {
-    mockList.mockResolvedValue({ data: { payments: [makePayment(3, 'on_hold')], total: 1 } });
+    mockList.mockResolvedValue({ data: { payments: [makePayment(3, 'on_hold' as Payment['status'])], total: 1 } });
     mockStats.mockResolvedValue({ data: [] });
     render(<DashboardPage />);
 

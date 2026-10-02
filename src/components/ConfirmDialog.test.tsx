@@ -107,7 +107,7 @@ describe('ConfirmDialog', () => {
       />
     );
 
-    fireEvent.keyDown(window, { key: 'Escape' });
+    fireEvent.keyDown(document, { key: 'Escape' });
     expect(handleCancel).toHaveBeenCalledTimes(1);
   });
 
@@ -150,7 +150,7 @@ describe('ConfirmDialog', () => {
       <ConfirmDialog
         open={true}
         message="Danger action"
-        danger={true}
+        destructive
         onConfirm={vi.fn()}
         onCancel={vi.fn()}
       />
@@ -166,7 +166,7 @@ describe('ConfirmDialog', () => {
       <ConfirmDialog
         open={true}
         message="Safe action"
-        danger={false}
+        destructive={false}
         onConfirm={vi.fn()}
         onCancel={vi.fn()}
       />

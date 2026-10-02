@@ -45,6 +45,7 @@ vi.mock('@/lib/utils', () => ({
   WEBHOOK_EVENTS: ['payment.created', 'payment.completed', 'payment.failed'],
   formatDate: (s: string) => s.slice(0, 10),
   cn: (...classes: unknown[]) => classes.filter(Boolean).join(' '),
+  maskSecret: (value: string) => `${value.slice(0, 2)}${'•'.repeat(8)}${value.slice(-2)}`,
 }));
 
 /* navigator.clipboard mock */
@@ -135,7 +136,7 @@ describe('WebhooksPage — webhook creation flow', () => {
     fireEvent.click(screen.getByTestId('webhook-submit-button'));
 
     expect(mockCreate).not.toHaveBeenCalled();
-    expect(toast.error).toHaveBeenCalledWith('Select at least one event');
+    expect(toast.error).toHaveBeenCalledWith('Select at least one event', expect.anything());
   });
 
   it('successfully creates a webhook when endpoint and events are provided', async () => {
@@ -174,7 +175,7 @@ describe('WebhooksPage — webhook creation flow', () => {
         events: ['payment.created'],
         secret: 'mycustomsecret',
       });
-      expect(toast.success).toHaveBeenCalledWith('Webhook created');
+      expect(toast.success).toHaveBeenCalledWith('Webhook created', expect.anything());
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
   });
@@ -225,7 +226,7 @@ describe('WebhooksPage — WebhookSecretRow interactions', () => {
 
     await waitFor(() => {
       expect(mockRotateSecret).toHaveBeenCalledWith('wh-1');
-      expect(toast.success).toHaveBeenCalledWith('Signing secret rotated');
+      expect(toast.success).toHaveBeenCalledWith('Signing secret rotated', expect.anything());
       expect(screen.getByText(rotatedSecret)).toBeInTheDocument();
     });
   });
@@ -266,7 +267,7 @@ describe('WebhooksPage — delete confirmation flow', () => {
 
     await waitFor(() => {
       expect(mockRemove).toHaveBeenCalledWith('wh-1');
-      expect(toast.success).toHaveBeenCalledWith('Webhook removed');
+      expect(toast.success).toHaveBeenCalledWith('Webhook removed', expect.anything());
       // Verify reload is triggered
       expect(mockList).toHaveBeenCalledTimes(2);
     });
