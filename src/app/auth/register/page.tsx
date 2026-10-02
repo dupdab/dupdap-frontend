@@ -119,10 +119,7 @@ export default function RegisterPage() {
           )}
 
           <fieldset disabled={loading} className="space-y-4">
-            {field('businessName', 'Business Name', 'text', true, 'organization')}
-            {field('email', 'Email', 'email', true, 'email')}
-
-          <div>
+            <div>
             <label htmlFor="businessName" className="block text-sm font-medium text-gray-700">
               Business name
             </label>
@@ -237,6 +234,7 @@ export default function RegisterPage() {
           >
             {loading ? 'Creating account...' : 'Create account'}
           </button>
+          </fieldset>
         </form>
 
         <p className="mt-4 text-center text-sm text-gray-600">

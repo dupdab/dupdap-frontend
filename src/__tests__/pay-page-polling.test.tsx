@@ -169,13 +169,6 @@ describe('PayPage — polling timer logic', () => {
 
     // Flush initial fetch
     await act(async () => { await Promise.resolve(); });
-  it('triggers an immediate poll when the tab becomes visible again', async () => {
-    mockGetByReference.mockResolvedValue({ data: PENDING_PAYMENT } as ReturnType<typeof paymentsApi.getByReference>);
-
-    render(<PayPage params={defaultParams} />);
-
-    // Flush initial fetch
-    await act(async () => { await Promise.resolve(); });
 
     const afterMount = mockGetByReference.mock.calls.length; // 1
 

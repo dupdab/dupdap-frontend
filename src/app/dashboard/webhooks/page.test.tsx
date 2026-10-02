@@ -45,6 +45,7 @@ vi.mock('@/lib/utils', () => ({
   WEBHOOK_EVENTS: ['payment.created', 'payment.completed', 'payment.failed'],
   formatDate: (s: string) => s.slice(0, 10),
   cn: (...classes: unknown[]) => classes.filter(Boolean).join(' '),
+  maskSecret: (value: string) => `${value.slice(0, 2)}${'•'.repeat(8)}${value.slice(-2)}`,
 }));
 
 /* navigator.clipboard mock */

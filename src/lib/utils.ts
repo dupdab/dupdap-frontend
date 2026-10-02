@@ -19,6 +19,20 @@ export function formatUsd(amount: number): string {
  * If a server-rendered call site is ever added, format against an explicit
  * `timeZone` (e.g. `'UTC'`) so server and client output match.
  */
+/**
+ * Masks a credential (API key, webhook signing secret) for display.
+ *
+ * Only a fixed number of leading/trailing characters is ever revealed and the
+ * bullet run has a constant length, so masking never degrades to a near-plaintext
+ * reveal for short values (#337). Values too short to reveal anything safely are
+ * masked completely.
+ */
+export function maskSecret(value: string, visible = 2, bullets = 8): string {
+  const mask = '•'.repeat(bullets);
+  if (value.length <= visible * 2) return mask;
+  return `${value.slice(0, visible)}${mask}${value.slice(-visible)}`;
+}
+
 export function formatDate(date: string | Date | undefined | null): string {
   if (!date) return '—';
   const d = new Date(date);
