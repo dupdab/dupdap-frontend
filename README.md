@@ -55,7 +55,7 @@ The customer-facing payment flow here is built around Stellar, not a generic mul
 - **`src/lib/errors.ts`** — the app-wide error-message utility. Pages and components should extract user-facing error text via `getErrorMessage` from this module.
 - **`src/lib/utils.ts`** — shared formatting/className helpers (`clsx` + `tailwind-merge`).
 
-> **Error handling:** always import `getErrorMessage` from `src/lib/errors.ts`. A second, differently-shaped `getErrorMessage` also exists in `src/lib/utils.ts`, but it is not the app-wide helper and is effectively dead — importing it there will not produce the error messages the rest of the app expects.
+> **Error handling:** always import `getErrorMessage` from `src/lib/errors.ts`. It is the single app-wide helper — `utils.ts` deliberately does not export a same-named variant, so an import from the wrong module fails the type-check instead of silently changing behavior.
 
 ### Auth token security
 
@@ -69,7 +69,7 @@ The access token is persisted in `localStorage` via Zustand. Any XSS vector can 
 
 Several helpers exist in more than one place in this codebase. To keep new work from adding a third copy, use the canonical source below and extend it in place rather than redefining it per-page:
 
-- **Error messages** — import `getErrorMessage` from `src/lib/errors.ts`. That is the canonical helper; a duplicate `getErrorMessage` exists elsewhere in the codebase and should not be used or extended. If you need to change error-message behavior, change it in `errors.ts`.
+- **Error messages** — import `getErrorMessage` from `src/lib/errors.ts`. That is the only `getErrorMessage` in the repo; do not add a same-named helper to `utils.ts` or any page. If you need to change error-message behavior, change it in `errors.ts`.
 - **Status colors/icons** — import `STATUS_COLORS`, `STATUS_ICONS`, and `DEFAULT_STATUS_COLOR` from `src/lib/utils.ts`. Do not redefine per-page status→color or status→icon maps; add new statuses to the shared maps in `utils.ts` so every page stays consistent.
 - **Destructive confirmations** — use the shared `ConfirmDialog` component rather than `window.confirm`. It matches the app's styling, is accessible, and keeps confirmation UX consistent across the dashboard.
 
