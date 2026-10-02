@@ -55,7 +55,7 @@ The customer-facing payment flow here is built around Stellar, not a generic mul
 - **`src/lib/errors.ts`** — the app-wide error-message utility. Pages and components should extract user-facing error text via `getErrorMessage` from this module.
 - **`src/lib/utils.ts`** — shared formatting/className helpers (`clsx` + `tailwind-merge`).
 
-> **Error handling:** always import `getErrorMessage` from `src/lib/errors.ts`. A second, differently-shaped `getErrorMessage` also exists in `src/lib/utils.ts`, but it is not the app-wide helper and is effectively dead — importing it there will not produce the error messages the rest of the app expects.
+> **Error handling:** always import `getErrorMessage` from `src/lib/errors.ts`. It is the single app-wide helper — `utils.ts` deliberately does not export a same-named variant, so an import from the wrong module fails the type-check instead of silently changing behavior.
 
 ### Auth token security
 
@@ -69,9 +69,10 @@ The access token is persisted in `localStorage` via Zustand. Any XSS vector can 
 
 Several helpers exist in more than one place in this codebase. To keep new work from adding a third copy, use the canonical source below and extend it in place rather than redefining it per-page:
 
-- **Error messages** — import `getErrorMessage` from `src/lib/errors.ts`. That is the canonical helper; a duplicate `getErrorMessage` exists elsewhere in the codebase and should not be used or extended. If you need to change error-message behavior, change it in `errors.ts`.
+- **Error messages** — import `getErrorMessage` from `src/lib/errors.ts`. That is the only `getErrorMessage` in the repo; do not add a same-named helper to `utils.ts` or any page. If you need to change error-message behavior, change it in `errors.ts`.
 - **Status colors/icons** — import `STATUS_COLORS`, `STATUS_ICONS`, and `DEFAULT_STATUS_COLOR` from `src/lib/utils.ts`. Do not redefine per-page status→color or status→icon maps; add new statuses to the shared maps in `utils.ts` so every page stays consistent.
 - **Destructive confirmations** — use the shared `ConfirmDialog` component rather than `window.confirm`. It matches the app's styling, is accessible, and keeps confirmation UX consistent across the dashboard.
+- **Overlays (modal, off-canvas drawer)** — wrap the panel with `useFocusTrap` from `src/lib/useFocusTrap.ts` and add an Escape handler. The dashboard's mobile nav drawer does both, so focus moves into the drawer on open, cycles within it on Tab/Shift+Tab, and returns to the hamburger button on close. Panels should carry `role="dialog"` and `aria-modal="true"`.
 
 When in doubt, grep for the helper name first — if it already exists in `src/lib`, reuse it instead of writing a local copy.
 
@@ -180,10 +181,22 @@ Extend `api.ts` with additional grouped helpers (e.g. `settlementsApi`, `webhook
 ## Testing & linting
 
 ```bash
-npm run lint      # next lint (ESLint, see .eslintrc.json)
+npm run type-check  # tsc --noEmit
+npm run lint        # next lint (ESLint, see .eslintrc.json)
+npm test            # vitest run (single pass)
+npm run test:watch  # vitest (watch mode)
+npm run verify      # type-check + lint + test
 ```
 
-There is no test suite in this repo yet — if you add one, wire it into this section and into CI.
+The suite runs on [Vitest](https://vitest.dev) with [React Testing Library](https://testing-library.com/react) in a `jsdom` environment — the fastest thing to wire into a Next.js 14 App Router project. Config lives in `vitest.config.ts`, and `vitest.setup.ts` registers `@testing-library/jest-dom` matchers, cleans up between tests, and stubs `matchMedia`.
+
+**Conventions**
+
+- Tests are colocated with the code they cover as `*.test.ts` / `*.test.tsx` (e.g. `src/lib/utils.ts` → `src/lib/formatDate.test.ts`), plus broader integration suites under `src/__tests__/`.
+- Mock network boundaries at the module level (`vi.mock('@/lib/api', …)`) rather than stubbing fetch, and mock third-party UI libs only for what the component under test actually needs.
+- Assert on user-visible behavior (roles, labels, text) rather than implementation details, so refactors don't break the suite.
+- Any helper added to `src/lib` should come with a test next to it.
+
 
 ## Deployment
 

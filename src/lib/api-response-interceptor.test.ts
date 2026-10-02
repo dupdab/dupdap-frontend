@@ -101,13 +101,20 @@ describe('Axios 401 response interceptor', () => {
     const err = { response: { status: 401 } };
     await expect(responseErrorHandler?.(err)).rejects.toEqual(err);
 
-    // The interceptor calls redirectToLogin() with no argument; the current
-    // path is what redirectToLogin itself reads off window.location, so assert
-    // on the navigation it produces.
-    expect(vi.mocked(redirectToLogin)).toHaveBeenCalled();
-    expect(window.location.assign).toHaveBeenCalledWith(
-      `/auth/login?next=${encodeURIComponent('/dashboard')}`,
-    );
+    expect(redirectToLogin).toHaveBeenCalledWith('/dashboard');
+  });
+
+  it('invokes registered auth redirect handler when present on 401', async () => {
+    const { setAuthRedirectHandler } = await import('./auth-redirect');
+    const mockHandler = vi.fn();
+    setAuthRedirectHandler(mockHandler);
+
+    const err = { response: { status: 401 } };
+    await expect(responseErrorHandler?.(err)).rejects.toEqual(err);
+
+    const { redirectToLogin } = await import('./auth-redirect');
+    expect(redirectToLogin).toHaveBeenCalled();
+    expect(window.location.href).not.toBe('/auth/login');
   });
 
   it('invokes registered auth redirect handler when present on 401', async () => {

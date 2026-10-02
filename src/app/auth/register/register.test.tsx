@@ -342,4 +342,5 @@ describe('RegisterPage', () => {
       expect(screen.queryByTestId('register-form-error')).not.toBeInTheDocument();
     });
   });
+
 });

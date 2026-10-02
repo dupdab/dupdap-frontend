@@ -1,6 +1,8 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useRef } from 'react';
+import { cn } from '@/lib/utils';
+import { useFocusTrap } from '@/components/Modal';
 
 interface ConfirmDialogProps {
   open: boolean;
@@ -12,6 +14,10 @@ interface ConfirmDialogProps {
   loading?: boolean;
   onConfirm: () => void;
   onCancel: () => void;
+  destructive?: boolean;
+  loading?: boolean;
+  testId?: string;
+  contentClassName?: string;
 }
 
 export default function ConfirmDialog({
@@ -24,30 +30,53 @@ export default function ConfirmDialog({
   loading = false,
   onConfirm,
   onCancel,
+  destructive = false,
+  loading = false,
+  testId,
+  contentClassName,
 }: ConfirmDialogProps) {
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onCancel();
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onCancel]);
+  const panelRef = useRef<HTMLDivElement>(null);
+  /** Stable identity for this dialog instance in the shared dialog stack. */
+  const dialogIdRef = useRef<symbol>(Symbol('confirm-dialog'));
+
+  // Focus trap, body-scroll lock and focus restore are shared with Modal (#314).
+  useFocusTrap(open, panelRef, onCancel, dialogIdRef.current);
 
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4">
-      <div className="card w-full max-w-sm p-6">
-        <h2 className="font-semibold text-gray-900 mb-2">{title}</h2>
-        <p className="text-sm text-gray-500 mb-6">{message}</p>
-        <div className="flex justify-end gap-3">
+    <div
+      className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
+      onClick={onCancel}
+    >
+      <div
+        ref={panelRef}
+        role="alertdialog"
+        aria-modal="true"
+        aria-labelledby={titleId}
+        aria-describedby={messageId}
+        tabIndex={-1}
+        data-testid={testId}
+        className={cn('card w-full max-w-sm p-6 outline-none', contentClassName)}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <h2 id={titleId} className="font-semibold text-lg mb-2">
+          {title}
+        </h2>
+        <div id={messageId} className="text-sm text-gray-600 mb-6">
+          {message}
+        </div>
+        <div className="flex justify-end gap-2">
           <button type="button" className="btn-secondary" onClick={onCancel} disabled={loading}>
             {cancelLabel}
           </button>
           <button
             type="button"
-            className={danger ? 'bg-red-500 hover:bg-red-600 text-white font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-50' : 'btn-primary'}
+            className={cn(
+              destructive
+                ? 'bg-red-500 hover:bg-red-600 text-white font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-50'
+                : 'btn-primary',
+            )}
             onClick={onConfirm}
             disabled={loading}
           >

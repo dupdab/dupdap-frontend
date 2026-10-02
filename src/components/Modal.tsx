@@ -14,7 +14,7 @@ interface ModalProps {
 }
 
 /** Selector for all focusable elements, used by the focus trap. */
-const FOCUSABLE_SELECTORS = [
+export const FOCUSABLE_SELECTORS = [
   'a[href]',
   'button:not([disabled])',
   'input:not([disabled])',
@@ -44,35 +44,35 @@ export function isTopDialog(id: symbol) {
   return dialogStack.length > 0 && dialogStack[dialogStack.length - 1] === id;
 }
 
-export default function Modal({
-  open,
-  onClose,
-  title,
-  children,
-  testId,
-  contentClassName,
-}: ModalProps) {
-  const panelRef = useRef<HTMLDivElement>(null);
-  /** Remembers the element that had focus before the modal opened so we can restore it on close. */
+/**
+ * Shared focus-trap / focus-restore logic used by Modal and ConfirmDialog (#314).
+ *
+ * When `open` becomes true it saves the currently-focused (triggering) element,
+ * locks body scroll, moves focus into `panelRef`, traps Tab / Shift+Tab within
+ * the panel, and on close restores focus to the triggering element.
+ */
+export function useFocusTrap(
+  open: boolean,
+  panelRef: React.RefObject<HTMLElement | null>,
+  onClose: () => void,
+  dialogId: symbol,
+) {
+  /** Remembers the element that had focus before the dialog opened so we can restore it on close. */
   const triggerRef = useRef<Element | null>(null);
-  /** Stable identity for this dialog instance in the shared dialog stack. */
-  const dialogIdRef = useRef<symbol>(Symbol('modal'));
-  /** Tracks where mousedown originated to prevent closing on dragged selections (#409). */
-  const mouseDownTargetRef = useRef<EventTarget | null>(null);
 
   useEffect(() => {
     if (!open) return;
 
-    const dialogId = dialogIdRef.current;
     pushDialog(dialogId);
 
     // Save the currently-focused element so we can restore it on close.
     triggerRef.current = document.activeElement;
 
+    // Lock body scroll while the dialog is open, mirroring ConfirmDialog (#315).
     const previousOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
 
-    // Move focus into the modal panel on open.
+    // Move focus into the panel on open.
     panelRef.current?.focus();
 
     const onKeyDown = (e: KeyboardEvent) => {
@@ -85,7 +85,7 @@ export default function Modal({
         return;
       }
 
-      // Focus trap: cycle focus within the modal on Tab / Shift+Tab.
+      // Focus trap: cycle focus within the dialog on Tab / Shift+Tab.
       if (e.key === 'Tab') {
         const panel = panelRef.current;
         if (!panel) return;
@@ -115,12 +115,29 @@ export default function Modal({
       document.removeEventListener('keydown', onKeyDown);
       popDialog(dialogId);
       document.body.style.overflow = previousOverflow;
-      // Restore focus to the triggering element when the modal closes.
+      // Restore focus to the triggering element when the dialog closes.
       if (triggerRef.current instanceof HTMLElement) {
         triggerRef.current.focus();
       }
     };
-  }, [open, onClose]);
+  }, [open, panelRef, onClose, dialogId]);
+}
+
+export default function Modal({
+  open,
+  onClose,
+  title,
+  children,
+  testId,
+  contentClassName,
+}: ModalProps) {
+  const panelRef = useRef<HTMLDivElement>(null);
+  /** Stable identity for this dialog instance in the shared dialog stack. */
+  const dialogIdRef = useRef<symbol>(Symbol('modal'));
+  /** Tracks where mousedown originated to prevent closing on dragged selections (#409). */
+  const mouseDownTargetRef = useRef<EventTarget | null>(null);
+
+  useFocusTrap(open, panelRef, onClose, dialogIdRef.current);
 
   if (!open) return null;
 
@@ -157,12 +174,7 @@ export default function Modal({
           <div className="flex items-center justify-between mb-6">
             <h2 className="font-semibold text-lg">{title}</h2>
             {/* aria-label="Close dialog" gives screen readers an unambiguous action name (#161) */}
-            <button
-              type="button"
-              onClick={onClose}
-              data-testid={`${testId ?? 'modal'}-close`}
-              aria-label="Close dialog"
-            >
+            <button type="button" onClick={onClose} aria-label="Close dialog">
               <X className="w-5 h-5 text-gray-400" />
             </button>
           </div>
@@ -172,3 +184,4 @@ export default function Modal({
     </div>
   );
 }
+

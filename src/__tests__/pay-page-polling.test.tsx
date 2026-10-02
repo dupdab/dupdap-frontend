@@ -164,7 +164,7 @@ describe('PayPage — polling timer logic', () => {
   );
 
   it('triggers an immediate poll when the tab becomes visible again', async () => {
-    mockGetByReference.mockResolvedValue({ data: PENDING_PAYMENT } as never);
+    mockGetByReference.mockResolvedValue({ data: PENDING_PAYMENT } as ReturnType<typeof paymentsApi.getByReference>);
 
     render(<PayPage params={defaultParams} />);
 

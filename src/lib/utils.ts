@@ -11,14 +11,6 @@ export function formatUsd(amount: number): string {
   return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(normalised);
 }
 
-export function getErrorMessage(err: unknown, fallback: string): string {
-  if (err && typeof err === 'object' && 'response' in err) {
-    const message = (err as { response?: { data?: { message?: unknown } } }).response?.data?.message;
-    if (typeof message === 'string') return message;
-  }
-  return fallback;
-}
-
 /**
  * Formats a timestamp for display.
  *
@@ -29,6 +21,20 @@ export function getErrorMessage(err: unknown, fallback: string): string {
  * If a server-rendered call site is ever added, format against an explicit
  * `timeZone` (e.g. `'UTC'`) so server and client output match.
  */
+/**
+ * Masks a credential (API key, webhook signing secret) for display.
+ *
+ * Only a fixed number of leading/trailing characters is ever revealed and the
+ * bullet run has a constant length, so masking never degrades to a near-plaintext
+ * reveal for short values (#337). Values too short to reveal anything safely are
+ * masked completely.
+ */
+export function maskSecret(value: string, visible = 2, bullets = 8): string {
+  const mask = '•'.repeat(bullets);
+  if (value.length <= visible * 2) return mask;
+  return `${value.slice(0, visible)}${mask}${value.slice(-visible)}`;
+}
+
 export function formatDate(date: string | Date | undefined | null): string {
   if (!date) return '—';
   const d = new Date(date);

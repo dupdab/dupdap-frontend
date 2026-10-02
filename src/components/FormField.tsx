@@ -1,36 +1,14 @@
-import { useId, type InputHTMLAttributes, type ReactNode } from 'react';
+import { useId } from 'react';
 
-interface FormFieldProps extends InputHTMLAttributes<HTMLInputElement> {
-  /** Visible (or visually-hidden) label text. */
+interface FormFieldProps extends React.InputHTMLAttributes<HTMLInputElement> {
   label: string;
-  /** Error message; also drives `aria-invalid` and `aria-describedby`. */
   error?: string;
-  /** Extra classes merged onto the label element. */
   labelClassName?: string;
-  /** Render the label for screen readers only. */
   hideLabel?: boolean;
-  /** Rendered at the end of the label row (e.g. a character counter). */
-  hint?: ReactNode;
-  /** Optional status node rendered next to the label (e.g. username availability). */
-  status?: ReactNode;
+  hint?: React.ReactNode;
 }
 
-/**
- * Labelled text input with accessible error wiring. The label is always
- * programmatically associated with the input: it uses the caller-provided
- * `id` when given, otherwise a `useId()` generated one (#156).
- */
-export function FormField({
-  label,
-  error,
-  id,
-  className,
-  labelClassName,
-  hideLabel,
-  hint,
-  status,
-  ...props
-}: FormFieldProps) {
+export function FormField({ label, error, id, className, labelClassName, hideLabel, hint, ...props }: FormFieldProps) {
   const generatedId = useId();
   const inputId = id ?? generatedId;
   const errorId = `${inputId}-error`;
@@ -46,7 +24,6 @@ export function FormField({
           {label}
         </label>
         {hint && <span className="text-xs text-gray-400">{hint}</span>}
-        {status}
       </div>
       <input
         id={inputId}
@@ -63,5 +40,3 @@ export function FormField({
     </div>
   );
 }
-
-export default FormField;
