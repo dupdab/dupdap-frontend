@@ -115,6 +115,13 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return <LoadingState />;
   }
 
+  // The admin routes live under this layout, so an unauthorized merchant is
+  // stopped here before `children` is ever returned — the admin page never
+  // mounts for them, closing the flash-of-unauthorized-content window (#357).
+  if (adminStatus !== 'authorized') {
+    return <LoadingState />;
+  }
+
   const visibleNavItems = navItems.filter((item) => !item.adminOnly || isAdmin(merchant));
 
   const confirmNavigation = () => {
