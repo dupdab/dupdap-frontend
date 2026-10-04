@@ -5,6 +5,7 @@
  * Issue #305: unrecognized username-check response shapes default to error
  */
 import React from 'react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import toast from 'react-hot-toast';
@@ -13,35 +14,33 @@ import WaitlistPage from '@/app/waitlist/page';
 
 // ─── Mocks ──────────────────────────────────────────────────────────────────
 
-jest.mock('@/lib/api', () => ({
+vi.mock('@/lib/api', () => ({
   waitlistApi: {
-    join: jest.fn(),
-    checkUsername: jest.fn(),
+    join: vi.fn(),
+    checkUsername: vi.fn(),
   },
 }));
 
-jest.mock('react-hot-toast', () => ({
+vi.mock('react-hot-toast', () => ({
   __esModule: true,
   default: {
-    error: jest.fn(),
-    success: jest.fn(),
+    error: vi.fn(),
+    success: vi.fn(),
   },
-  error: jest.fn(),
-  success: jest.fn(),
+  error: vi.fn(),
+  success: vi.fn(),
 }));
 
-jest.mock('next/link', () => ({
+vi.mock('next/link', () => ({
   __esModule: true,
   default: ({ children, href }: { children: React.ReactNode; href: string }) => (
     <a href={href}>{children}</a>
   ),
 }));
 
-const mockJoin = waitlistApi.join as jest.MockedFunction<typeof waitlistApi.join>;
-const mockCheckUsername = waitlistApi.checkUsername as jest.MockedFunction<
-  typeof waitlistApi.checkUsername
->;
-const mockToastError = toast.error as jest.MockedFunction<typeof toast.error>;
+const mockJoin = vi.mocked(waitlistApi.join);
+const mockCheckUsername = vi.mocked(waitlistApi.checkUsername);
+const mockToastError = vi.mocked(toast.error);
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -55,23 +54,30 @@ async function fillAndSubmit(email: string) {
   await user.click(submitBtn);
 }
 
-/** Advance past the 400ms debounce window and flush pending promises */
+/** The username-availability debounce window in the page under test. */
+const DEBOUNCE_MS = 400;
+
+/**
+ * Wait out the debounce window and let the username check's promise chain
+ * settle. `user.type` re-arms the debounce on every keystroke, so the window
+ * only starts once typing finishes.
+ */
 async function flushDebounce() {
   await act(async () => {
-    jest.advanceTimersByTime(400);
+    await new Promise((resolve) => setTimeout(resolve, DEBOUNCE_MS + 50));
   });
 }
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
 
 beforeEach(() => {
-  jest.clearAllMocks();
+  vi.clearAllMocks();
 });
 
 describe('WaitlistPage', () => {
   describe('successful join', () => {
     it('renders the CheckCircle confirmation view after a successful join', async () => {
-      mockJoin.mockResolvedValue({ data: {} } as ReturnType<typeof waitlistApi.join>);
+      mockJoin.mockResolvedValue({ data: {} } as never);
 
       render(<WaitlistPage />);
 
@@ -86,7 +92,7 @@ describe('WaitlistPage', () => {
     });
 
     it('calls waitlistApi.join with the submitted email', async () => {
-      mockJoin.mockResolvedValue({ data: {} } as ReturnType<typeof waitlistApi.join>);
+      mockJoin.mockResolvedValue({ data: {} } as never);
 
       render(<WaitlistPage />);
 
@@ -130,7 +136,7 @@ describe('WaitlistPage', () => {
       await fillAndSubmit('taken@example.com');
 
       await waitFor(() => {
-        expect(mockToastError).toHaveBeenCalledWith('Email already registered');
+        expect(mockToastError).toHaveBeenCalledWith('Email already registered', expect.anything());
       });
     });
 
@@ -142,7 +148,7 @@ describe('WaitlistPage', () => {
       await fillAndSubmit('user@example.com');
 
       await waitFor(() => {
-        expect(mockToastError).toHaveBeenCalledWith('Failed to join waitlist');
+        expect(mockToastError).toHaveBeenCalledWith('Failed to join waitlist', expect.anything());
       });
     });
 
@@ -204,16 +210,8 @@ describe('WaitlistPage', () => {
   });
 
   describe('username availability race condition (#304)', () => {
-    beforeEach(() => {
-      jest.useFakeTimers();
-    });
-
-    afterEach(() => {
-      jest.useRealTimers();
-    });
-
     it('ignores a stale response that resolves after a newer check', async () => {
-      const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+      const user = userEvent.setup();
 
       // First check (for "alice") resolves slowly; second check (for "alice2") resolves fast.
       let resolveFirst: (v: { data: { available: boolean } }) => void = () => {};
@@ -259,21 +257,11 @@ describe('WaitlistPage', () => {
   });
 
   describe('unrecognized username-check response shapes (#305)', () => {
-    beforeEach(() => {
-      jest.useFakeTimers();
-    });
-
-    afterEach(() => {
-      jest.useRealTimers();
-    });
-
     it('does not report "available" when the response shape is unrecognized', async () => {
-      const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+      const user = userEvent.setup();
 
       // Response with none of the anticipated boolean fields.
-      mockCheckUsername.mockResolvedValue({ data: { status: 'unknown' } } as ReturnType<
-        typeof waitlistApi.checkUsername
-      >);
+      mockCheckUsername.mockResolvedValue({ data: { status: 'unknown' } } as never);
 
       render(<WaitlistPage />);
 
@@ -288,11 +276,9 @@ describe('WaitlistPage', () => {
     });
 
     it('treats an error payload returned with a 200 status as an error, not available', async () => {
-      const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+      const user = userEvent.setup();
 
-      mockCheckUsername.mockResolvedValue({ data: { error: 'rate limited' } } as ReturnType<
-        typeof waitlistApi.checkUsername
-      >);
+      mockCheckUsername.mockResolvedValue({ data: { error: 'rate limited' } } as never);
 
       render(<WaitlistPage />);
 
@@ -306,11 +292,9 @@ describe('WaitlistPage', () => {
     });
 
     it('still reports "available" for the recognized data.available shape', async () => {
-      const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+      const user = userEvent.setup();
 
-      mockCheckUsername.mockResolvedValue({ data: { available: true } } as ReturnType<
-        typeof waitlistApi.checkUsername
-      >);
+      mockCheckUsername.mockResolvedValue({ data: { available: true } } as never);
 
       render(<WaitlistPage />);
 
@@ -324,11 +308,9 @@ describe('WaitlistPage', () => {
     });
 
     it('still reports "taken" for the recognized data.taken shape', async () => {
-      const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+      const user = userEvent.setup();
 
-      mockCheckUsername.mockResolvedValue({ data: { taken: true } } as ReturnType<
-        typeof waitlistApi.checkUsername
-      >);
+      mockCheckUsername.mockResolvedValue({ data: { taken: true } } as never);
 
       render(<WaitlistPage />);
 
@@ -342,11 +324,9 @@ describe('WaitlistPage', () => {
     });
 
     it('still reports "taken" for the recognized data.exists shape', async () => {
-      const user = userEvent.setup({ advanceTimers: jest.advanceTimersByTime });
+      const user = userEvent.setup();
 
-      mockCheckUsername.mockResolvedValue({ data: { exists: true } } as ReturnType<
-        typeof waitlistApi.checkUsername
-      >);
+      mockCheckUsername.mockResolvedValue({ data: { exists: true } } as never);
 
       render(<WaitlistPage />);
 

@@ -1,7 +1,6 @@
 import axios from 'axios';
 import { getApiUrl } from './env';
 import { useAuthStore } from './store';
-import { getApiUrl } from './env';
 import { redirectToLogin } from './auth-redirect';
 import type {
   AuthResponse,
@@ -10,6 +9,7 @@ import type {
   PaymentListResponse,
   PaymentStats,
   SettlementListResponse,
+  Settlement,
   Webhook,
   ApiKey,
 } from './types';
@@ -58,7 +58,7 @@ export const paymentsApi = {
 
 export const settlementsApi = {
   list: (page = 1, limit = 20) => api.get(`/settlements?page=${page}&limit=${limit}`),
-  get: (id: string) => api.get(`/settlements/${id}`),
+  get: (id: string) => api.get<Settlement>(`/settlements/${id}`),
 };
 
 export const merchantApi = {

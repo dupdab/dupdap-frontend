@@ -4,28 +4,29 @@
  * Issue #310: countdown timer must not re-render the whole page every tick
  */
 import React from 'react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import PayPage from '@/app/pay/[paymentId]/page';
 import { paymentsApi } from '@/lib/api';
 
-jest.mock('@/lib/api', () => ({
+vi.mock('@/lib/api', () => ({
   paymentsApi: {
-    getByReference: jest.fn(),
+    getByReference: vi.fn(),
   },
 }));
 
-jest.mock('qrcode.react', () => ({
+vi.mock('qrcode.react', () => ({
   QRCodeSVG: ({ value }: { value: string }) => (
     <div data-testid="qr-code" data-value={value} />
   ),
 }));
 
-const mockedGetByReference = paymentsApi.getByReference as jest.Mock;
+const mockedGetByReference = vi.mocked(paymentsApi.getByReference);
 
 const basePayment = {
   id: 'pay_1',
   reference: 'ref_1',
-  status: 'pending',
+  status: 'pending' as const,
   amountUsd: 25,
   amountXlm: 100,
   description: 'Test payment',
@@ -37,17 +38,17 @@ const basePayment = {
 
 describe('PayPage', () => {
   beforeEach(() => {
-    jest.clearAllMocks();
+    vi.clearAllMocks();
   });
 
   it('renders the payment amount', async () => {
-    mockedGetByReference.mockResolvedValue({ data: basePayment });
+    mockedGetByReference.mockResolvedValue({ data: basePayment } as never);
     render(<PayPage params={{ paymentId: 'ref_1' }} />);
     await waitFor(() => expect(screen.getByText('$25.00')).toBeInTheDocument());
   });
 
   it('builds the expected web+stellar URI for the QR code', async () => {
-    mockedGetByReference.mockResolvedValue({ data: basePayment });
+    mockedGetByReference.mockResolvedValue({ data: basePayment } as never);
     render(<PayPage params={{ paymentId: 'ref_1' }} />);
 
     const qr = await screen.findByTestId('qr-code');
@@ -60,7 +61,7 @@ describe('PayPage', () => {
   it('encodeURIComponent-escapes special characters in the memo', async () => {
     mockedGetByReference.mockResolvedValue({
       data: { ...basePayment, stellarMemo: 'memo with spaces & symbols/+=?' },
-    });
+    } as never);
     render(<PayPage params={{ paymentId: 'ref_1' }} />);
 
     const qr = await screen.findByTestId('qr-code');
@@ -73,7 +74,7 @@ describe('PayPage', () => {
   it('does not render the QR code or deep link when amountXlm is missing', async () => {
     mockedGetByReference.mockResolvedValue({
       data: { ...basePayment, amountXlm: undefined },
-    });
+    } as never);
     render(<PayPage params={{ paymentId: 'ref_1' }} />);
 
     await waitFor(() => expect(screen.getByText('$25.00')).toBeInTheDocument());
@@ -82,27 +83,31 @@ describe('PayPage', () => {
 
   it('isolates the countdown tick so the QR subtree is not re-rendered every second (#310)', async () => {
     const expiresAt = new Date(Date.now() + 5 * 60 * 1000).toISOString();
-    const pendingPayment = { ...MOCK_PAYMENT, expiresAt };
-    mockPaymentsApi.getByReference.mockResolvedValue({ data: pendingPayment } as ReturnType<typeof paymentsApi.getByReference>);
+    mockedGetByReference.mockResolvedValue({ data: { ...basePayment, expiresAt } } as never);
 
-    render(<PayPage params={defaultParams} />);
+    render(<PayPage params={{ paymentId: 'ref_1' }} />);
 
     await waitFor(() => {
-      expect(screen.getByTestId('qrcode')).toBeInTheDocument();
+      expect(screen.getByTestId('qr-code')).toBeInTheDocument();
     });
 
     // Capture the QR node identity; it must survive countdown ticks untouched.
-    const qrBefore = screen.getByTestId('qrcode');
+    const qrBefore = screen.getByTestId('qr-code');
 
-    // Advance several 1-second ticks of the countdown interval.
+    // Advance several 1-second ticks of the countdown interval. Fake timers
+    // are installed only now: `waitFor` above must be able to poll on real
+    // timers to see the initial render settle.
     act(() => {
-      jest.advanceTimersByTime(3000);
+      vi.useFakeTimers();
+      vi.advanceTimersByTime(3000);
     });
 
     // The countdown label updates...
     expect(screen.getByText(/Expires in/)).toBeInTheDocument();
 
     // ...but the QR subtree is the same DOM node (not re-created by a page-wide re-render).
-    expect(screen.getByTestId('qrcode')).toBe(qrBefore);
+    expect(screen.getByTestId('qr-code')).toBe(qrBefore);
+
+    vi.useRealTimers();
   });
 });

@@ -21,8 +21,12 @@ vi.mock('next/link', () => ({
 
 // react-hot-toast
 const mockToastError = vi.fn();
+const mockToastSuccess = vi.fn();
 vi.mock('react-hot-toast', () => ({
-  default: { error: (...args: unknown[]) => mockToastError(...args) },
+  default: {
+    error: (...args: unknown[]) => mockToastError(...args),
+    success: (...args: unknown[]) => mockToastSuccess(...args),
+  },
 }));
 
 // authApi
@@ -151,7 +155,7 @@ describe('LoginPage', () => {
     await fillAndSubmit();
 
     await waitFor(() => {
-      expect(mockToastError).toHaveBeenCalledWith(expect.stringMatching(/invalid credentials/i));
+      expect(mockToastError).toHaveBeenCalledWith(expect.stringMatching(/invalid credentials/i), expect.anything());
     });
   });
 
@@ -162,7 +166,7 @@ describe('LoginPage', () => {
     await fillAndSubmit();
 
     await waitFor(() => {
-      expect(mockToastError).toHaveBeenCalledWith('Login failed');
+      expect(mockToastError).toHaveBeenCalledWith('Login failed', expect.anything());
     });
   });
 
@@ -209,6 +213,11 @@ describe('LoginPage', () => {
     render(React.createElement(LoginPage));
 
     for (let i = 0; i < 3; i += 1) {
+      // `fillAndSubmit` types into the existing inputs, so clear them first —
+      // otherwise the email field accumulates into an invalid address and
+      // native form validation silently blocks the submit.
+      await userEvent.clear(screen.getByLabelText(/email/i));
+      await userEvent.clear(screen.getByLabelText(/password/i));
       await fillAndSubmit();
       await waitFor(() => expect(mockToastError).toHaveBeenCalled());
       mockToastError.mockClear();

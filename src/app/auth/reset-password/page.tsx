@@ -1,13 +1,24 @@
 'use client';
 
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { toast } from 'sonner';
+import toast from '@/lib/toast';
 import { authApi } from '@/lib/api';
 import { getErrorMessage } from '@/lib/errors';
 
-export default function ResetPasswordPage() {
+/**
+ * Password strength rules. Shared shape with the register page so a user
+ * creating an account and a user resetting one are held to the same bar.
+ */
+const PASSWORD_REQUIREMENTS = [
+  { key: 'length', label: 'At least 8 characters', test: (v: string) => v.length >= 8 },
+  { key: 'uppercase', label: 'An uppercase letter', test: (v: string) => /[A-Z]/.test(v) },
+  { key: 'lowercase', label: 'A lowercase letter', test: (v: string) => /[a-z]/.test(v) },
+  { key: 'number', label: 'A number', test: (v: string) => /[0-9]/.test(v) },
+];
+
+function ResetPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const token = searchParams.get('token') ?? '';
@@ -16,10 +27,17 @@ export default function ResetPasswordPage() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const checks = PASSWORD_REQUIREMENTS.reduce<Record<string, boolean>>((acc, req) => {
+    acc[req.key] = req.test(password);
+    return acc;
+  }, {});
+  const passwordValid = PASSWORD_REQUIREMENTS.every((req) => checks[req.key]);
+  const passwordsMatch = password === confirmPassword;
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
 
-    if (password !== confirmPassword) {
+    if (!passwordsMatch) {
       toast.error('Passwords do not match.');
       return;
     }
@@ -34,6 +52,26 @@ export default function ResetPasswordPage() {
     } finally {
       setLoading(false);
     }
+  }
+
+  // Without a token the form can never succeed, so surface a guard instead of
+  // a form the user can only fail to submit.
+  if (!token) {
+    return (
+      <div className="mx-auto flex w-full max-w-md flex-col gap-6 py-16">
+        <div className="flex flex-col gap-2 text-center">
+          <h1 className="text-2xl font-semibold">Invalid reset link</h1>
+          <p className="text-sm text-muted-foreground">
+            This password reset link is missing or invalid. Request a new one to continue.
+          </p>
+        </div>
+        <p className="text-center text-sm text-muted-foreground">
+          <Link href="/auth/forgot-password" className="font-medium underline">
+            Forgot password
+          </Link>
+        </p>
+      </div>
+    );
   }
 
   return (
@@ -52,12 +90,26 @@ export default function ResetPasswordPage() {
           </label>
           <input
             id="password"
+            name="password"
             type="password"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            aria-describedby="password-requirements"
             required
             className="rounded-md border px-3 py-2 text-sm"
           />
+          <ul
+            id="password-requirements"
+            aria-live="polite"
+            className="mt-1 flex flex-col gap-1 text-sm text-muted-foreground"
+          >
+            {PASSWORD_REQUIREMENTS.map((req) => (
+              <li key={req.key} className={checks[req.key] ? 'text-green-600' : undefined}>
+                <span aria-hidden="true">{checks[req.key] ? '✓' : '•'}</span>{' '}
+                {req.label}
+              </li>
+            ))}
+          </ul>
         </div>
 
         <div className="flex flex-col gap-2">
@@ -66,29 +118,48 @@ export default function ResetPasswordPage() {
           </label>
           <input
             id="confirmPassword"
+            name="confirmPassword"
             type="password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
+            aria-describedby={!passwordsMatch ? 'confirm-password-error' : undefined}
+            aria-invalid={!passwordsMatch}
             required
             className="rounded-md border px-3 py-2 text-sm"
           />
+          {!passwordsMatch && (
+            <p id="confirm-password-error" role="alert" className="text-xs text-red-500">
+              Passwords do not match
+            </p>
+          )}
         </div>
 
         <button
           type="submit"
-          disabled={loading}
+          disabled={loading || !passwordValid || !passwordsMatch}
           className="rounded-md bg-primary px-4 py-2 text-sm font-medium text-primary-foreground disabled:opacity-50"
         >
-          {loading ? 'Resetting…' : 'Reset password'}
+          {loading ? 'Updating…' : 'Update password'}
         </button>
       </form>
 
       <p className="text-center text-sm text-muted-foreground">
-        Remembered it?{' '}
         <Link href="/auth/login" className="font-medium underline">
-          Sign in
+          Back to sign in
         </Link>
       </p>
     </div>
+  );
+}
+
+/**
+ * `useSearchParams` opts the component out of static prerendering, so it must
+ * sit behind a Suspense boundary (mirrors the login page).
+ */
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={<div className="mx-auto w-full max-w-md py-16 text-center text-sm text-muted-foreground">Loading…</div>}>
+      <ResetPasswordForm />
+    </Suspense>
   );
 }

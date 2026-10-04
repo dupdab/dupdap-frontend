@@ -30,6 +30,13 @@ vi.mock('next/link', () => ({
   ),
 }));
 
+// The landing page is a server component that reads the per-request CSP nonce
+// via `headers()`. Outside a request scope Next throws, so stub the header
+// lookup the way middleware would populate it (#388).
+vi.mock('next/headers', () => ({
+  headers: () => new Headers({ 'x-nonce': 'test-nonce' }),
+}));
+
 afterEach(() => {
   cleanup();
 });

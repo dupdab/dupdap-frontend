@@ -11,7 +11,8 @@ import { useAuthStore } from '@/lib/store';
 export function AuthRedirectSetup() {
   const router = useRouter();
   const pathname = usePathname();
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated);
+  const token = useAuthStore((s) => s.token);
+  const isAuthenticated = Boolean(token);
 
   useEffect(() => {
     if (isAuthenticated) return;

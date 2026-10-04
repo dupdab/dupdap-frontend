@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import toast from 'react-hot-toast';
+import toast from '@/lib/toast';
 import { 
   RefreshCw, 
   CheckCircle, 
@@ -65,14 +65,13 @@ export default function AdminSettlementsPage() {
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState(EMPTY_FILTERS);
+  // Separate input state so the text field stays responsive while the fetch
+  // is debounced — avoids a network round-trip on every keystroke.
   const [filterInputs, setFilterInputs] = useState({
     merchantId: '',
     startDate: '',
     endDate: '',
   });
-  // Separate input state so the text field stays responsive while the fetch
-  // is debounced — avoids a network round-trip on every keystroke.
-  const [merchantIdInput, setMerchantIdInput] = useState('');
   const [actionLoading, setActionLoading] = useState<string | null>(null);
   // Which settlement action is waiting for confirmation in the dialog below.
   const [pendingAction, setPendingAction] = useState<{
@@ -113,8 +112,10 @@ export default function AdminSettlementsPage() {
         limit: '20',
         ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v)),
       });
-      const response = await adminApi.listSettlements(params.toString());
 
+      // Pass the query string only — adminApi.listSettlements appends it to the
+      // path and the axios instance already carries the /api/v1 base URL.
+      const response = await adminApi.listSettlements(params.toString());
       setSettlements(response.data.data);
       setTotal(response.data.total);
     } catch (error) {

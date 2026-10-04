@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest';
 const validatorPath = resolve(process.cwd(), 'scripts/validate-env.mjs');
 
 function runValidator(nodeEnv: string, apiUrl?: string) {
-  const env = { ...process.env, NODE_ENV: nodeEnv };
+  const env: NodeJS.ProcessEnv = { ...process.env, NODE_ENV: nodeEnv as NodeJS.ProcessEnv["NODE_ENV"] };
   if (apiUrl === undefined) {
     delete env.NEXT_PUBLIC_API_URL;
   } else {

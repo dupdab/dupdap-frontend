@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import toast from 'react-hot-toast';
+import toast from '@/lib/toast';
 import { CheckCircle, Loader2, XCircle } from 'lucide-react';
 import { waitlistApi } from '@/lib/api';
 import { FormField } from '@/components/FormField';
