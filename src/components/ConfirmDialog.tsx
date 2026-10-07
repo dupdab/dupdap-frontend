@@ -13,7 +13,10 @@ interface ConfirmDialogProps {
   danger?: boolean;
   loading?: boolean;
   onConfirm: () => void;
-  onCancel: () => void;
+  /** Called when the dialog is dismissed: Cancel button, Escape, or backdrop click. */
+  onCancel?: () => void;
+  /** Alias for `onCancel` for call sites that name the handler after the close action. */
+  onClose?: () => void;
   destructive?: boolean;
   loading?: boolean;
   testId?: string;
@@ -30,6 +33,7 @@ export default function ConfirmDialog({
   loading = false,
   onConfirm,
   onCancel,
+  onClose,
   destructive = false,
   loading = false,
   testId,
@@ -47,7 +51,7 @@ export default function ConfirmDialog({
   return (
     <div
       className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 p-4"
-      onClick={onCancel}
+      onClick={dismiss}
     >
       <div
         ref={panelRef}

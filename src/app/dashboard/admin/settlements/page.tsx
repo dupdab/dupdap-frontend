@@ -8,13 +8,15 @@ import {
   AlertCircle, 
   Clock, 
   Filter,
-  ExternalLink 
+  ExternalLink,
+  HelpCircle,
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import { adminApi } from '@/lib/api';
 import { formatUsd, formatDate, STATUS_COLORS } from '@/lib/utils';
 import { getErrorMessage } from '@/lib/errors';
 import { SkeletonList, SkeletonTableRows } from '@/components/Skeleton';
+import ConfirmDialog from '@/components/ConfirmDialog';
 
 interface Settlement {
   id: string;
@@ -71,6 +73,11 @@ export default function AdminSettlementsPage() {
     endDate: '',
   });
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  // Which settlement action is waiting for confirmation in the dialog below.
+  const [pendingAction, setPendingAction] = useState<{
+    type: 'retry' | 'approve';
+    settlementId: string;
+  } | null>(null);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -96,6 +103,8 @@ export default function AdminSettlementsPage() {
   }, [filterInputs.merchantId, filterInputs.startDate, filterInputs.endDate]);
 
   const fetchSettlements = useCallback(async () => {
+    if (!token) return;
+
     try {
       setLoading(true);
       const params = new URLSearchParams({
@@ -114,7 +123,7 @@ export default function AdminSettlementsPage() {
     } finally {
       setLoading(false);
     }
-  }, [page, filters]);
+  }, [page, filters, token]);
 
   useEffect(() => {
     if (token) fetchSettlements();
@@ -150,6 +159,20 @@ export default function AdminSettlementsPage() {
     }
   };
 
+  // Retrying or approving a settlement moves real money, so both go through the
+  // shared ConfirmDialog rather than window.confirm (#354).
+  const confirmPendingAction = () => {
+    if (!pendingAction) return;
+
+    const { type, settlementId } = pendingAction;
+    setPendingAction(null);
+    if (type === 'retry') {
+      handleRetry(settlementId);
+    } else {
+      handleApprove(settlementId);
+    }
+  };
+
   const handleClearFilters = () => {
     setFilterInputs({ merchantId: '', startDate: '', endDate: '' });
     setFilters(EMPTY_FILTERS);
@@ -173,6 +196,7 @@ export default function AdminSettlementsPage() {
           
           <select
             value={filters.status}
+            aria-label="Filter by status"
             onChange={(e) => {
               setFilters({ ...filters, status: e.target.value });
               setPage(1);
@@ -190,6 +214,7 @@ export default function AdminSettlementsPage() {
           <input
             type="text"
             placeholder="Merchant ID"
+            aria-label="Filter by merchant ID"
             value={filterInputs.merchantId}
             onChange={(e) => setFilterInputs({ ...filterInputs, merchantId: e.target.value })}
             className="px-3 py-1 border border-gray-300 rounded-md text-sm"
@@ -197,6 +222,7 @@ export default function AdminSettlementsPage() {
 
           <input
             type="date"
+            aria-label="Filter from date"
             value={filterInputs.startDate}
             onChange={(e) => setFilterInputs({ ...filterInputs, startDate: e.target.value })}
             className="px-3 py-1 border border-gray-300 rounded-md text-sm"
@@ -204,6 +230,7 @@ export default function AdminSettlementsPage() {
 
           <input
             type="date"
+            aria-label="Filter to date"
             value={filterInputs.endDate}
             onChange={(e) => setFilterInputs({ ...filterInputs, endDate: e.target.value })}
             className="px-3 py-1 border border-gray-300 rounded-md text-sm"
@@ -228,7 +255,7 @@ export default function AdminSettlementsPage() {
             <div className="px-4 py-8 text-center text-gray-500">No settlements found</div>
           ) : (
             settlements.map((settlement) => {
-              const StatusIcon = statusIcons[settlement.status];
+              const StatusIcon = statusIcons[settlement.status] ?? HelpCircle;
               return (
                 <div key={settlement.id} className="px-4 py-3 space-y-1">
                   <div className="flex items-center justify-between">
@@ -248,7 +275,7 @@ export default function AdminSettlementsPage() {
                   <div className="flex items-center gap-2 pt-1">
                     {settlement.status === 'failed' && (
                       <button
-                        onClick={() => window.confirm("Are you sure you want to retry this settlement?") && handleRetry(settlement.id)}
+                        onClick={() => setPendingAction({ type: 'retry', settlementId: settlement.id })}
                         disabled={actionLoading === settlement.id}
                         className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:opacity-50"
                       >
@@ -257,7 +284,7 @@ export default function AdminSettlementsPage() {
                     )}
                     {settlement.status === 'pending_approval' && (
                       <button
-                        onClick={() => window.confirm("Are you sure you want to approve this settlement?") && handleApprove(settlement.id)}
+                        onClick={() => setPendingAction({ type: 'approve', settlementId: settlement.id })}
                         disabled={actionLoading === settlement.id}
                         className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 disabled:opacity-50"
                       >
@@ -295,7 +322,7 @@ export default function AdminSettlementsPage() {
                 </tr>
               ) : (
                 settlements.map((settlement) => {
-                  const StatusIcon = statusIcons[settlement.status];
+                  const StatusIcon = statusIcons[settlement.status] ?? HelpCircle;
                   return (
                     <tr key={settlement.id} className="hover:bg-gray-50">
                       <td className="px-4 py-3">
@@ -354,7 +381,7 @@ export default function AdminSettlementsPage() {
                         <div className="flex items-center gap-2">
                           {settlement.status === 'failed' && (
                             <button
-                              onClick={() => window.confirm("Are you sure you want to retry this settlement?") && handleRetry(settlement.id)}
+                              onClick={() => setPendingAction({ type: 'retry', settlementId: settlement.id })}
                               disabled={actionLoading === settlement.id}
                               className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:opacity-50"
                             >
@@ -363,7 +390,7 @@ export default function AdminSettlementsPage() {
                           )}
                           {settlement.status === 'pending_approval' && (
                             <button
-                              onClick={() => window.confirm("Are you sure you want to approve this settlement?") && handleApprove(settlement.id)}
+                              onClick={() => setPendingAction({ type: 'approve', settlementId: settlement.id })}
                               disabled={actionLoading === settlement.id}
                               className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 disabled:opacity-50"
                             >
@@ -388,7 +415,7 @@ export default function AdminSettlementsPage() {
             </div>
             <div className="flex items-center gap-2">
               <button
-                onClick={() => setPage(page - 1)}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
                 disabled={page === 1}
                 className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
               >
@@ -408,6 +435,20 @@ export default function AdminSettlementsPage() {
           </div>
         )}
       </div>
+
+      <ConfirmDialog
+        open={pendingAction !== null}
+        title={pendingAction?.type === 'approve' ? 'Approve settlement' : 'Retry settlement'}
+        message={
+          pendingAction?.type === 'approve'
+            ? 'Are you sure you want to approve this settlement?'
+            : 'Are you sure you want to retry this settlement?'
+        }
+        confirmLabel={pendingAction?.type === 'approve' ? 'Approve' : 'Retry'}
+        onConfirm={confirmPendingAction}
+        onCancel={() => setPendingAction(null)}
+        testId="settlement-confirm-dialog"
+      />
     </div>
   );
 }

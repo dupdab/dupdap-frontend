@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { useAuthStore } from '@/lib/store';
 import AdminSettlementsPage from './page';
@@ -49,17 +49,25 @@ const pendingApprovalSettlement = {
   requiresApproval: true,
 };
 
-function mockListResponse(settlements = [failedSettlement, pendingApprovalSettlement]) {
+type SettlementFixture = Omit<typeof failedSettlement, 'status'> & { status: string };
+
+function mockListResponse(
+  settlements: SettlementFixture[] = [failedSettlement, pendingApprovalSettlement],
+  total = settlements.length,
+) {
   return {
     data: {
       data: settlements,
-      total: settlements.length,
+      total,
       page: 1,
       limit: 20,
-      totalPages: 1,
+      totalPages: Math.ceil(total / 20),
     },
   };
 }
+
+/** The shared ConfirmDialog issued for retry/approve confirmations (#354). */
+const confirmDialog = () => screen.getByTestId('settlement-confirm-dialog');
 
 describe('AdminSettlementsPage', () => {
   beforeEach(() => {
@@ -67,7 +75,6 @@ describe('AdminSettlementsPage', () => {
     mockListSettlements.mockResolvedValue(mockListResponse());
     mockRetrySettlement.mockResolvedValue({ data: {} });
     mockApproveSettlement.mockResolvedValue({ data: {} });
-    vi.stubGlobal('confirm', vi.fn(() => true));
   });
 
   it('fetches settlements via adminApi without duplicating /api/v1 in the path', async () => {
@@ -93,6 +100,31 @@ describe('AdminSettlementsPage', () => {
     expect(mockListSettlements.mock.calls.length).toBeGreaterThanOrEqual(2);
   });
 
+  it('gives every filter control an accessible name (#352)', async () => {
+    render(<AdminSettlementsPage />);
+
+    await waitFor(() => expect(mockListSettlements).toHaveBeenCalled());
+
+    expect(screen.getByLabelText('Filter by status')).toBeInTheDocument();
+    expect(screen.getByLabelText('Filter by merchant ID')).toBeInTheDocument();
+    expect(screen.getByLabelText('Filter from date')).toBeInTheDocument();
+    expect(screen.getByLabelText('Filter to date')).toBeInTheDocument();
+  });
+
+  it('renders a fallback icon instead of crashing on an unknown status (#353)', async () => {
+    mockListSettlements.mockResolvedValue(
+      mockListResponse([
+        { ...failedSettlement, id: 'settlement-unknown-1', status: 'on_hold', failureReason: '' },
+      ]),
+    );
+
+    const { container } = render(<AdminSettlementsPage />);
+
+    await waitFor(() => expect(screen.getAllByText('on hold').length).toBeGreaterThan(0));
+    // Both render paths (mobile card + desktop table) fall back to HelpCircle.
+    expect(container.querySelectorAll('svg.lucide-circle-help').length).toBeGreaterThan(0);
+  });
+
   it('calls retrySettlement with the correct id and shows loading state', async () => {
     let resolveRetry!: () => void;
     mockRetrySettlement.mockImplementation(
@@ -109,6 +141,12 @@ describe('AdminSettlementsPage', () => {
 
     const retryButtons = screen.getAllByRole('button', { name: 'Retry' });
     await user.click(retryButtons[0]);
+
+    // The action is held back until the confirmation dialog is accepted (#354).
+    expect(mockRetrySettlement).not.toHaveBeenCalled();
+    expect(screen.getByText('Retry settlement')).toBeInTheDocument();
+
+    await user.click(within(confirmDialog()).getByRole('button', { name: 'Retry' }));
 
     expect(mockRetrySettlement).toHaveBeenCalledWith('settlement-failed-1');
     expect(screen.getAllByRole('button', { name: 'Retrying...' })[0]).toBeDisabled();
@@ -136,11 +174,60 @@ describe('AdminSettlementsPage', () => {
     const approveButtons = screen.getAllByRole('button', { name: 'Approve' });
     await user.click(approveButtons[0]);
 
+    expect(mockApproveSettlement).not.toHaveBeenCalled();
+    expect(screen.getByText('Approve settlement')).toBeInTheDocument();
+
+    await user.click(within(confirmDialog()).getByRole('button', { name: 'Approve' }));
+
     expect(mockApproveSettlement).toHaveBeenCalledWith('settlement-pending-1');
     expect(screen.getAllByRole('button', { name: 'Approving...' })[0]).toBeDisabled();
 
     resolveApprove();
     await waitFor(() => expect(screen.getAllByRole('button', { name: 'Approve' })[0]).not.toBeDisabled());
+  });
+
+  it('does not run a settlement action when the confirmation dialog is cancelled', async () => {
+    const user = userEvent.setup();
+    render(<AdminSettlementsPage />);
+
+    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Retry' }).length).toBeGreaterThan(0));
+
+    await user.click(screen.getAllByRole('button', { name: 'Retry' })[0]);
+    await user.click(within(confirmDialog()).getByRole('button', { name: 'Cancel' }));
+
+    expect(screen.queryByTestId('settlement-confirm-dialog')).not.toBeInTheDocument();
+    expect(mockRetrySettlement).not.toHaveBeenCalled();
+  });
+
+  it('never requests a page below 1 when Previous is clicked (#355)', async () => {
+    mockListSettlements.mockResolvedValue(mockListResponse([failedSettlement], 25));
+
+    render(<AdminSettlementsPage />);
+
+    await waitFor(() => expect(mockListSettlements).toHaveBeenCalledWith('page=1&limit=20'));
+
+    const previous = screen.getByRole('button', { name: 'Previous' });
+    expect(previous).toBeDisabled();
+
+    // Even if the disabled guard is bypassed, the decrement stays clamped at 1.
+    fireEvent.click(previous);
+    await waitFor(() => expect(mockListSettlements).toHaveBeenCalledTimes(1));
+    expect(mockListSettlements.mock.calls.map((call) => call[0])).toEqual(['page=1&limit=20']);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Next' }));
+    await waitFor(() => expect(mockListSettlements).toHaveBeenCalledWith('page=2&limit=20'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Previous' }));
+    await waitFor(() => expect(mockListSettlements).toHaveBeenCalledWith('page=1&limit=20'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Previous' }));
+    await waitFor(() =>
+      expect(mockListSettlements.mock.calls.map((call) => call[0])).toEqual([
+        'page=1&limit=20',
+        'page=2&limit=20',
+        'page=1&limit=20',
+      ]),
+    );
   });
 
   it('does not fetch when there is no auth token', async () => {
