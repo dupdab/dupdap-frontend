@@ -9,6 +9,7 @@ import { FormField } from '@/components/FormField';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { getErrorMessage } from '@/lib/errors';
 import { maskSecret } from '@/lib/utils';
+import { ApiRateLimitIndicator } from '@/components/ApiRateLimitIndicator';
 
 const EMPTY_FORM = { businessName: '', country: '', bankAccountNumber: '', bankCode: '', bankName: '' };
 
@@ -237,6 +238,8 @@ export default function SettingsPage() {
             </label>
           ))}
         </div>
+
+        <ApiRateLimitIndicator />
 
         {apiKey ? (
           <div className="mb-3 rounded-lg border border-amber-200 bg-amber-50 p-4">
