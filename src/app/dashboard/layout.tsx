@@ -23,6 +23,7 @@ import { useAuthStore } from '@/lib/store';
 import { isAdmin } from '@/lib/auth';
 import { useFocusTrap } from '@/lib/useFocusTrap';
 import { cn } from '@/lib/utils';
+import WhatsNewBanner from '@/components/WhatsNewBanner';
 
 declare global {
   interface Window {
@@ -248,7 +249,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       )}
 
       {/* Main */}
-      <main className="flex-1 overflow-auto pt-14 md:pt-0">{children}</main>
+      <main className="flex-1 overflow-auto pt-14 md:pt-0">
+        <WhatsNewBanner />
+        {children}
+      </main>
     </div>
   );
 }
