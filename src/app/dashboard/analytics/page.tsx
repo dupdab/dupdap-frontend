@@ -5,6 +5,7 @@ import dynamic from 'next/dynamic';
 import { paymentsApi } from '@/lib/api';
 import { formatUsd } from '@/lib/utils';
 import type { PaymentStats } from '@/lib/types';
+import RevenueByMethodCard from './RevenueByMethodCard';
 
 // Recharts is a large library only used on this page. Wrapping the chart
 // components with next/dynamic (ssr: false) does two things:
@@ -132,6 +133,8 @@ export default function AnalyticsPage() {
               </table>
             </div>
           </div>
+
+          <RevenueByMethodCard />
         </div>
       )}
     </div>
