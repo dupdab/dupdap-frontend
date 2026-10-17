@@ -6,6 +6,7 @@ import { Clock, CheckCircle, XCircle, Loader2, Copy, Check, AlertTriangle } from
 import { paymentsApi } from '@/lib/api';
 import { formatUsd } from '@/lib/utils';
 import type { Payment } from '@/lib/types';
+import XlmEquivalent from '@/components/XlmEquivalent';
 
 const STATUS_ICONS: Record<string, React.ReactNode> = {
   pending: <Clock className="w-8 h-8 text-yellow-500" />,
@@ -175,6 +176,7 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
         <div className="p-4 xs:p-6 border-b border-gray-100 text-center">
           <p className="text-sm text-gray-500 font-medium">DupDub</p>
           <h1 className="text-3xl font-bold mt-1">{formatUsd(payment.amountUsd)}</h1>
+          <XlmEquivalent amountXlm={payment.amountXlm} updatedAt={payment.updatedAt} />
           {payment.description && <p className="text-sm text-gray-500 mt-1 break-words">{payment.description}</p>}
         </div>
 
