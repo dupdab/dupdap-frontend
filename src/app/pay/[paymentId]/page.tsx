@@ -6,6 +6,7 @@ import { Clock, CheckCircle, XCircle, Loader2, Copy, Check, AlertTriangle } from
 import { paymentsApi } from '@/lib/api';
 import { formatUsd } from '@/lib/utils';
 import type { Payment } from '@/lib/types';
+import { OpenInWalletButtons } from '@/components/OpenInWalletButtons';
 
 const STATUS_ICONS: Record<string, React.ReactNode> = {
   pending: <Clock className="w-8 h-8 text-yellow-500" />,
@@ -212,6 +213,15 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
               <p className="text-center text-xs text-gray-500 mb-4">
                 Scan with a Stellar wallet app, then approve USDC before deposit
               </p>
+              {stellarUri && (
+                <OpenInWalletButtons
+                  payment={{
+                    destination: payment.stellarDepositAddress ?? '',
+                    amount: payment.amountXlm as number,
+                    memo: payment.stellarMemo,
+                  }}
+                />
+              )}
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs mb-4">
                 <p className="font-semibold text-blue-900 mb-1">Required customer flow</p>
                 <p className="text-blue-800">1) approve(escrow_contract, amount)</p>
