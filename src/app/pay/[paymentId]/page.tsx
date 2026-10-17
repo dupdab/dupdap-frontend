@@ -171,6 +171,9 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div role="status" aria-live="polite" aria-atomic="true" className="sr-only" data-testid="payment-status-live-region">
+        Payment status: {payment.status}
+      </div>
       <div className="card w-full max-w-[92vw] xs:max-w-sm">
         <div className="p-4 xs:p-6 border-b border-gray-100 text-center">
           <p className="text-sm text-gray-500 font-medium">DupDub</p>
