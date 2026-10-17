@@ -7,6 +7,7 @@ import { merchantApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { FormField } from '@/components/FormField';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import BankAccountsSection from '@/components/BankAccountsSection';
 import { getErrorMessage } from '@/lib/errors';
 import { maskSecret } from '@/lib/utils';
 
@@ -200,6 +201,8 @@ export default function SettingsPage() {
           </button>
         </form>
       </div>
+
+      <BankAccountsSection />
 
       <div className="card p-6">
         <h2 className="font-semibold mb-2">API Key</h2>
