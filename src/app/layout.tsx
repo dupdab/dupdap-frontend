@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import { Toaster } from 'react-hot-toast';
 import { AuthRedirectSetup } from '@/components/AuthRedirectSetup';
+import { CookieConsent } from '@/components/CookieConsent';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -38,6 +39,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Live-region semantics are set per-call by '@/lib/toast', because
             react-hot-toast ignores per-type `ariaProps` in `toastOptions`. */}
         <Toaster position="top-right" />
+        <CookieConsent />
       </body>
     </html>
   );
