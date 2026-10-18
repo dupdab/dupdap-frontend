@@ -1,7 +1,7 @@
 'use client';
 
 import { memo, useCallback, useEffect, useState } from 'react';
-import { Plus, Trash2, Copy, Check, Eye, EyeOff, RefreshCw } from 'lucide-react';
+import { Plus, Trash2, Copy, Check, Eye, EyeOff, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import toast from '@/lib/toast';
 import { webhooksApi } from '@/lib/api';
 import { WEBHOOK_EVENTS, formatDate, maskSecret } from '@/lib/utils';
@@ -9,6 +9,16 @@ import { getErrorMessage } from '@/lib/errors';
 import Modal from '@/components/Modal';
 import ConfirmDialog from '@/components/ConfirmDialog';
 import type { Webhook } from '@/lib/types';
+
+interface WebhookDelivery {
+  id: string;
+  eventType: string;
+  status: 'delivered' | 'failed';
+  responseCode: number | null;
+  createdAt: string;
+}
+
+const DELIVERIES_PER_PAGE = 50;
 
 function WebhookSecretRow({ webhook, onRotated }: { webhook: Webhook; onRotated: (secret: string) => void }) {
   const [revealed, setRevealed] = useState(false);
@@ -88,6 +98,170 @@ function WebhookSecretRow({ webhook, onRotated }: { webhook: Webhook; onRotated:
 }
 
 // ---------------------------------------------------------------------------
+// Per-webhook delivery log — shows the last 50 deliveries with pagination and
+// filtering by event type / status, plus a retry action for failed deliveries.
+// ---------------------------------------------------------------------------
+
+interface WebhookDeliveryLogProps {
+  webhookId: string;
+}
+
+function WebhookDeliveryLog({ webhookId }: WebhookDeliveryLogProps) {
+  const [deliveries, setDeliveries] = useState<WebhookDelivery[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [page, setPage] = useState(0);
+  const [eventFilter, setEventFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [retryingId, setRetryingId] = useState<string | null>(null);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data } = await webhooksApi.deliveries(webhookId);
+      setDeliveries(data);
+    } catch (err) {
+      toast.error(getErrorMessage(err) ?? 'Failed to load delivery log');
+    } finally {
+      setLoading(false);
+    }
+  }, [webhookId]);
+
+  useEffect(() => { load(); }, [load]);
+
+  const filtered = deliveries.filter((d) => {
+    if (eventFilter && d.eventType !== eventFilter) return false;
+    if (statusFilter && d.status !== statusFilter) return false;
+    return true;
+  });
+
+  const pageCount = Math.max(1, Math.ceil(filtered.length / DELIVERIES_PER_PAGE));
+  const currentPage = Math.min(page, pageCount - 1);
+  const visible = filtered.slice(
+    currentPage * DELIVERIES_PER_PAGE,
+    currentPage * DELIVERIES_PER_PAGE + DELIVERIES_PER_PAGE,
+  );
+
+  const retry = async (id: string) => {
+    setRetryingId(id);
+    try {
+      await webhooksApi.retryDelivery(webhookId, id);
+      toast.success('Delivery retried');
+      await load();
+    } catch (err) {
+      toast.error(getErrorMessage(err) ?? 'Failed to retry delivery');
+    } finally {
+      setRetryingId(null);
+    }
+  };
+
+  return (
+    <div className="mt-4 border-t border-gray-100 pt-4" data-testid={`delivery-log-${webhookId}`}>
+      <div className="flex flex-wrap items-center justify-between gap-2 mb-2">
+        <p className="text-xs font-medium text-gray-600">Delivery log</p>
+        <div className="flex items-center gap-2">
+          <select
+            data-testid={`delivery-event-filter-${webhookId}`}
+            value={eventFilter}
+            onChange={(e) => { setEventFilter(e.target.value); setPage(0); }}
+            className="input text-xs py-1"
+            aria-label="Filter deliveries by event type"
+          >
+            <option value="">All events</option>
+            {WEBHOOK_EVENTS.map((e: string) => (
+              <option key={e} value={e}>{e}</option>
+            ))}
+          </select>
+          <select
+            data-testid={`delivery-status-filter-${webhookId}`}
+            value={statusFilter}
+            onChange={(e) => { setStatusFilter(e.target.value); setPage(0); }}
+            className="input text-xs py-1"
+            aria-label="Filter deliveries by status"
+          >
+            <option value="">All statuses</option>
+            <option value="delivered">Delivered</option>
+            <option value="failed">Failed</option>
+          </select>
+        </div>
+      </div>
+
+      {loading ? (
+        <p className="text-xs text-gray-400 py-2">Loading deliveries…</p>
+      ) : visible.length === 0 ? (
+        <p className="text-xs text-gray-400 py-2">No deliveries found</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-left text-gray-400">
+                <th className="py-1 pr-3 font-medium">Timestamp</th>
+                <th className="py-1 pr-3 font-medium">Event</th>
+                <th className="py-1 pr-3 font-medium">Status</th>
+                <th className="py-1 pr-3 font-medium">Response</th>
+                <th className="py-1 font-medium">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {visible.map((d) => (
+                <tr key={d.id} data-testid={`delivery-row-${d.id}`} className="border-t border-gray-100">
+                  <td className="py-1 pr-3 text-gray-500 whitespace-nowrap">{formatDate(d.createdAt)}</td>
+                  <td className="py-1 pr-3 font-mono">{d.eventType}</td>
+                  <td className="py-1 pr-3">
+                    <span className={d.status === 'delivered' ? 'text-green-600' : 'text-red-600'}>
+                      {d.status === 'delivered' ? 'Delivered' : 'Failed'}
+                    </span>
+                  </td>
+                  <td className="py-1 pr-3 text-gray-500">{d.responseCode ?? '—'}</td>
+                  <td className="py-1">
+                    {d.status === 'failed' && (
+                      <button
+                        type="button"
+                        data-testid={`retry-delivery-${d.id}`}
+                        onClick={() => retry(d.id)}
+                        disabled={retryingId === d.id}
+                        className="text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                      >
+                        Retry
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {pageCount > 1 && (
+        <div className="flex items-center justify-end gap-2 mt-2">
+          <button
+            type="button"
+            data-testid={`delivery-prev-${webhookId}`}
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            disabled={currentPage === 0}
+            className="text-gray-400 hover:text-gray-600 disabled:opacity-50"
+            aria-label="Previous deliveries page"
+          >
+            <ChevronLeft className="w-4 h-4" />
+          </button>
+          <span className="text-xs text-gray-500">Page {currentPage + 1} of {pageCount}</span>
+          <button
+            type="button"
+            data-testid={`delivery-next-${webhookId}`}
+            onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+            disabled={currentPage >= pageCount - 1}
+            className="text-gray-400 hover:text-gray-600 disabled:opacity-50"
+            aria-label="Next deliveries page"
+          >
+            <ChevronRight className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Memoized row component — avoids re-rendering existing webhook cards when
 // the create modal opens/closes or the deletion confirmation dialog is shown.
 // ---------------------------------------------------------------------------
@@ -113,6 +287,7 @@ const WebhookRow = memo(function WebhookRow({ webhook: w, onDelete, onSecretRota
           webhook={w}
           onRotated={(secret) => onSecretRotated(w.id, secret)}
         />
+        <WebhookDeliveryLog webhookId={w.id} />
       </div>
       <button
         data-testid={`delete-webhook-${w.id}`}
@@ -230,93 +405,60 @@ export default function WebhooksPage() {
         testId="create-webhook-modal"
       >
         <form onSubmit={create} className="space-y-4" aria-busy={creating}>
-          {/* Visually-hidden live region announces submit outcomes to screen readers (#158) */}
-          <p className="sr-only" aria-live="polite" aria-atomic="true">
-            {creating ? 'Creating webhook, please wait…' : ''}
-          </p>
-          <fieldset disabled={creating} className="space-y-4">
-            <div>
-              <label htmlFor="webhook-url" className="label">
-                Endpoint URL
-              </label>
+          {/* Visually hidden submit keeps Enter-to-submit working */}
+          <button type="submit" className="sr-only" tabIndex={-1} aria-hidden="true" />
+          <div>
+            <label className="label">Endpoint URL</label>
+            <input
+              data-testid="webhook-url-input"
+              type="url"
+              required
+              value={form.url}
+              onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))}
+              placeholder="https://example.com/webhooks"
+              className="input"
+            />
+          </div>
+          <div>
+            <label className="label">Events</label>
+            <div className="grid grid-cols-2 gap-2">
+              {WEBHOOK_EVENTS.map((e: string) => (
+                <label key={e} className="flex items-center gap-2 text-sm">
+                  <input
+                    type="checkbox"
+                    checked={form.events.includes(e)}
+                    onChange={() => toggleEvent(e)}
+                  />
+                  {e}
+                </label>
+              ))}
+            </div>
+            {formError && <p className="text-xs text-red-600 mt-1">{formError}</p>}
+          </div>
+          <div>
+            <label className="label">Signing secret (optional)</label>
+            <div className="flex items-center gap-2">
               <input
-                id="webhook-url"
-                data-testid="webhook-url-input"
-                type="url"
-                required
-                value={form.url}
-                onChange={(e) => setForm({ ...form, url: e.target.value })}
-                placeholder="https://example.com/webhooks"
+                data-testid="webhook-secret-input"
+                type={secretRevealed ? 'text' : 'password'}
+                value={form.secret}
+                onChange={(e) => setForm((f) => ({ ...f, secret: e.target.value }))}
+                placeholder="Leave blank to auto-generate"
                 className="input"
               />
-            </div>
-
-            <div>
-              <label htmlFor="webhook-secret" className="label">
-                Signing secret <span className="text-gray-400 font-normal">(optional)</span>
-              </label>
-              <div className="flex items-center gap-2">
-                <input
-                  id="webhook-secret"
-                  data-testid="webhook-secret-input"
-                  /* Masked by default so the HMAC secret is never shown in
-                     cleartext while it is typed; revealed on explicit request. */
-                  type={secretRevealed ? 'text' : 'password'}
-                  value={form.secret}
-                  onChange={(e) => setForm({ ...form, secret: e.target.value })}
-                  placeholder="whsec_…"
-                  className="input font-mono"
-                />
-                <button
-                  type="button"
-                  data-testid="toggle-webhook-secret"
-                  onClick={() => setSecretRevealed((value) => !value)}
-                  aria-pressed={secretRevealed}
-                  aria-label={secretRevealed ? 'Hide signing secret' : 'Show signing secret'}
-                  className="text-gray-400 hover:text-gray-600 shrink-0"
-                >
-                  {secretRevealed ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
-            {/* Nested fieldset/legend gives screen readers a programmatic group
-                name for the event checkboxes (#347). */}
-            <fieldset data-testid="webhook-events-fieldset">
-              <legend className="label">Events</legend>
-              <div className="space-y-2 mt-1">
-                {WEBHOOK_EVENTS.map((event) => (
-                  <label key={event} className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      data-testid={`event-checkbox-${event}`}
-                      checked={form.events.includes(event)}
-                      onChange={() => toggleEvent(event)}
-                      className="rounded border-gray-300"
-                    />
-                    {event}
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-            {formError && (
-              <p
-                data-testid="webhook-events-error"
-                role="alert"
-                className="text-xs text-red-500"
+              <button
+                type="button"
+                onClick={() => setSecretRevealed((v) => !v)}
+                className="text-gray-400 hover:text-gray-600"
+                aria-label={secretRevealed ? 'Hide signing secret' : 'Show signing secret'}
               >
-                {formError}
-              </p>
-            )}
-            <button data-testid="webhook-submit-button" type="submit" disabled={creating} className="btn-primary w-full">
-              {creating ? 'Creating...' : 'Create Webhook'}
-            </button>
-          </fieldset>
-
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={closeCreateModal} className="btn-secondary">
-              Cancel
-            </button>
-            <button type="submit" data-testid="create-webhook-submit" disabled={creating} className="btn-primary">
+                {secretRevealed ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+          <div className="flex justify-end gap-2">
+            <button type="button" onClick={closeCreateModal} className="btn-secondary">Cancel</button>
+            <button data-testid="create-webhook-submit" type="submit" disabled={creating} className="btn-primary">
               {creating ? 'Creating…' : 'Create Webhook'}
             </button>
           </div>
@@ -333,18 +475,18 @@ export default function WebhooksPage() {
           />
         ))}
         {webhooks.length === 0 && (
-          <div className="card p-12 text-center text-gray-400">
-            <p>No webhooks configured. Add one to start receiving events.</p>
+          <div className="card p-8 text-center text-gray-400">
+            No webhooks yet. Add one to start receiving events.
           </div>
         )}
       </div>
 
       <ConfirmDialog
         open={deletingId !== null}
-        onCancel={() => setDeletingId(null)}
+        onClose={() => setDeletingId(null)}
         onConfirm={() => deletingId && remove(deletingId)}
-        title="Delete webhook?"
-        message="This webhook will stop receiving events. This action cannot be undone."
+        title="Delete webhook"
+        message="This webhook will stop receiving events. This cannot be undone."
         confirmLabel="Delete"
         loading={deleting}
       />
