@@ -19,10 +19,7 @@ import { useAuthStore } from '@/lib/store';
 import { isAdmin } from '@/lib/auth';
 import { isNavItemActive } from '@/lib/nav-active';
 import { cn } from '@/lib/utils';
-import { useAuthStore } from '@/lib/store';
-import { isAdmin } from '@/lib/auth';
 import { useFocusTrap } from '@/lib/useFocusTrap';
-import { cn } from '@/lib/utils';
 
 declare global {
   interface Window {
@@ -130,13 +127,6 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return <LoadingState />;
   }
 
-  // The admin routes live under this layout, so an unauthorized merchant is
-  // stopped here before `children` is ever returned — the admin page never
-  // mounts for them, closing the flash-of-unauthorized-content window (#357).
-  if (adminStatus !== 'authorized') {
-    return <LoadingState />;
-  }
-
   const visibleNavItems = navItems.filter((item) => !item.adminOnly || isAdmin(merchant));
 
   const confirmNavigation = () => {
@@ -211,44 +201,46 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-screen flex bg-gray-50 dark:bg-gray-950">
       {/* Mobile top bar */}
-      <div className="md:hidden fixed top-0 inset-x-0 h-14 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex items-center px-4 z-30">
+      <div className="md:hidden fixed top-0 inset-x-0 h-14 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex items-center px-4 z-30 print:hidden">
         <button
           onClick={() => setMobileNavOpen(true)}
           className="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
           aria-label="Open menu"
         >
-          <Menu className="w-6 h-6" />
+          <Menu className="w-5 h-5" />
         </button>
-        <span className="font-bold text-brand-600 text-lg ml-3">DupDub</span>
+        <span className="ml-3 font-bold text-brand-600">DupDub</span>
       </div>
 
-      {/* Sidebar - desktop */}
-      <aside className="hidden md:flex w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex-col">
+      {/* Desktop sidebar */}
+      <aside className="hidden md:flex md:flex-col w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 fixed inset-y-0 print:hidden">
         {sidebarContent}
       </aside>
 
-      {/* Sidebar - mobile off-canvas drawer */}
+      {/* Mobile drawer */}
       {mobileNavOpen && (
-        <div className="md:hidden fixed inset-0 z-40 flex">
+        <div className="md:hidden fixed inset-0 z-40 print:hidden">
           <div
-            className="fixed inset-0 bg-black/40"
+            className="absolute inset-0 bg-black/40"
             onClick={() => setMobileNavOpen(false)}
+            aria-hidden="true"
           />
           <aside
             ref={drawerRef}
             role="dialog"
             aria-modal="true"
             aria-label="Navigation menu"
-            tabIndex={-1}
-            className="relative w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex flex-col outline-none"
+            className="absolute inset-y-0 left-0 w-64 bg-white dark:bg-gray-900 flex flex-col shadow-xl"
           >
             {sidebarContent}
           </aside>
         </div>
       )}
 
-      {/* Main */}
-      <main className="flex-1 overflow-auto pt-14 md:pt-0">{children}</main>
+      {/* Main content */}
+      <main className="flex-1 md:ml-64 pt-14 md:pt-0 print:ml-0 print:pt-0">
+        {children}
+      </main>
     </div>
   );
 }
