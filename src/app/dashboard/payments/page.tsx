@@ -23,6 +23,48 @@ const EXPIRY_MAX_MINUTES = 1440;
 const DESCRIPTION_MAX_LENGTH = 200;
 
 // ---------------------------------------------------------------------------
+// Empty state — inline SVG illustration (no external requests) plus a CTA so
+// brand-new users have a clear next step instead of a bare "No payments yet".
+// ---------------------------------------------------------------------------
+
+interface PaymentsEmptyStateProps {
+  onCreate: () => void;
+}
+
+function PaymentsEmptyState({ onCreate }: PaymentsEmptyStateProps) {
+  return (
+    <div
+      data-testid="payments-empty-state"
+      className="flex flex-col items-center justify-center text-center px-6 py-16"
+    >
+      <svg
+        aria-hidden="true"
+        viewBox="0 0 120 120"
+        className="w-28 h-28 mb-4 text-brand-500"
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <rect x="20" y="30" width="80" height="56" rx="8" stroke="currentColor" strokeWidth="3" />
+        <rect x="20" y="42" width="80" height="10" fill="currentColor" opacity="0.15" />
+        <circle cx="60" cy="68" r="12" stroke="currentColor" strokeWidth="3" />
+        <path d="M60 62v12M54 68h12" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+      </svg>
+      <h2 className="text-lg font-semibold text-gray-900">No payments yet</h2>
+      <p className="text-sm text-gray-500 mt-1 max-w-sm">
+        Create a payment request and share the QR or link with your customer.
+      </p>
+      <button
+        data-testid="empty-create-payment-button"
+        onClick={onCreate}
+        className="btn-primary flex items-center gap-2 mt-6"
+      >
+        <Plus className="w-4 h-4" /> Create your first payment
+      </button>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Memoized row components — re-render only when the payment data or the
 // callback reference changes, not on modal open/close or filter typing in
 // the parent.
@@ -182,6 +224,7 @@ export default function PaymentsPage() {
 
   const showPagination = total > 20 || page > 1;
   const totalPages = Math.max(1, Math.ceil(total / 20));
+  const showEmptyState = !loading && !error && payments.length === 0;
 
   return (
     <div className="p-8">
@@ -194,6 +237,8 @@ export default function PaymentsPage() {
           <Plus className="w-4 h-4" /> New Payment
         </button>
       </div>
+
+      {showEmptyState && <PaymentsEmptyState onCreate={() => setShowCreate(true)} />}
 
       <Modal
         open={showCreate}
@@ -221,171 +266,112 @@ export default function PaymentsPage() {
               type="text"
               required={false}
               maxLength={MAX_DESCRIPTION_LENGTH}
-              hint={<span data-testid="description-char-counter">{form.description.length}/{MAX_DESCRIPTION_LENGTH}</span>}
+              hint={<span data-testid="description-char-counter">{form.description.length}/{DESCRIPTION_MAX_LENGTH}</span>}
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
             />
             <FormField
-              label="Customer Email (optional)"
+              label="Customer email (optional)"
               type="email"
               required={false}
               value={form.customerEmail}
               onChange={(e) => setForm({ ...form, customerEmail: e.target.value })}
             />
             <FormField
-              label="Expires in (minutes)"
+              label="Expiry (minutes)"
               type="number"
-              aria-describedby="expiry-minutes-hint"
+              min={EXPIRY_MIN_MINUTES}
+              max={EXPIRY_MAX_MINUTES}
+              required
               value={form.expiryMinutes}
               onChange={(e) => setForm({ ...form, expiryMinutes: e.target.value })}
             />
-            <p id="expiry-minutes-hint" className="text-xs text-gray-500">
-              Must be a whole number between {EXPIRY_MIN_MINUTES} and {EXPIRY_MAX_MINUTES} minutes.
-            </p>
-            <button data-testid="create-payment-submit" type="submit" disabled={creating} className="btn-primary w-full">
-              {creating ? 'Creating...' : 'Create Payment'}
+            <button type="submit" className="btn-primary w-full" disabled={creating}>
+              {creating ? 'Creating…' : 'Create Payment'}
             </button>
           </fieldset>
         </form>
       </Modal>
 
-      <Modal
-        open={!!selectedPayment}
-        onClose={() => setSelectedPayment(null)}
-        title="Payment QR Code"
-        testId="payment-qr-modal"
-        contentClassName="max-w-sm text-center"
-      >
-        {selectedPayment && (
-          <>
-            <div className="bg-white p-4 rounded-lg inline-block mb-4">
-              <QRCodeSVG value={selectedPayment.qrCode ?? selectedPayment.stellarDepositAddress ?? ''} size={200} />
+      {selectedPayment && (
+        <Modal
+          open={!!selectedPayment}
+          onClose={() => setSelectedPayment(null)}
+          title="Payment QR"
+          testId="payment-qr-modal"
+        >
+          <div className="flex flex-col items-center gap-4">
+            <QRCodeSVG value={selectedPayment.paymentUrl ?? selectedPayment.reference} size={200} />
+            <div className="text-center">
+              <p className="font-semibold">{formatUsd(selectedPayment.amountUsd)}</p>
+              <p className="font-mono text-xs text-gray-500">{selectedPayment.reference}</p>
             </div>
-            <p className="text-sm font-semibold mb-1">{formatUsd(selectedPayment.amountUsd)}</p>
-            <p className="text-xs text-gray-500 mb-4">{selectedPayment.reference}</p>
-            {selectedPayment.stellarMemo && (
-              <div className="flex items-center justify-center gap-2">
-                <code className="text-xs font-mono break-all">{selectedPayment.stellarMemo}</code>
-                <button
-                  type="button"
-                  data-testid="copy-memo-button"
-                  data-copied={copied}
-                  onClick={() => copyMemo(selectedPayment.stellarMemo!)}
-                  aria-label={copied ? 'Memo copied' : 'Copy memo'}
-                  className="text-brand-600 text-xs hover:underline shrink-0"
-                >
-                  {copied ? 'Copied' : 'Copy memo'}
-                </button>
-              </div>
+            {selectedPayment.memo && (
+              <button
+                onClick={() => copyMemo(selectedPayment.memo as string)}
+                className="flex items-center gap-2 text-sm text-brand-600 hover:underline"
+              >
+                {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                {copied ? 'Copied' : 'Copy memo'}
+              </button>
             )}
-          </>
-        )}
-      </Modal>
-
-      <div className="card">
-        {error ? (
-          <div data-testid="payments-error" className="px-6 py-4 text-sm text-red-500">
-            {error}
           </div>
-        ) : null}
-        <div className="md:hidden divide-y divide-gray-50">
-          {loading ? (
-            <SkeletonList rows={6} />
-          ) : error ? null : payments.length === 0 ? (
-            <div className="px-6 py-8 text-center text-gray-400 text-sm">No payments yet</div>
-          ) : (
-            payments.map((p) => (
-              <div key={p.id} className="px-6 py-4 space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-xs text-gray-500">{p.reference}</span>
-                  <PaymentStatusBadge status={p.status} />
-                </div>
-                <div className="font-semibold">{formatUsd(p.amountUsd)}</div>
-                <div className="text-xs text-gray-500">{formatDate(p.createdAt)}</div>
-                {p.status === 'pending' && (
-                  <button
-                    data-testid="view-qr-button"
-                    onClick={() => setSelectedPayment(p)}
-                    aria-label={`Show QR code for ${p.reference}`}
-                    className="text-brand-600 text-xs hover:underline"
-                  >
-                    Show QR
-                  </button>
-                )}
-              </div>
-            ))
-          )}
-        </div>
+        </Modal>
+      )}
 
-        <div className="hidden md:block overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-100">
+      {loading && <SkeletonList rows={5} />}
+
+      {!loading && error && (
+        <div className="text-center py-12 text-red-600" role="alert">{error}</div>
+      )}
+
+      {!loading && !error && payments.length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-200 overflow-hidden">
+          {/* Desktop table */}
+          <table className="hidden md:table w-full text-sm">
+            <thead className="bg-gray-50 text-left text-xs text-gray-500 uppercase">
               <tr>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Reference</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Amount</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Created</th>
-                <th className="px-6 py-3"></th>
+                <th className="px-6 py-3">Reference</th>
+                <th className="px-6 py-3">Amount</th>
+                <th className="px-6 py-3">Status</th>
+                <th className="px-6 py-3">Created</th>
+                <th className="px-6 py-3">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-50">
-              {loading ? (
-                <tr><td colSpan={PAYMENT_TABLE_COLUMNS} className="px-6 py-8 text-center text-gray-400">Loading...</td></tr>
-              ) : error ? null : payments.length === 0 ? (
-                <tr><td colSpan={PAYMENT_TABLE_COLUMNS} className="px-6 py-8 text-center text-gray-400">No payments yet</td></tr>
-              ) : (
-                payments.map((p) => (
-                  <tr key={p.id} data-testid={`payment-row-${p.id}`} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 font-mono text-xs">{p.reference}</td>
-                    <td className="px-6 py-4 font-semibold">{formatUsd(p.amountUsd)}</td>
-                    <td className="px-6 py-4">
-                      <PaymentStatusBadge status={p.status} testId="payment-status-badge" />
-                    </td>
-                    <td className="px-6 py-4 text-gray-500">{formatDate(p.createdAt)}</td>
-                    <td className="px-6 py-4">
-                      {p.status === 'pending' && (
-                        <button data-testid={`show-qr-button-${p.id}`} onClick={() => setSelectedPayment(p)} className="text-brand-600 text-xs hover:underline">
-                          Show QR
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
+            <tbody className="divide-y divide-gray-100">
+              {payments.map((p) => (
+                <PaymentTableRow key={p.id} payment={p} onShowQr={setSelectedPayment} />
+              ))}
             </tbody>
           </table>
+          {/* Mobile cards */}
+          <div className="md:hidden divide-y divide-gray-100">
+            {payments.map((p) => (
+              <PaymentMobileCard key={p.id} payment={p} onShowQr={setSelectedPayment} />
+            ))}
+          </div>
         </div>
-        {showPagination && (
-          <nav
-            aria-label="Pagination"
-            className="px-6 py-4 border-t border-gray-100 flex items-center justify-between"
+      )}
+
+      {showPagination && (
+        <div className="flex items-center justify-between mt-4 text-sm">
+          <button
+            onClick={() => setPage((prev) => Math.max(1, prev - 1))}
+            disabled={page <= 1}
+            className="btn-secondary disabled:opacity-50"
           >
-            <span className="text-sm text-gray-500">Page {page} of {totalPages}</span>
-            <div className="flex gap-2">
-              <button
-                data-testid="pagination-prev"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-                // The visible text is abbreviated, so name the button after the
-                // page it actually navigates to.
-                aria-label={`Go to page ${Math.max(1, page - 1)} of ${totalPages}`}
-                className="btn-secondary text-sm px-3 py-1"
-              >
-                Prev
-              </button>
-              <button
-                data-testid="pagination-next"
-                onClick={() => setPage((p) => p + 1)}
-                disabled={page >= totalPages}
-                aria-label={`Go to page ${page + 1} of ${totalPages}`}
-                className="btn-secondary text-sm px-3 py-1"
-              >
-                Next
-              </button>
-            </div>
-          </nav>
-        )}
-      </div>
+            Previous
+          </button>
+          <span className="text-gray-500">Page {page} of {totalPages}</span>
+          <button
+            onClick={() => setPage((prev) => prev + 1)}
+            disabled={page >= totalPages}
+            className="btn-secondary disabled:opacity-50"
+          >
+            Next
+          </button>
+        </div>
+      )}
     </div>
   );
 }
