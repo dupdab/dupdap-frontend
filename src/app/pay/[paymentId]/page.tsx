@@ -22,6 +22,74 @@ const POLL_INTERVAL_MS = 5000;
 const POLL_MAX_ATTEMPTS = 24;
 const POLL_MAX_BACKOFF_MS = 60_000;
 
+// Lightweight, dependency-free confetti burst shown once when a payment
+// settles. Uses CSS keyframes injected inline so no extra bundle is added.
+const CONFETTI_PIECES = Array.from({ length: 18 }, (_, i) => {
+  const angle = (i / 18) * Math.PI * 2;
+  const distance = 60 + (i % 3) * 20;
+  return {
+    dx: Math.round(Math.cos(angle) * distance),
+    dy: Math.round(Math.sin(angle) * distance),
+    delay: (i % 6) * 40,
+    color: ['#22c55e', '#3b82f6', '#eab308', '#ec4899', '#a855f7'][i % 5],
+  };
+});
+
+function SuccessCelebration() {
+  const [reducedMotion, setReducedMotion] = useState(false);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mq = window.matchMedia('(prefers-reduced-motion: reduce)');
+    setReducedMotion(mq.matches);
+    const handler = (e: MediaQueryListEvent) => setReducedMotion(e.matches);
+    mq.addEventListener?.('change', handler);
+    return () => mq.removeEventListener?.('change', handler);
+  }, []);
+
+  if (reducedMotion) {
+    return (
+      <div className="flex justify-center mb-4" aria-hidden="true">
+        <CheckCircle className="w-16 h-16 text-green-500" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative flex justify-center mb-4" aria-hidden="true">
+      <style>{`
+        @keyframes pay-confetti {
+          0% { transform: translate(0, 0) scale(1); opacity: 1; }
+          100% { transform: translate(var(--dx), var(--dy)) scale(0.4); opacity: 0; }
+        }
+        @keyframes pay-check-pop {
+          0% { transform: scale(0.4); opacity: 0; }
+          60% { transform: scale(1.15); opacity: 1; }
+          100% { transform: scale(1); opacity: 1; }
+        }
+      `}</style>
+      <div className="relative w-16 h-16 flex items-center justify-center">
+        <CheckCircle
+          className="w-16 h-16 text-green-500"
+          style={{ animation: 'pay-check-pop 500ms ease-out both' }}
+        />
+        {CONFETTI_PIECES.map((p, i) => (
+          <span
+            key={i}
+            className="absolute w-2 h-2 rounded-full"
+            style={{
+              backgroundColor: p.color,
+              animation: `pay-confetti 900ms ease-out ${p.delay}ms both`,
+              ['--dx' as string]: `${p.dx}px`,
+              ['--dy' as string]: `${p.dy}px`,
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function computeExpiresAt(payment: any): Date | null {
   if (payment?.expiresAt) return new Date(payment.expiresAt);
   if (payment?.expiryMinutes && payment?.createdAt) {
@@ -179,6 +247,7 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
         </div>
 
         <div className="p-4 xs:p-6">
+          {payment.status === 'settled' && <SuccessCelebration />}
           {isPending ? (
             <>
               {expiresAt && (
@@ -205,43 +274,11 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
                     className="bg-white p-6 rounded-xl border border-gray-200 flex flex-col items-center justify-center text-center space-y-2 w-44 h-44"
                   >
                     <Loader2 className="w-8 h-8 text-brand-500 animate-spin" />
-                    <p className="text-xs text-gray-500">Calculating crypto exchange rate…</p>
                   </div>
                 )}
               </div>
-              <p className="text-center text-xs text-gray-500 mb-4">
-                Scan with a Stellar wallet app, then approve USDC before deposit
-              </p>
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs mb-4">
-                <p className="font-semibold text-blue-900 mb-1">Required customer flow</p>
-                <p className="text-blue-800">1) approve(escrow_contract, amount)</p>
-                <p className="text-blue-800">2) deposit()</p>
-                <p className="text-blue-700 mt-1">
-                  Your wallet signs both steps. No private keys are shared with DupDub.
-                </p>
-              </div>
-
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs mb-3">
-                <p className="text-xs text-gray-500 mb-1">Deposit address (exact)</p>
-                <div className="flex items-center gap-2">
-                  <code className="text-sm font-mono font-bold break-all flex-1 text-gray-900">{payment.stellarDepositAddress}</code>
-                  <button
-                    onClick={() => copy(payment.stellarDepositAddress ?? '', 'address')}
-                    aria-label="Copy deposit address"
-                    className="shrink-0"
-                  >
-                    {copied === 'address' ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4 text-gray-400" />}
-                  </button>
-                </div>
-              </div>
             </>
-          ) : (
-            <div className="text-center py-6">
-              {STATUS_ICONS[payment.status] ?? DEFAULT_STATUS_ICON}
-              <p className="mt-3 text-sm font-medium text-gray-700 capitalize">{payment.status}</p>
-              {pollWarning && <p className="mt-2 text-xs text-amber-600">{pollWarning}</p>}
-            </div>
-          )}
+          ) : null}
         </div>
       </div>
     </div>
