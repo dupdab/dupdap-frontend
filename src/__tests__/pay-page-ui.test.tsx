@@ -2,10 +2,11 @@
  * Tests for /pay/[paymentId] page UI states
  * Issue: loading spinner, "Payment not found", and success QR/status UI
  * Issue #310: countdown timer must not re-render the whole page every tick
+ * Issue #579: copy buttons for Stellar memo and deposit address
  */
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { render, screen, waitFor, act, fireEvent } from '@testing-library/react';
 import PayPage from '@/app/pay/[paymentId]/page';
 import { paymentsApi } from '@/lib/api';
 
@@ -39,6 +40,10 @@ const basePayment = {
 describe('PayPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
   });
 
   it('renders the payment amount', async () => {
@@ -109,5 +114,55 @@ describe('PayPage', () => {
     expect(screen.getByTestId('qr-code')).toBe(qrBefore);
 
     vi.useRealTimers();
+  });
+
+  it('copies the Stellar memo to the clipboard and shows a Copied! tooltip (#579)', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+
+    mockedGetByReference.mockResolvedValue({ data: basePayment } as never);
+    render(<PayPage params={{ paymentId: 'ref_1' }} />);
+
+    const memoCopy = await screen.findByRole('button', { name: /copy stellar memo/i });
+    fireEvent.click(memoCopy);
+
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('memo-123'));
+    expect(await screen.findByText('Copied!')).toBeInTheDocument();
+  });
+
+  it('copies the Stellar deposit address to the clipboard (#579)', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+
+    mockedGetByReference.mockResolvedValue({ data: basePayment } as never);
+    render(<PayPage params={{ paymentId: 'ref_1' }} />);
+
+    const addressCopy = await screen.findByRole('button', { name: /copy stellar deposit address/i });
+    fireEvent.click(addressCopy);
+
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('GDESTINATIONADDRESS123'));
+  });
+
+  it('hides the Copied! tooltip after 2 seconds (#579)', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+
+    mockedGetByReference.mockResolvedValue({ data: basePayment } as never);
+    render(<PayPage params={{ paymentId: 'ref_1' }} />);
+
+    const memoCopy = await screen.findByRole('button', { name: /copy stellar memo/i });
+
+    vi.useFakeTimers();
+    fireEvent.click(memoCopy);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(screen.getByText('Copied!')).toBeInTheDocument();
+
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+    expect(screen.queryByText('Copied!')).not.toBeInTheDocument();
   });
 });

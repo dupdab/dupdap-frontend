@@ -38,6 +38,35 @@ function formatRemaining(ms: number): string {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
+async function writeToClipboard(text: string): Promise<boolean> {
+  try {
+    if (navigator.clipboard && window.isSecureContext) {
+      await navigator.clipboard.writeText(text);
+      return true;
+    }
+  } catch {
+    /* fall through to legacy fallback */
+  }
+  // Fallback for older/mobile browsers without the async clipboard API.
+  try {
+    const textarea = document.createElement('textarea');
+    textarea.value = text;
+    textarea.setAttribute('readonly', '');
+    textarea.style.position = 'fixed';
+    textarea.style.top = '0';
+    textarea.style.left = '0';
+    textarea.style.opacity = '0';
+    document.body.appendChild(textarea);
+    textarea.select();
+    textarea.setSelectionRange(0, text.length);
+    const ok = document.execCommand('copy');
+    document.body.removeChild(textarea);
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
 export default function PayPage({ params }: { params: { paymentId: string } }) {
   const [payment, setPayment] = useState<Payment | null>(null);
   const [loading, setLoading] = useState(true);
@@ -134,13 +163,10 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
   }, []);
 
   const copy = async (text: string, key: string) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      setCopied(key);
-      setTimeout(() => setCopied((c) => (c === key ? null : c)), 2000);
-    } catch {
-      /* clipboard unavailable */
-    }
+    const ok = await writeToClipboard(text);
+    if (!ok) return;
+    setCopied(key);
+    setTimeout(() => setCopied((c) => (c === key ? null : c)), 2000);
   };
 
   if (loading) {
@@ -205,41 +231,63 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
                     className="bg-white p-6 rounded-xl border border-gray-200 flex flex-col items-center justify-center text-center space-y-2 w-44 h-44"
                   >
                     <Loader2 className="w-8 h-8 text-brand-500 animate-spin" />
-                    <p className="text-xs text-gray-500">Calculating crypto exchange rate…</p>
                   </div>
                 )}
               </div>
-              <p className="text-center text-xs text-gray-500 mb-4">
-                Scan with a Stellar wallet app, then approve USDC before deposit
-              </p>
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs mb-4">
-                <p className="font-semibold text-blue-900 mb-1">Required customer flow</p>
-                <p className="text-blue-800">1) approve(escrow_contract, amount)</p>
-                <p className="text-blue-800">2) deposit()</p>
-                <p className="text-blue-700 mt-1">
-                  Your wallet signs both steps. No private keys are shared with DupDub.
-                </p>
-              </div>
 
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs mb-3">
-                <p className="text-xs text-gray-500 mb-1">Deposit address (exact)</p>
-                <div className="flex items-center gap-2">
-                  <code className="text-sm font-mono font-bold break-all flex-1 text-gray-900">{payment.stellarDepositAddress}</code>
-                  <button
-                    onClick={() => copy(payment.stellarDepositAddress ?? '', 'address')}
-                    aria-label="Copy deposit address"
-                    className="shrink-0"
-                  >
-                    {copied === 'address' ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4 text-gray-400" />}
-                  </button>
+              {payment.stellarDepositAddress && (
+                <div className="mb-3">
+                  <p className="text-xs text-gray-500 mb-1">Stellar deposit address</p>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 min-w-0 text-xs bg-gray-100 rounded px-2 py-1.5 break-all">
+                      {payment.stellarDepositAddress}
+                    </code>
+                    <button
+                      type="button"
+                      onClick={() => copy(payment.stellarDepositAddress as string, 'address')}
+                      className="relative shrink-0 p-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 active:bg-gray-100"
+                      aria-label="Copy Stellar deposit address"
+                    >
+                      {copied === 'address' ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                      {copied === 'address' && (
+                        <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-900 px-2 py-1 text-xs text-white">
+                          Copied!
+                        </span>
+                      )}
+                    </button>
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {payment.stellarMemo && (
+                <div className="mb-3">
+                  <p className="text-xs text-gray-500 mb-1">Stellar memo</p>
+                  <div className="flex items-center gap-2">
+                    <code className="flex-1 min-w-0 text-xs bg-gray-100 rounded px-2 py-1.5 break-all">
+                      {payment.stellarMemo}
+                    </code>
+                    <button
+                      type="button"
+                      onClick={() => copy(payment.stellarMemo as string, 'memo')}
+                      className="relative shrink-0 p-2 rounded-lg border border-gray-200 text-gray-600 hover:bg-gray-50 active:bg-gray-100"
+                      aria-label="Copy Stellar memo"
+                    >
+                      {copied === 'memo' ? <Check className="w-4 h-4 text-green-600" /> : <Copy className="w-4 h-4" />}
+                      {copied === 'memo' && (
+                        <span className="absolute -top-8 left-1/2 -translate-x-1/2 whitespace-nowrap rounded bg-gray-900 px-2 py-1 text-xs text-white">
+                          Copied!
+                        </span>
+                      )}
+                    </button>
+                  </div>
+                </div>
+              )}
             </>
           ) : (
-            <div className="text-center py-6">
-              {STATUS_ICONS[payment.status] ?? DEFAULT_STATUS_ICON}
-              <p className="mt-3 text-sm font-medium text-gray-700 capitalize">{payment.status}</p>
-              {pollWarning && <p className="mt-2 text-xs text-amber-600">{pollWarning}</p>}
+            <div className="text-center space-y-3">
+              <div className="flex justify-center">{STATUS_ICONS[payment.status] ?? DEFAULT_STATUS_ICON}</div>
+              <p className="text-sm text-gray-600 capitalize">{payment.status}</p>
+              {pollWarning && <p className="text-xs text-amber-600">{pollWarning}</p>}
             </div>
           )}
         </div>
