@@ -1,31 +1,33 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { TrendingUp, CreditCard, Banknote, Clock } from 'lucide-react';
 import { paymentsApi } from '@/lib/api';
 import { formatUsd, formatDate, PAYMENT_STATUS_COLORS, STATUS_ICONS, DEFAULT_STATUS_COLOR } from '@/lib/utils';
 import { aggregatePaymentStats } from '@/lib/dashboard-stats';
 import { useAuthStore } from '@/lib/store';
 import { Skeleton, SkeletonList } from '@/components/Skeleton';
-import type { Payment, PaymentStats } from '@/lib/types';
 
 export default function DashboardPage() {
   const { merchant } = useAuthStore();
-  const [payments, setPayments] = useState<Payment[]>([]);
-  const [stats, setStats] = useState<PaymentStats[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
 
-  useEffect(() => {
-    Promise.all([paymentsApi.list(1, 5), paymentsApi.stats()])
-      .then(([p, s]) => {
-        setError('');
-        setPayments(p.data.payments);
-        setStats(s.data);
-      })
-      .catch(() => setError("Couldn't load your dashboard right now."))
-      .finally(() => setLoading(false));
-  }, []);
+  const paymentsQuery = useQuery({
+    queryKey: ['payments', 'recent', 1, 5],
+    queryFn: () => paymentsApi.list(1, 5).then((res) => res.data.payments),
+  });
+
+  const statsQuery = useQuery({
+    queryKey: ['payments', 'stats'],
+    queryFn: () => paymentsApi.stats().then((res) => res.data),
+  });
+
+  const payments = paymentsQuery.data ?? [];
+  const stats = statsQuery.data ?? [];
+  const loading = paymentsQuery.isLoading || statsQuery.isLoading;
+  const error = paymentsQuery.isError || statsQuery.isError
+    ? "Couldn't load your dashboard right now."
+    : '';
 
   const { totalVolume, settledCount, pendingCount, totalPayments } = aggregatePaymentStats(stats);
 

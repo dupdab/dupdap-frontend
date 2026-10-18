@@ -4,6 +4,7 @@ import { Toaster } from 'react-hot-toast';
 import { Analytics } from '@vercel/analytics/react';
 import { SpeedInsights } from '@vercel/speed-insights/next';
 import { AuthRedirectSetup } from '@/components/AuthRedirectSetup';
+import { Providers } from './providers';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -35,13 +36,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en">
       <body className={inter.className}>
-        <AuthRedirectSetup />
-        {children}
-        {/* Live-region semantics are set per-call by '@/lib/toast', because
-            react-hot-toast ignores per-type `ariaProps` in `toastOptions`. */}
-        <Toaster position="top-right" />
-        <Analytics />
-        <SpeedInsights />
+        <Providers>
+          <AuthRedirectSetup />
+          {children}
+          {/* Live-region semantics are set per-call by '@/lib/toast', because
+              react-hot-toast ignores per-type `ariaProps` in `toastOptions`. */}
+          <Toaster position="top-right" />
+          <Analytics />
+          <SpeedInsights />
+        </Providers>
       </body>
     </html>
   );
