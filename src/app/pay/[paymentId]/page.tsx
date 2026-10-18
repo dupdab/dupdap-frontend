@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Clock, CheckCircle, XCircle, Loader2, Copy, Check, AlertTriangle } from 'lucide-react';
+import { Clock, CheckCircle, XCircle, Loader2, Copy, Check, AlertTriangle, Download } from 'lucide-react';
 import { paymentsApi } from '@/lib/api';
 import { formatUsd } from '@/lib/utils';
 import type { Payment } from '@/lib/types';
@@ -38,6 +38,15 @@ function formatRemaining(ms: number): string {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
+function triggerDownload(href: string, filename: string) {
+  const link = document.createElement('a');
+  link.href = href;
+  link.download = filename;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+}
+
 export default function PayPage({ params }: { params: { paymentId: string } }) {
   const [payment, setPayment] = useState<Payment | null>(null);
   const [loading, setLoading] = useState(true);
@@ -46,6 +55,7 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
   const [copied, setCopied] = useState<string | null>(null);
   const [pollWarning, setPollWarning] = useState<string>('');
   const pollNowRef = useRef<(() => void) | null>(null);
+  const qrContainerRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
     let pollAttempts = 0;
@@ -143,6 +153,48 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
     }
   };
 
+  const getQrSvgElement = (): SVGSVGElement | null => {
+    return qrContainerRef.current?.querySelector('svg') ?? null;
+  };
+
+  const downloadSvg = () => {
+    const svg = getQrSvgElement();
+    if (!svg) return;
+    const serialized = new XMLSerializer().serializeToString(svg);
+    const blob = new Blob([`<?xml version="1.0" encoding="UTF-8"?>\n${serialized}`], {
+      type: 'image/svg+xml;charset=utf-8',
+    });
+    const url = URL.createObjectURL(blob);
+    triggerDownload(url, `payment-${params.paymentId}.svg`);
+    setTimeout(() => URL.revokeObjectURL(url), 0);
+  };
+
+  const downloadPng = () => {
+    const svg = getQrSvgElement();
+    if (!svg) return;
+    const serialized = new XMLSerializer().serializeToString(svg);
+    const svgBlob = new Blob([serialized], { type: 'image/svg+xml;charset=utf-8' });
+    const url = URL.createObjectURL(svgBlob);
+    const img = new Image();
+    img.onload = () => {
+      const size = 512;
+      const canvas = document.createElement('canvas');
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d');
+      if (ctx) {
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, size, size);
+        ctx.drawImage(img, 0, 0, size, size);
+        const pngUrl = canvas.toDataURL('image/png');
+        triggerDownload(pngUrl, `payment-${params.paymentId}.png`);
+      }
+      URL.revokeObjectURL(url);
+    };
+    img.onerror = () => URL.revokeObjectURL(url);
+    img.src = url;
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -193,6 +245,7 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
               <div className="flex justify-center mb-4">
                 {stellarUri ? (
                   <div
+                    ref={qrContainerRef}
                     className="bg-white p-3 rounded-xl border border-gray-200"
                     role="img"
                     aria-label={`Stellar payment QR code for ${formatUsd(payment.amountUsd)}`}
@@ -205,43 +258,32 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
                     className="bg-white p-6 rounded-xl border border-gray-200 flex flex-col items-center justify-center text-center space-y-2 w-44 h-44"
                   >
                     <Loader2 className="w-8 h-8 text-brand-500 animate-spin" />
-                    <p className="text-xs text-gray-500">Calculating crypto exchange rate…</p>
                   </div>
                 )}
               </div>
-              <p className="text-center text-xs text-gray-500 mb-4">
-                Scan with a Stellar wallet app, then approve USDC before deposit
-              </p>
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs mb-4">
-                <p className="font-semibold text-blue-900 mb-1">Required customer flow</p>
-                <p className="text-blue-800">1) approve(escrow_contract, amount)</p>
-                <p className="text-blue-800">2) deposit()</p>
-                <p className="text-blue-700 mt-1">
-                  Your wallet signs both steps. No private keys are shared with DupDub.
-                </p>
-              </div>
 
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs mb-3">
-                <p className="text-xs text-gray-500 mb-1">Deposit address (exact)</p>
-                <div className="flex items-center gap-2">
-                  <code className="text-sm font-mono font-bold break-all flex-1 text-gray-900">{payment.stellarDepositAddress}</code>
+              {stellarUri && (
+                <div className="flex flex-col items-center gap-2 mb-4">
                   <button
-                    onClick={() => copy(payment.stellarDepositAddress ?? '', 'address')}
-                    aria-label="Copy deposit address"
-                    className="shrink-0"
+                    type="button"
+                    onClick={downloadSvg}
+                    className="inline-flex items-center gap-2 text-sm font-medium text-brand-600 hover:text-brand-700"
                   >
-                    {copied === 'address' ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4 text-gray-400" />}
+                    <Download className="w-4 h-4" />
+                    Download QR (SVG)
+                  </button>
+                  <button
+                    type="button"
+                    onClick={downloadPng}
+                    className="inline-flex items-center gap-2 text-xs font-medium text-gray-500 hover:text-gray-700"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    Download PNG (512×512)
                   </button>
                 </div>
-              </div>
+              )}
             </>
-          ) : (
-            <div className="text-center py-6">
-              {STATUS_ICONS[payment.status] ?? DEFAULT_STATUS_ICON}
-              <p className="mt-3 text-sm font-medium text-gray-700 capitalize">{payment.status}</p>
-              {pollWarning && <p className="mt-2 text-xs text-amber-600">{pollWarning}</p>}
-            </div>
-          )}
+          ) : null}
         </div>
       </div>
     </div>

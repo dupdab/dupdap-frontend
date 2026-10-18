@@ -2,10 +2,11 @@
  * Tests for /pay/[paymentId] page UI states
  * Issue: loading spinner, "Payment not found", and success QR/status UI
  * Issue #310: countdown timer must not re-render the whole page every tick
+ * Issue #545: Download QR button (SVG + optional PNG 512x512)
  */
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor, act } from '@testing-library/react';
+import { render, screen, waitFor, act, fireEvent } from '@testing-library/react';
 import PayPage from '@/app/pay/[paymentId]/page';
 import { paymentsApi } from '@/lib/api';
 
@@ -39,6 +40,10 @@ const basePayment = {
 describe('PayPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it('renders the payment amount', async () => {
@@ -79,6 +84,36 @@ describe('PayPage', () => {
 
     await waitFor(() => expect(screen.getByText('$25.00')).toBeInTheDocument());
     expect(screen.queryByTestId('qr-code')).not.toBeInTheDocument();
+  });
+
+  it('renders a Download QR button below the QR code (#545)', async () => {
+    mockedGetByReference.mockResolvedValue({ data: basePayment } as never);
+    render(<PayPage params={{ paymentId: 'ref_1' }} />);
+
+    await screen.findByTestId('qr-code');
+    expect(screen.getByRole('button', { name: /download qr/i })).toBeInTheDocument();
+  });
+
+  it('downloads the QR code as payment-[reference].svg (#545)', async () => {
+    mockedGetByReference.mockResolvedValue({ data: basePayment } as never);
+
+    const createObjectURL = vi.fn(() => 'blob:mock');
+    const revokeObjectURL = vi.fn();
+    Object.defineProperty(URL, 'createObjectURL', { value: createObjectURL, configurable: true });
+    Object.defineProperty(URL, 'revokeObjectURL', { value: revokeObjectURL, configurable: true });
+
+    const clickSpy = vi
+      .spyOn(HTMLAnchorElement.prototype, 'click')
+      .mockImplementation(() => {});
+
+    render(<PayPage params={{ paymentId: 'ref_1' }} />);
+    await screen.findByTestId('qr-code');
+
+    fireEvent.click(screen.getByRole('button', { name: /download qr/i }));
+
+    expect(createObjectURL).toHaveBeenCalled();
+    expect(clickSpy).toHaveBeenCalled();
+    expect(revokeObjectURL).toHaveBeenCalledWith('blob:mock');
   });
 
   it('isolates the countdown tick so the QR subtree is not re-rendered every second (#310)', async () => {
