@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next';
 import { Inter } from 'next/font/google';
 import { Toaster } from 'react-hot-toast';
 import { AuthRedirectSetup } from '@/components/AuthRedirectSetup';
+import { PwaInstallPrompt } from '@/components/PwaInstallPrompt';
 import './globals.css';
 
 const inter = Inter({ subsets: ['latin'] });
@@ -9,6 +10,20 @@ const inter = Inter({ subsets: ['latin'] });
 export const metadata: Metadata = {
   title: 'DupDub — Crypto-to-Fiat Settlement',
   description: 'Accept crypto payments, receive fiat settlements instantly',
+  manifest: '/manifest.webmanifest',
+  applicationName: 'DupDub',
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: 'default',
+    title: 'DupDub',
+  },
+  icons: {
+    icon: [
+      { url: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' },
+      { url: '/icons/icon-512x512.png', sizes: '512x512', type: 'image/png' },
+    ],
+    apple: [{ url: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' }],
+  },
   openGraph: {
     title: 'DupDub — Crypto-to-Fiat Settlement',
     description: 'Accept crypto payments, receive fiat settlements instantly',
@@ -38,6 +53,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* Live-region semantics are set per-call by '@/lib/toast', because
             react-hot-toast ignores per-type `ariaProps` in `toastOptions`. */}
         <Toaster position="top-right" />
+        <PwaInstallPrompt />
       </body>
     </html>
   );
