@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
+import { track } from '@vercel/analytics';
 import { Clock, CheckCircle, XCircle, Loader2, Copy, Check, AlertTriangle } from 'lucide-react';
 import { paymentsApi } from '@/lib/api';
 import { formatUsd } from '@/lib/utils';
@@ -46,6 +47,7 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
   const [copied, setCopied] = useState<string | null>(null);
   const [pollWarning, setPollWarning] = useState<string>('');
   const pollNowRef = useRef<(() => void) | null>(null);
+  const qrViewedRef = useRef(false);
 
   useEffect(() => {
     let pollAttempts = 0;
@@ -133,6 +135,15 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
     return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
+  // Track when the payment QR code is actually shown to the payer.
+  useEffect(() => {
+    if (qrViewedRef.current) return;
+    if (!payment || payment.status !== 'pending') return;
+    if (payment.amountXlm == null || payment.amountXlm <= 0) return;
+    qrViewedRef.current = true;
+    track('payment_qr_viewed', { paymentId: params.paymentId });
+  }, [payment, params.paymentId]);
+
   const copy = async (text: string, key: string) => {
     try {
       await navigator.clipboard.writeText(text);
@@ -168,6 +179,13 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
   const stellarUri = hasCryptoAmount
     ? `web+stellar:pay?destination=${encodeURIComponent(payment.stellarDepositAddress ?? '')}&amount=${encodeURIComponent(String(payment.amountXlm))}&memo=${encodeURIComponent(payment.stellarMemo)}&memo_type=text`
     : null;
+
+  const handleFreighterPay = () => {
+    track('freighter_payment_initiated', { paymentId: params.paymentId });
+    if (stellarUri) {
+      window.location.href = stellarUri;
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
@@ -205,42 +223,29 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
                     className="bg-white p-6 rounded-xl border border-gray-200 flex flex-col items-center justify-center text-center space-y-2 w-44 h-44"
                   >
                     <Loader2 className="w-8 h-8 text-brand-500 animate-spin" />
-                    <p className="text-xs text-gray-500">Calculating crypto exchange rate…</p>
                   </div>
                 )}
               </div>
-              <p className="text-center text-xs text-gray-500 mb-4">
-                Scan with a Stellar wallet app, then approve USDC before deposit
-              </p>
-              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs mb-4">
-                <p className="font-semibold text-blue-900 mb-1">Required customer flow</p>
-                <p className="text-blue-800">1) approve(escrow_contract, amount)</p>
-                <p className="text-blue-800">2) deposit()</p>
-                <p className="text-blue-700 mt-1">
-                  Your wallet signs both steps. No private keys are shared with DupDub.
-                </p>
-              </div>
 
-              <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs mb-3">
-                <p className="text-xs text-gray-500 mb-1">Deposit address (exact)</p>
-                <div className="flex items-center gap-2">
-                  <code className="text-sm font-mono font-bold break-all flex-1 text-gray-900">{payment.stellarDepositAddress}</code>
-                  <button
-                    onClick={() => copy(payment.stellarDepositAddress ?? '', 'address')}
-                    aria-label="Copy deposit address"
-                    className="shrink-0"
-                  >
-                    {copied === 'address' ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4 text-gray-400" />}
-                  </button>
-                </div>
-              </div>
+              {stellarUri && (
+                <button
+                  type="button"
+                  onClick={handleFreighterPay}
+                  className="btn-primary w-full mb-3"
+                >
+                  Pay with Freighter
+                </button>
+              )}
             </>
           ) : (
-            <div className="text-center py-6">
+            <div className="text-center space-y-3">
               {STATUS_ICONS[payment.status] ?? DEFAULT_STATUS_ICON}
-              <p className="mt-3 text-sm font-medium text-gray-700 capitalize">{payment.status}</p>
-              {pollWarning && <p className="mt-2 text-xs text-amber-600">{pollWarning}</p>}
+              <p className="text-sm text-gray-600 capitalize">{payment.status}</p>
             </div>
+          )}
+
+          {pollWarning && (
+            <p className="text-xs text-amber-600 text-center mt-3">{pollWarning}</p>
           )}
         </div>
       </div>
