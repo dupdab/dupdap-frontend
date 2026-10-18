@@ -1,8 +1,15 @@
 import type { Metadata } from 'next';
 import { headers } from 'next/headers';
 import Link from 'next/link';
+import dynamic from 'next/dynamic';
 import { ArrowRight, Zap, Shield, Globe, QrCode } from 'lucide-react';
 import { LandingNav } from '@/components/LandingNav';
+
+// Lazy-load the hero illustration so it never contributes to LCP (#573).
+const PaymentFlowIllustration = dynamic(
+  () => import('@/components/PaymentFlowIllustration'),
+  { ssr: false, loading: () => <div className="max-w-3xl mx-auto mt-16 h-[200px]" aria-hidden="true" /> },
+);
 
 export const metadata: Metadata = {
   title: 'DupDub — Accept Crypto, Receive Fiat Instantly',
@@ -60,6 +67,7 @@ export default function LandingPage() {
             Join waitlist
           </Link>
         </div>
+        <PaymentFlowIllustration />
       </section>
 
       {/* Features */}

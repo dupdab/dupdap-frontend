@@ -9,9 +9,10 @@
  *  - Renders feature cards (Why DupDub?)
  *  - Renders step-by-step onboarding guide (How it works)
  *  - Renders footer with copyright text
+ *  - Renders the animated payment flow illustration (Issue #573)
  */
 
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import LandingPage from './page';
 
@@ -37,8 +38,34 @@ vi.mock('next/headers', () => ({
   headers: () => new Headers({ 'x-nonce': 'test-nonce' }),
 }));
 
+// The hero illustration is lazy-loaded via next/dynamic with ssr:false so it
+// does not contribute to LCP (#573). In tests we render it eagerly so its
+// accessible content is queryable.
+vi.mock('next/dynamic', () => ({
+  default: () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const mod = require('@/components/PaymentFlowIllustration');
+    return mod.PaymentFlowIllustration;
+  },
+}));
+
+beforeEach(() => {
+  // jsdom does not implement IntersectionObserver; provide a no-op stub so the
+  // illustration can mount without throwing (#573).
+  class MockIntersectionObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+    takeRecords() {
+      return [];
+    }
+  }
+  vi.stubGlobal('IntersectionObserver', MockIntersectionObserver);
+});
+
 afterEach(() => {
   cleanup();
+  vi.unstubAllGlobals();
 });
 
 describe('LandingPage — smoke test & rendering', () => {
@@ -84,6 +111,14 @@ describe('LandingPage — smoke test & rendering', () => {
     const waitlistLink = screen.getByRole('link', { name: /join waitlist/i });
     expect(waitlistLink).toBeInTheDocument();
     expect(waitlistLink).toHaveAttribute('href', '/waitlist');
+  });
+
+  it('renders the animated payment flow illustration with an accessible label', () => {
+    render(<LandingPage />);
+    const illustration = screen.getByRole('img', {
+      name: /payment flow: merchant qr code to customer wallet to bank account/i,
+    });
+    expect(illustration).toBeInTheDocument();
   });
 
   it('renders the "Why DupDub?" features section with 4 feature items', () => {
