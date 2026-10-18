@@ -211,6 +211,8 @@ export default function WebhooksPage() {
     )));
   }, []);
 
+  const pendingWebhook = webhooks.find((w) => w.id === deletingId) ?? null;
+
   return (
     <div className="p-8">
       <div className="flex items-center justify-between mb-6">
@@ -223,6 +225,23 @@ export default function WebhooksPage() {
         </button>
       </div>
 
+      <ConfirmDialog
+        open={deletingId !== null}
+        title="Delete webhook"
+        message={
+          pendingWebhook
+            ? `This will permanently delete the webhook for ${pendingWebhook.url}. This action cannot be undone.`
+            : 'This will permanently delete this webhook. This action cannot be undone.'
+        }
+        confirmLabel="Delete webhook"
+        confirmationText="delete"
+        destructive
+        loading={deleting}
+        onConfirm={() => deletingId && remove(deletingId)}
+        onCancel={() => { if (!deleting) setDeletingId(null); }}
+        testId="delete-webhook-dialog"
+      />
+
       <Modal
         open={showCreate}
         onClose={closeCreateModal}
@@ -230,124 +249,6 @@ export default function WebhooksPage() {
         testId="create-webhook-modal"
       >
         <form onSubmit={create} className="space-y-4" aria-busy={creating}>
-          {/* Visually-hidden live region announces submit outcomes to screen readers (#158) */}
-          <p className="sr-only" aria-live="polite" aria-atomic="true">
-            {creating ? 'Creating webhook, please wait…' : ''}
-          </p>
-          <fieldset disabled={creating} className="space-y-4">
-            <div>
-              <label htmlFor="webhook-url" className="label">
-                Endpoint URL
-              </label>
-              <input
-                id="webhook-url"
-                data-testid="webhook-url-input"
-                type="url"
-                required
-                value={form.url}
-                onChange={(e) => setForm({ ...form, url: e.target.value })}
-                placeholder="https://example.com/webhooks"
-                className="input"
-              />
-            </div>
+          {/* Visuall
 
-            <div>
-              <label htmlFor="webhook-secret" className="label">
-                Signing secret <span className="text-gray-400 font-normal">(optional)</span>
-              </label>
-              <div className="flex items-center gap-2">
-                <input
-                  id="webhook-secret"
-                  data-testid="webhook-secret-input"
-                  /* Masked by default so the HMAC secret is never shown in
-                     cleartext while it is typed; revealed on explicit request. */
-                  type={secretRevealed ? 'text' : 'password'}
-                  value={form.secret}
-                  onChange={(e) => setForm({ ...form, secret: e.target.value })}
-                  placeholder="whsec_…"
-                  className="input font-mono"
-                />
-                <button
-                  type="button"
-                  data-testid="toggle-webhook-secret"
-                  onClick={() => setSecretRevealed((value) => !value)}
-                  aria-pressed={secretRevealed}
-                  aria-label={secretRevealed ? 'Hide signing secret' : 'Show signing secret'}
-                  className="text-gray-400 hover:text-gray-600 shrink-0"
-                >
-                  {secretRevealed ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                </button>
-              </div>
-            </div>
-            {/* Nested fieldset/legend gives screen readers a programmatic group
-                name for the event checkboxes (#347). */}
-            <fieldset data-testid="webhook-events-fieldset">
-              <legend className="label">Events</legend>
-              <div className="space-y-2 mt-1">
-                {WEBHOOK_EVENTS.map((event) => (
-                  <label key={event} className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      data-testid={`event-checkbox-${event}`}
-                      checked={form.events.includes(event)}
-                      onChange={() => toggleEvent(event)}
-                      className="rounded border-gray-300"
-                    />
-                    {event}
-                  </label>
-                ))}
-              </div>
-            </fieldset>
-            {formError && (
-              <p
-                data-testid="webhook-events-error"
-                role="alert"
-                className="text-xs text-red-500"
-              >
-                {formError}
-              </p>
-            )}
-            <button data-testid="webhook-submit-button" type="submit" disabled={creating} className="btn-primary w-full">
-              {creating ? 'Creating...' : 'Create Webhook'}
-            </button>
-          </fieldset>
-
-          <div className="flex justify-end gap-3 pt-2">
-            <button type="button" onClick={closeCreateModal} className="btn-secondary">
-              Cancel
-            </button>
-            <button type="submit" data-testid="create-webhook-submit" disabled={creating} className="btn-primary">
-              {creating ? 'Creating…' : 'Create Webhook'}
-            </button>
-          </div>
-        </form>
-      </Modal>
-
-      <div className="space-y-3">
-        {webhooks.map((w) => (
-          <WebhookRow
-            key={w.id}
-            webhook={w}
-            onDelete={setDeletingId}
-            onSecretRotated={updateWebhookSecret}
-          />
-        ))}
-        {webhooks.length === 0 && (
-          <div className="card p-12 text-center text-gray-400">
-            <p>No webhooks configured. Add one to start receiving events.</p>
-          </div>
-        )}
-      </div>
-
-      <ConfirmDialog
-        open={deletingId !== null}
-        onCancel={() => setDeletingId(null)}
-        onConfirm={() => deletingId && remove(deletingId)}
-        title="Delete webhook?"
-        message="This webhook will stop receiving events. This action cannot be undone."
-        confirmLabel="Delete"
-        loading={deleting}
-      />
-    </div>
-  );
-}
+/* … truncated 4827 chars — edit only what you need near the top … */
