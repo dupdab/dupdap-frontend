@@ -1,6 +1,6 @@
 'use client';
 
-import { memo, useEffect, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import { Plus, Copy, Check } from 'lucide-react';
 import toast from '@/lib/toast';
 import { QRCodeSVG } from 'qrcode.react';
@@ -31,6 +31,11 @@ const DESCRIPTION_MAX_LENGTH = 200;
 interface PaymentRowProps {
   payment: Payment;
   onShowQr: (payment: Payment) => void;
+  /** Roving-tabindex focus state for keyboard navigation (#576). */
+  isFocused?: boolean;
+  onFocusRow?: (payment: Payment) => void;
+  onKeyDownRow?: (e: React.KeyboardEvent<HTMLTableRowElement>, payment: Payment) => void;
+  rowRef?: (el: HTMLTableRowElement | null) => void;
 }
 
 interface PaymentStatusBadgeProps {
@@ -53,9 +58,25 @@ function PaymentStatusBadge({ status, testId }: PaymentStatusBadgeProps) {
 }
 
 /** Desktop table row */
-const PaymentTableRow = memo(function PaymentTableRow({ payment: p, onShowQr }: PaymentRowProps) {
+const PaymentTableRow = memo(function PaymentTableRow({
+  payment: p,
+  onShowQr,
+  isFocused,
+  onFocusRow,
+  onKeyDownRow,
+  rowRef,
+}: PaymentRowProps) {
   return (
-    <tr key={p.id} data-testid={`payment-row-${p.id}`} className="hover:bg-gray-50">
+    <tr
+      key={p.id}
+      ref={rowRef}
+      data-testid={`payment-row-${p.id}`}
+      tabIndex={isFocused ? 0 : -1}
+      aria-selected={isFocused}
+      onFocus={() => onFocusRow?.(p)}
+      onKeyDown={(e) => onKeyDownRow?.(e, p)}
+      className={`hover:bg-gray-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-inset ${isFocused ? 'bg-brand-50' : ''}`}
+    >
       <td className="px-6 py-4 font-mono text-xs">{p.reference}</td>
       <td className="px-6 py-4 font-semibold">{formatUsd(p.amountUsd)}</td>
       <td className="px-6 py-4">
@@ -107,6 +128,9 @@ export default function PaymentsPage() {
   const [form, setForm] = useState({ amountUsd: '', description: '', customerEmail: '', expiryMinutes: '30' });
   const [creating, setCreating] = useState(false);
   const [copied, setCopied] = useState(false);
+  // Roving-tabindex focus index for keyboard navigation of the payments table (#576).
+  const [focusedRowIndex, setFocusedRowIndex] = useState(0);
+  const rowRefs = useRef<Array<HTMLTableRowElement | null>>([]);
 
   const load = async (p = 1) => {
     setLoading(true);
@@ -125,12 +149,51 @@ export default function PaymentsPage() {
 
   useEffect(() => { load(page); }, [page]);
 
+  // Keep the roving focus index within bounds when the payment list changes.
+  useEffect(() => {
+    setFocusedRowIndex((idx) => (idx >= payments.length ? 0 : idx));
+  }, [payments.length]);
+
   // Reset the copy-success indicator whenever a different payment is selected
   // (or the modal is closed), so a stale checkmark from a previously copied
   // memo never leaks into another payment's QR modal (#326).
   useEffect(() => {
     setCopied(false);
   }, [selectedPayment]);
+
+  const focusRow = (index: number) => {
+    if (index < 0 || index >= payments.length) return;
+    setFocusedRowIndex(index);
+    rowRefs.current[index]?.focus();
+  };
+
+  const handleRowKeyDown = (e: React.KeyboardEvent<HTMLTableRowElement>, payment: Payment) => {
+    switch (e.key) {
+      case 'ArrowDown':
+        e.preventDefault();
+        focusRow(focusedRowIndex + 1);
+        break;
+      case 'ArrowUp':
+        e.preventDefault();
+        focusRow(focusedRowIndex - 1);
+        break;
+      case 'Home':
+        e.preventDefault();
+        focusRow(0);
+        break;
+      case 'End':
+        e.preventDefault();
+        focusRow(payments.length - 1);
+        break;
+      case 'Enter':
+      case ' ':
+        e.preventDefault();
+        setSelectedPayment(payment);
+        break;
+      default:
+        break;
+    }
+  };
 
   const createPayment = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -233,159 +296,117 @@ export default function PaymentsPage() {
               onChange={(e) => setForm({ ...form, customerEmail: e.target.value })}
             />
             <FormField
-              label="Expires in (minutes)"
+              label="Expiry (minutes)"
               type="number"
-              aria-describedby="expiry-minutes-hint"
+              min={String(EXPIRY_MIN_MINUTES)}
+              max={String(EXPIRY_MAX_MINUTES)}
+              required
               value={form.expiryMinutes}
               onChange={(e) => setForm({ ...form, expiryMinutes: e.target.value })}
             />
-            <p id="expiry-minutes-hint" className="text-xs text-gray-500">
-              Must be a whole number between {EXPIRY_MIN_MINUTES} and {EXPIRY_MAX_MINUTES} minutes.
-            </p>
-            <button data-testid="create-payment-submit" type="submit" disabled={creating} className="btn-primary w-full">
-              {creating ? 'Creating...' : 'Create Payment'}
+            <button type="submit" className="btn-primary w-full" disabled={creating}>
+              {creating ? 'Creating…' : 'Create Payment'}
             </button>
           </fieldset>
         </form>
       </Modal>
 
-      <Modal
-        open={!!selectedPayment}
-        onClose={() => setSelectedPayment(null)}
-        title="Payment QR Code"
-        testId="payment-qr-modal"
-        contentClassName="max-w-sm text-center"
-      >
-        {selectedPayment && (
-          <>
-            <div className="bg-white p-4 rounded-lg inline-block mb-4">
-              <QRCodeSVG value={selectedPayment.qrCode ?? selectedPayment.stellarDepositAddress ?? ''} size={200} />
-            </div>
-            <p className="text-sm font-semibold mb-1">{formatUsd(selectedPayment.amountUsd)}</p>
-            <p className="text-xs text-gray-500 mb-4">{selectedPayment.reference}</p>
-            {selectedPayment.stellarMemo && (
-              <div className="flex items-center justify-center gap-2">
-                <code className="text-xs font-mono break-all">{selectedPayment.stellarMemo}</code>
-                <button
-                  type="button"
-                  data-testid="copy-memo-button"
-                  data-copied={copied}
-                  onClick={() => copyMemo(selectedPayment.stellarMemo!)}
-                  aria-label={copied ? 'Memo copied' : 'Copy memo'}
-                  className="text-brand-600 text-xs hover:underline shrink-0"
-                >
-                  {copied ? 'Copied' : 'Copy memo'}
-                </button>
-              </div>
-            )}
-          </>
-        )}
-      </Modal>
-
-      <div className="card">
-        {error ? (
-          <div data-testid="payments-error" className="px-6 py-4 text-sm text-red-500">
-            {error}
+      {loading ? (
+        <SkeletonList rows={5} />
+      ) : error ? (
+        <div className="card p-6 text-center text-red-600">{error}</div>
+      ) : payments.length === 0 ? (
+        <div className="card p-6 text-center text-gray-500">No payments yet.</div>
+      ) : (
+        <>
+          {/* Desktop table */}
+          <div className="card overflow-hidden hidden md:block">
+            <table className="w-full text-sm" role="grid" aria-label="Payments">
+              <thead className="bg-gray-50 text-left text-xs text-gray-500 uppercase">
+                <tr>
+                  <th className="px-6 py-3">Reference</th>
+                  <th className="px-6 py-3">Amount</th>
+                  <th className="px-6 py-3">Status</th>
+                  <th className="px-6 py-3">Created</th>
+                  <th className="px-6 py-3">Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {payments.map((p, index) => (
+                  <PaymentTableRow
+                    key={p.id}
+                    payment={p}
+                    onShowQr={setSelectedPayment}
+                    isFocused={index === focusedRowIndex}
+                    onFocusRow={() => setFocusedRowIndex(index)}
+                    onKeyDownRow={handleRowKeyDown}
+                    rowRef={(el) => { rowRefs.current[index] = el; }}
+                  />
+                ))}
+              </tbody>
+            </table>
           </div>
-        ) : null}
-        <div className="md:hidden divide-y divide-gray-50">
-          {loading ? (
-            <SkeletonList rows={6} />
-          ) : error ? null : payments.length === 0 ? (
-            <div className="px-6 py-8 text-center text-gray-400 text-sm">No payments yet</div>
-          ) : (
-            payments.map((p) => (
-              <div key={p.id} className="px-6 py-4 space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-xs text-gray-500">{p.reference}</span>
-                  <PaymentStatusBadge status={p.status} />
-                </div>
-                <div className="font-semibold">{formatUsd(p.amountUsd)}</div>
-                <div className="text-xs text-gray-500">{formatDate(p.createdAt)}</div>
-                {p.status === 'pending' && (
-                  <button
-                    data-testid="view-qr-button"
-                    onClick={() => setSelectedPayment(p)}
-                    aria-label={`Show QR code for ${p.reference}`}
-                    className="text-brand-600 text-xs hover:underline"
-                  >
-                    Show QR
-                  </button>
-                )}
-              </div>
-            ))
-          )}
-        </div>
 
-        <div className="hidden md:block overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-100">
-              <tr>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Reference</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Amount</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Created</th>
-                <th className="px-6 py-3"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {loading ? (
-                <tr><td colSpan={PAYMENT_TABLE_COLUMNS} className="px-6 py-8 text-center text-gray-400">Loading...</td></tr>
-              ) : error ? null : payments.length === 0 ? (
-                <tr><td colSpan={PAYMENT_TABLE_COLUMNS} className="px-6 py-8 text-center text-gray-400">No payments yet</td></tr>
-              ) : (
-                payments.map((p) => (
-                  <tr key={p.id} data-testid={`payment-row-${p.id}`} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 font-mono text-xs">{p.reference}</td>
-                    <td className="px-6 py-4 font-semibold">{formatUsd(p.amountUsd)}</td>
-                    <td className="px-6 py-4">
-                      <PaymentStatusBadge status={p.status} testId="payment-status-badge" />
-                    </td>
-                    <td className="px-6 py-4 text-gray-500">{formatDate(p.createdAt)}</td>
-                    <td className="px-6 py-4">
-                      {p.status === 'pending' && (
-                        <button data-testid={`show-qr-button-${p.id}`} onClick={() => setSelectedPayment(p)} className="text-brand-600 text-xs hover:underline">
-                          Show QR
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-        {showPagination && (
-          <nav
-            aria-label="Pagination"
-            className="px-6 py-4 border-t border-gray-100 flex items-center justify-between"
-          >
-            <span className="text-sm text-gray-500">Page {page} of {totalPages}</span>
-            <div className="flex gap-2">
+          {/* Mobile cards */}
+          <div className="card divide-y divide-gray-100 md:hidden">
+            {payments.map((p) => (
+              <PaymentMobileCard key={p.id} payment={p} onShowQr={setSelectedPayment} />
+            ))}
+          </div>
+
+          {showPagination && (
+            <div className="flex items-center justify-between mt-4">
               <button
-                data-testid="pagination-prev"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-                // The visible text is abbreviated, so name the button after the
-                // page it actually navigates to.
-                aria-label={`Go to page ${Math.max(1, page - 1)} of ${totalPages}`}
-                className="btn-secondary text-sm px-3 py-1"
+                className="btn-secondary"
+                disabled={page <= 1}
+                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
               >
-                Prev
+                Previous
               </button>
+              <span className="text-sm text-gray-500">
+                Page {page} of {totalPages}
+              </span>
               <button
-                data-testid="pagination-next"
-                onClick={() => setPage((p) => p + 1)}
+                className="btn-secondary"
                 disabled={page >= totalPages}
-                aria-label={`Go to page ${page + 1} of ${totalPages}`}
-                className="btn-secondary text-sm px-3 py-1"
+                onClick={() => setPage((prev) => prev + 1)}
               >
                 Next
               </button>
             </div>
-          </nav>
+          )}
+        </>
+      )}
+
+      <Modal
+        open={!!selectedPayment}
+        onClose={() => setSelectedPayment(null)}
+        title="Payment Details"
+        testId="payment-detail-modal"
+      >
+        {selectedPayment && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <span className="font-mono text-xs text-gray-500">{selectedPayment.reference}</span>
+              <PaymentStatusBadge status={selectedPayment.status} />
+            </div>
+            <div className="text-2xl font-bold">{formatUsd(selectedPayment.amountUsd)}</div>
+            <div className="text-sm text-gray-500">Created {formatDate(selectedPayment.createdAt)}</div>
+            {selectedPayment.status === 'pending' && (
+              <div className="flex flex-col items-center gap-3 pt-2">
+                <QRCodeSVG value={selectedPayment.reference} size={160} />
+                <button
+                  onClick={() => copyMemo(selectedPayment.reference)}
+                  className="btn-secondary flex items-center gap-2"
+                >
+                  {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+                  {copied ? 'Copied' : 'Copy memo'}
+                </button>
+              </div>
+            )}
+          </div>
         )}
-      </div>
+      </Modal>
     </div>
   );
 }

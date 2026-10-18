@@ -121,3 +121,91 @@ describe('PaymentsPage — Description character limit and counter (#396)', () =
     expect(counter).toHaveTextContent('30/255');
   });
 });
+
+describe('PaymentsPage — Keyboard navigation for payment list table (#576)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(paymentsApi.list).mockResolvedValue({
+      data: {
+        payments: [
+          {
+            id: 'pay_1',
+            reference: 'PAY-001',
+            amountUsd: 50,
+            status: 'completed',
+            createdAt: '2026-09-25T10:00:00Z',
+          },
+          {
+            id: 'pay_2',
+            reference: 'PAY-002',
+            amountUsd: 75,
+            status: 'pending',
+            createdAt: '2026-09-26T10:00:00Z',
+          },
+        ],
+        total: 2,
+      },
+    } as any);
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  it('exposes rows as focusable with roving tabindex and visible focus style', async () => {
+    render(<PaymentsPage />);
+
+    const rows = await screen.findAllByRole('row', { name: /PAY-00/ });
+    expect(rows.length).toBeGreaterThanOrEqual(2);
+
+    // First row is the tab stop; others are not in the tab order.
+    expect(rows[0]).toHaveAttribute('tabindex', '0');
+    expect(rows[1]).toHaveAttribute('tabindex', '-1');
+
+    // Focus style is applied via a focus-visible class.
+    expect(rows[0].className).toMatch(/focus-visible/);
+  });
+
+  it('navigates rows with ArrowDown and ArrowUp', async () => {
+    render(<PaymentsPage />);
+
+    const rows = await screen.findAllByRole('row', { name: /PAY-00/ });
+    rows[0].focus();
+    expect(rows[0]).toHaveFocus();
+
+    fireEvent.keyDown(rows[0], { key: 'ArrowDown' });
+    expect(rows[1]).toHaveFocus();
+    expect(rows[1]).toHaveAttribute('tabindex', '0');
+    expect(rows[0]).toHaveAttribute('tabindex', '-1');
+
+    fireEvent.keyDown(rows[1], { key: 'ArrowUp' });
+    expect(rows[0]).toHaveFocus();
+  });
+
+  it('opens payment detail on Enter', async () => {
+    render(<PaymentsPage />);
+
+    const rows = await screen.findAllByRole('row', { name: /PAY-00/ });
+    rows[0].focus();
+
+    fireEvent.keyDown(rows[0], { key: 'Enter' });
+
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+    expect(screen.getByRole('dialog')).toHaveTextContent('PAY-001');
+  });
+
+  it('moves focus to action buttons within the focused row on Tab', async () => {
+    render(<PaymentsPage />);
+
+    const rows = await screen.findAllByRole('row', { name: /PAY-00/ });
+    rows[0].focus();
+
+    fireEvent.keyDown(rows[0], { key: 'Tab' });
+
+    const actionButton = rows[0].querySelector('button');
+    expect(actionButton).not.toBeNull();
+    expect(actionButton).toHaveFocus();
+  });
+});
