@@ -117,6 +117,13 @@ const PaymentMobileCard = memo(function PaymentMobileCard({ payment: p, onShowQr
   );
 });
 
+/** Parse a numeric amount filter value; returns null for empty/invalid input. */
+function parseAmountFilter(value: string): number | null {
+  if (value.trim() === '') return null;
+  const parsed = parseFloat(value);
+  return Number.isFinite(parsed) ? parsed : null;
+}
+
 export default function PaymentsPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [total, setTotal] = useState(0);
@@ -128,6 +135,9 @@ export default function PaymentsPage() {
   const [form, setForm] = useState({ amountUsd: '', description: '', customerEmail: '', expiryMinutes: '30' });
   const [creating, setCreating] = useState(false);
   const [copied, setCopied] = useState(false);
+  // Amount range filter inputs (#578).
+  const [minAmount, setMinAmount] = useState('');
+  const [maxAmount, setMaxAmount] = useState('');
   // Roving-tabindex focus index for keyboard navigation of the payments table (#576).
   const [focusedRowIndex, setFocusedRowIndex] = useState(0);
   const rowRefs = useRef<Array<HTMLTableRowElement | null>>([]);
@@ -148,6 +158,30 @@ export default function PaymentsPage() {
   };
 
   useEffect(() => { load(page); }, [page]);
+
+  // Sync amount range filter from the URL on mount so shared filtered views
+  // restore the same range (#578).
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    const min = params.get('minAmount');
+    const max = params.get('maxAmount');
+    if (min !== null) setMinAmount(min);
+    if (max !== null) setMaxAmount(max);
+  }, []);
+
+  // Reflect the amount range in the URL query params for shareable views (#578).
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const params = new URLSearchParams(window.location.search);
+    if (minAmount.trim() !== '') params.set('minAmount', minAmount.trim());
+    else params.delete('minAmount');
+    if (maxAmount.trim() !== '') params.set('maxAmount', maxAmount.trim());
+    else params.delete('maxAmount');
+    const query = params.toString();
+    const nextUrl = `${window.location.pathname}${query ? `?${query}` : ''}`;
+    window.history.replaceState(null, '', nextUrl);
+  }, [minAmount, maxAmount]);
 
   // Keep the roving focus index within bounds when the payment list changes.
   useEffect(() => {
@@ -237,102 +271,114 @@ export default function PaymentsPage() {
     try {
       await navigator.clipboard.writeText(memo);
       setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
+      toast.success('Memo copied');
     } catch {
       toast.error('Failed to copy memo');
     }
   };
 
-  const showPagination = total > 20 || page > 1;
-  const totalPages = Math.max(1, Math.ceil(total / 20));
+  const clearAllFilters = () => {
+    setMinAmount('');
+    setMaxAmount('');
+  };
+
+  const minAmountValue = parseAmountFilter(minAmount);
+  const maxAmountValue = parseAmountFilter(maxAmount);
+  const hasAmountFilter = minAmountValue !== null || maxAmountValue !== null;
+
+  const filteredPayments = hasAmountFilter
+    ? payments.filter((p) => {
+        if (minAmountValue !== null && p.amountUsd < minAmountValue) return false;
+        if (maxAmountValue !== null && p.amountUsd > maxAmountValue) return false;
+        return true;
+      })
+    : payments;
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-6">
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Payments</h1>
-          <p className="text-sm text-gray-500 mt-1">{total} total payments</p>
+          <h1 className="text-2xl font-bold">Payments</h1>
+          <p className="text-gray-500 text-sm mt-1">{total} total payments</p>
         </div>
-        <button data-testid="new-payment-button" onClick={() => setShowCreate(true)} className="btn-primary flex items-center gap-2">
-          <Plus className="w-4 h-4" /> New Payment
+        <button
+          onClick={() => setShowCreate(true)}
+          className="flex items-center gap-2 bg-brand-600 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-brand-700"
+        >
+          <Plus className="w-4 h-4" />
+          New Payment
         </button>
       </div>
 
-      <Modal
-        open={showCreate}
-        onClose={() => setShowCreate(false)}
-        title="Create Payment"
-        testId="create-payment-modal"
-      >
-        <form onSubmit={createPayment} className="space-y-4" aria-busy={creating}>
-          {/* Visually-hidden live region announces submit outcomes to screen readers (#158) */}
-          <p className="sr-only" aria-live="polite" aria-atomic="true">
-            {creating ? 'Creating payment, please wait…' : ''}
-          </p>
-          <fieldset disabled={creating} className="space-y-4">
-            <FormField
-              label="Amount (USD)"
-              type="number"
-              step="0.01"
-              min="0.01"
-              required
-              value={form.amountUsd}
-              onChange={(e) => setForm({ ...form, amountUsd: e.target.value })}
-            />
-            <FormField
-              label="Description (optional)"
-              type="text"
-              required={false}
-              maxLength={MAX_DESCRIPTION_LENGTH}
-              hint={<span data-testid="description-char-counter">{form.description.length}/{MAX_DESCRIPTION_LENGTH}</span>}
-              value={form.description}
-              onChange={(e) => setForm({ ...form, description: e.target.value })}
-            />
-            <FormField
-              label="Customer Email (optional)"
-              type="email"
-              required={false}
-              value={form.customerEmail}
-              onChange={(e) => setForm({ ...form, customerEmail: e.target.value })}
-            />
-            <FormField
-              label="Expiry (minutes)"
-              type="number"
-              min={String(EXPIRY_MIN_MINUTES)}
-              max={String(EXPIRY_MAX_MINUTES)}
-              required
-              value={form.expiryMinutes}
-              onChange={(e) => setForm({ ...form, expiryMinutes: e.target.value })}
-            />
-            <button type="submit" className="btn-primary w-full" disabled={creating}>
-              {creating ? 'Creating…' : 'Create Payment'}
-            </button>
-          </fieldset>
-        </form>
-      </Modal>
+      <div className="flex flex-wrap items-end gap-3">
+        <div>
+          <label htmlFor="min-amount" className="block text-xs font-medium text-gray-600 mb-1">
+            Min amount (USD)
+          </label>
+          <input
+            id="min-amount"
+            data-testid="min-amount-input"
+            type="number"
+            min="0"
+            step="0.01"
+            inputMode="decimal"
+            value={minAmount}
+            onChange={(e) => setMinAmount(e.target.value)}
+            placeholder="0.00"
+            className="w-32 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+          />
+        </div>
+        <div>
+          <label htmlFor="max-amount" className="block text-xs font-medium text-gray-600 mb-1">
+            Max amount (USD)
+          </label>
+          <input
+            id="max-amount"
+            data-testid="max-amount-input"
+            type="number"
+            min="0"
+            step="0.01"
+            inputMode="decimal"
+            value={maxAmount}
+            onChange={(e) => setMaxAmount(e.target.value)}
+            placeholder="Any"
+            className="w-32 border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-500"
+          />
+        </div>
+        <button
+          type="button"
+          data-testid="clear-filters-button"
+          onClick={clearAllFilters}
+          disabled={!hasAmountFilter}
+          className="text-sm text-gray-600 hover:text-gray-900 disabled:opacity-40 disabled:cursor-not-allowed px-3 py-2"
+        >
+          Clear all filters
+        </button>
+      </div>
 
       {loading ? (
         <SkeletonList rows={5} />
       ) : error ? (
-        <div className="card p-6 text-center text-red-600">{error}</div>
-      ) : payments.length === 0 ? (
-        <div className="card p-6 text-center text-gray-500">No payments yet.</div>
+        <div className="bg-red-50 text-red-700 rounded-lg p-4 text-sm">{error}</div>
+      ) : filteredPayments.length === 0 ? (
+        <div className="bg-white rounded-xl border border-gray-200 p-8 text-center text-gray-500 text-sm">
+          {hasAmountFilter ? 'No payments match the amount range.' : 'No payments yet.'}
+        </div>
       ) : (
         <>
-          {/* Desktop table */}
-          <div className="card overflow-hidden hidden md:block">
-            <table className="w-full text-sm" role="grid" aria-label="Payments">
-              <thead className="bg-gray-50 text-left text-xs text-gray-500 uppercase">
+          <div className="hidden md:block bg-white rounded-xl border border-gray-200 overflow-hidden">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 text-gray-500 text-xs uppercase">
                 <tr>
-                  <th className="px-6 py-3">Reference</th>
-                  <th className="px-6 py-3">Amount</th>
-                  <th className="px-6 py-3">Status</th>
-                  <th className="px-6 py-3">Created</th>
-                  <th className="px-6 py-3">Actions</th>
+                  <th className="px-6 py-3 text-left">Reference</th>
+                  <th className="px-6 py-3 text-left">Amount</th>
+                  <th className="px-6 py-3 text-left">Status</th>
+                  <th className="px-6 py-3 text-left">Created</th>
+                  <th className="px-6 py-3 text-left">Actions</th>
                 </tr>
               </thead>
-              <tbody>
-                {payments.map((p, index) => (
+              <tbody className="divide-y divide-gray-100">
+                {filteredPayments.map((p, index) => (
                   <PaymentTableRow
                     key={p.id}
                     payment={p}
@@ -346,67 +392,101 @@ export default function PaymentsPage() {
               </tbody>
             </table>
           </div>
-
-          {/* Mobile cards */}
-          <div className="card divide-y divide-gray-100 md:hidden">
-            {payments.map((p) => (
+          <div className="md:hidden bg-white rounded-xl border border-gray-200 divide-y divide-gray-100">
+            {filteredPayments.map((p) => (
               <PaymentMobileCard key={p.id} payment={p} onShowQr={setSelectedPayment} />
             ))}
           </div>
-
-          {showPagination && (
-            <div className="flex items-center justify-between mt-4">
-              <button
-                className="btn-secondary"
-                disabled={page <= 1}
-                onClick={() => setPage((prev) => Math.max(1, prev - 1))}
-              >
-                Previous
-              </button>
-              <span className="text-sm text-gray-500">
-                Page {page} of {totalPages}
-              </span>
-              <button
-                className="btn-secondary"
-                disabled={page >= totalPages}
-                onClick={() => setPage((prev) => prev + 1)}
-              >
-                Next
-              </button>
-            </div>
-          )}
         </>
       )}
 
-      <Modal
-        open={!!selectedPayment}
-        onClose={() => setSelectedPayment(null)}
-        title="Payment Details"
-        testId="payment-detail-modal"
-      >
-        {selectedPayment && (
-          <div className="space-y-4">
-            <div className="flex items-center justify-between">
-              <span className="font-mono text-xs text-gray-500">{selectedPayment.reference}</span>
-              <PaymentStatusBadge status={selectedPayment.status} />
+      {showCreate && (
+        <Modal title="New Payment" onClose={() => setShowCreate(false)}>
+          <form onSubmit={createPayment} className="space-y-4">
+            <FormField label="Amount (USD)" htmlFor="amount-usd">
+              <input
+                id="amount-usd"
+                type="number"
+                min="0.01"
+                step="0.01"
+                required
+                value={form.amountUsd}
+                onChange={(e) => setForm({ ...form, amountUsd: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+              />
+            </FormField>
+            <FormField label="Description (optional)" htmlFor="description">
+              <input
+                id="description"
+                type="text"
+                maxLength={DESCRIPTION_MAX_LENGTH}
+                value={form.description}
+                onChange={(e) => setForm({ ...form, description: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+              />
+            </FormField>
+            <FormField label="Customer email (optional)" htmlFor="customer-email">
+              <input
+                id="customer-email"
+                type="email"
+                value={form.customerEmail}
+                onChange={(e) => setForm({ ...form, customerEmail: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+              />
+            </FormField>
+            <FormField label="Expiry (minutes)" htmlFor="expiry-minutes">
+              <input
+                id="expiry-minutes"
+                type="number"
+                min={EXPIRY_MIN_MINUTES}
+                max={EXPIRY_MAX_MINUTES}
+                step="1"
+                value={form.expiryMinutes}
+                onChange={(e) => setForm({ ...form, expiryMinutes: e.target.value })}
+                className="w-full border border-gray-300 rounded-lg px-3 py-2 text-sm"
+              />
+            </FormField>
+            <div className="flex justify-end gap-2">
+              <button
+                type="button"
+                onClick={() => setShowCreate(false)}
+                className="px-4 py-2 rounded-lg text-sm text-gray-600 hover:bg-gray-100"
+              >
+                Cancel
+              </button>
+              <button
+                type="submit"
+                disabled={creating}
+                className="px-4 py-2 rounded-lg text-sm bg-brand-600 text-white font-medium hover:bg-brand-700 disabled:opacity-50"
+              >
+                {creating ? 'Creating…' : 'Create'}
+              </button>
             </div>
-            <div className="text-2xl font-bold">{formatUsd(selectedPayment.amountUsd)}</div>
-            <div className="text-sm text-gray-500">Created {formatDate(selectedPayment.createdAt)}</div>
-            {selectedPayment.status === 'pending' && (
-              <div className="flex flex-col items-center gap-3 pt-2">
-                <QRCodeSVG value={selectedPayment.reference} size={160} />
-                <button
-                  onClick={() => copyMemo(selectedPayment.reference)}
-                  className="btn-secondary flex items-center gap-2"
-                >
-                  {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                  {copied ? 'Copied' : 'Copy memo'}
-                </button>
-              </div>
+          </form>
+        </Modal>
+      )}
+
+      {selectedPayment && (
+        <Modal title="Payment QR" onClose={() => setSelectedPayment(null)}>
+          <div className="space-y-4 text-center">
+            <div className="font-mono text-xs text-gray-500">{selectedPayment.reference}</div>
+            <div className="font-semibold">{formatUsd(selectedPayment.amountUsd)}</div>
+            <div className="flex justify-center">
+              <QRCodeSVG value={selectedPayment.payUrl ?? selectedPayment.reference} size={192} />
+            </div>
+            {selectedPayment.memo && (
+              <button
+                type="button"
+                onClick={() => copyMemo(selectedPayment.memo as string)}
+                className="inline-flex items-center gap-1 text-xs text-brand-600 hover:underline"
+              >
+                {copied ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                {copied ? 'Copied' : 'Copy memo'}
+              </button>
             )}
           </div>
-        )}
-      </Modal>
+        </Modal>
+      )}
     </div>
   );
 }
