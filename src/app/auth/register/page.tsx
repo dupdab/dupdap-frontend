@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
@@ -19,6 +20,23 @@ const PASSWORD_REQUIREMENTS = [
   { key: 'number', label: 'One number', test: (v: string) => /[0-9]/.test(v) },
   { key: 'special', label: 'One special character', test: (v: string) => /[^A-Za-z0-9]/.test(v) },
 ];
+
+const STRENGTH_LEVELS = ['Weak', 'Fair', 'Strong', 'Very Strong'] as const;
+type StrengthLevel = (typeof STRENGTH_LEVELS)[number];
+
+const STRENGTH_STYLES: Record<StrengthLevel, { bar: string; text: string; width: string }> = {
+  Weak: { bar: 'bg-red-500', text: 'text-red-600', width: 'w-1/4' },
+  Fair: { bar: 'bg-amber-500', text: 'text-amber-600', width: 'w-2/4' },
+  Strong: { bar: 'bg-lime-500', text: 'text-lime-600', width: 'w-3/4' },
+  'Very Strong': { bar: 'bg-green-600', text: 'text-green-700', width: 'w-full' },
+};
+
+function getStrength(metCount: number): StrengthLevel {
+  if (metCount <= 2) return 'Weak';
+  if (metCount === 3) return 'Fair';
+  if (metCount === 4) return 'Strong';
+  return 'Very Strong';
+}
 
 const registerSchema = z
   .object({
@@ -44,6 +62,8 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 export default function RegisterPage() {
   const router = useRouter();
   const setAuth = useAuthStore((state) => state.setAuth);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const {
     register,
     handleSubmit,
@@ -72,6 +92,8 @@ export default function RegisterPage() {
   const passwordValid =
     checks.length && checks.uppercase && checks.lowercase && checks.number && checks.special;
   const passwordsMatch = password === confirmPassword;
+  const strength = getStrength(metCount);
+  const strengthStyle = STRENGTH_STYLES[strength];
 
   const onSubmit = async (values: RegisterFormValues) => {
     try {
@@ -166,14 +188,45 @@ export default function RegisterPage() {
             <label htmlFor="password" className="block text-sm font-medium text-gray-700">
               Password
             </label>
-            <input
-              id="password"
-              type="password"
-              {...register('password')}
-              aria-describedby="password-requirements"
-              aria-invalid={!!errors.password}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-            />
+            <div className="relative mt-1">
+              <input
+                id="password"
+                type={showPassword ? 'text' : 'password'}
+                {...register('password')}
+                aria-describedby="password-requirements password-strength"
+                aria-invalid={!!errors.password}
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm pr-16"
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword((v) => !v)}
+                aria-label={showPassword ? 'Hide password' : 'Show password'}
+                aria-pressed={showPassword}
+                className="absolute inset-y-0 right-0 px-3 text-xs font-medium text-indigo-600 hover:text-indigo-500"
+              >
+                {showPassword ? 'Hide' : 'Show'}
+              </button>
+            </div>
+
+            <div id="password-strength" className="mt-2">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-gray-600">Password strength</span>
+                <span className={`font-medium ${strengthStyle.text}`} data-testid="password-strength-label">
+                  {strength}
+                </span>
+              </div>
+              <div
+                className="mt-1 h-1.5 w-full rounded-full bg-gray-200 overflow-hidden"
+                role="progressbar"
+                aria-valuemin={0}
+                aria-valuemax={4}
+                aria-valuenow={metCount}
+                aria-valuetext={strength}
+              >
+                <div className={`h-full rounded-full transition-all ${strengthStyle.bar} ${strengthStyle.width}`} />
+              </div>
+            </div>
+
             <ul
               id="password-requirements"
               aria-live="polite"
@@ -195,21 +248,36 @@ export default function RegisterPage() {
             <label htmlFor="confirmPassword" className="block text-sm font-medium text-gray-700">
               Confirm password
             </label>
-            <input
-              id="confirmPassword"
-              type="password"
-              {...register('confirmPassword')}
-              aria-describedby={errors.confirmPassword ? 'confirm-password-error' : undefined}
-              aria-invalid={!!errors.confirmPassword}
-              className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
-            />
-            {errors.confirmPassword && (
-              <p
-                id="confirm-password-error"
-                role="alert"
-                className="text-xs text-red-500 mt-1"
+            <div className="relative mt-1">
+              <input
+                id="confirmPassword"
+                type={showConfirmPassword ? 'text' : 'password'}
+                {...register('confirmPassword')}
+                aria-describedby={errors.confirmPassword ? 'confirm-password-error' : undefined}
+                aria-invalid={!!errors.confirmPassword}
+                className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm pr-16"
+              />
+              <button
+                type="button"
+                onClick={() => setShowConfirmPassword((v) => !v)}
+                aria-label={showConfirmPassword ? 'Hide password' : 'Show password'}
+                aria-pressed={showConfirmPassword}
+                className="absolute inset-y-0 right-0 px-3 text-xs font-medium text-indigo-600 hover:text-indigo-500"
               >
+                {showConfirmPassword ? 'Hide' : 'Show'}
+              </button>
+            </div>
+            {errors.confirmPassword && (
+              <p id="confirm-password-error" role="alert" className="text-xs text-red-500 mt-1">
                 {errors.confirmPassword.message}
+              </p>
+            )}
+            {!errors.confirmPassword && confirmPassword.length > 0 && (
+              <p
+                className={`text-xs mt-1 ${passwordsMatch ? 'text-green-600' : 'text-red-500'}`}
+                aria-live="polite"
+              >
+                {passwordsMatch ? 'Passwords match' : 'Passwords do not match'}
               </p>
             )}
           </div>
@@ -232,25 +300,22 @@ export default function RegisterPage() {
             </select>
           </div>
 
-          </fieldset>
-
           <button
-            data-testid="register-submit-button"
             type="submit"
             disabled={loading || !passwordValid || !passwordsMatch}
-            className="w-full flex justify-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-50"
+            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {loading ? 'Creating account…' : 'Create account'}
           </button>
+          </fieldset>
         </form>
 
-          <p className="text-center text-sm text-gray-600">
-            Already have an account?{' '}
-            <Link href="/auth/login" className="font-medium text-indigo-600 hover:text-indigo-500">
-              Sign in
-            </Link>
-          </p>
-        </form>
+        <p className="mt-6 text-center text-sm text-gray-600">
+          Already have an account?{' '}
+          <Link href="/auth/login" className="font-medium text-indigo-600 hover:text-indigo-500">
+            Sign in
+          </Link>
+        </p>
       </div>
     </div>
   );
