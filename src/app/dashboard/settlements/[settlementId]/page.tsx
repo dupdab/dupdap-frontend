@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
+import { formatNgn } from '@/lib/utils';
 
 interface AuditEntry {
   id: string;
@@ -47,7 +48,9 @@ export default function AdminSettlementDetailPage() {
       if (!res.ok) throw new Error('Failed to load settlement');
       setSettlement(await res.json());
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load settlement');
+      setError(
+        err instanceof Error ? err.message : 'Failed to load settlement'
+      );
     } finally {
       setLoading(false);
     }
@@ -62,14 +65,19 @@ export default function AdminSettlementDetailPage() {
     setSubmitting(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/admin/settlements/${settlementId}/approve`, {
-        method: 'POST',
-        credentials: 'include',
-      });
+      const res = await fetch(
+        `${API_BASE}/admin/settlements/${settlementId}/approve`,
+        {
+          method: 'POST',
+          credentials: 'include',
+        }
+      );
       if (!res.ok) throw new Error('Failed to approve settlement');
       await loadSettlement();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to approve settlement');
+      setError(
+        err instanceof Error ? err.message : 'Failed to approve settlement'
+      );
     } finally {
       setSubmitting(false);
     }
@@ -84,18 +92,23 @@ export default function AdminSettlementDetailPage() {
     setSubmitting(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/admin/settlements/${settlementId}/reject`, {
-        method: 'POST',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reason: rejectReason.trim() }),
-      });
+      const res = await fetch(
+        `${API_BASE}/admin/settlements/${settlementId}/reject`,
+        {
+          method: 'POST',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ reason: rejectReason.trim() }),
+        }
+      );
       if (!res.ok) throw new Error('Failed to reject settlement');
       setShowReject(false);
       setRejectReason('');
       await loadSettlement();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to reject settlement');
+      setError(
+        err instanceof Error ? err.message : 'Failed to reject settlement'
+      );
     } finally {
       setSubmitting(false);
     }
@@ -124,7 +137,9 @@ export default function AdminSettlementDetailPage() {
         </span>
       </div>
 
-      {error && <div className="rounded bg-red-50 p-3 text-red-600">{error}</div>}
+      {error && (
+        <div className="rounded bg-red-50 p-3 text-red-600">{error}</div>
+      )}
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
         <div className="rounded border p-4">
@@ -133,19 +148,21 @@ export default function AdminSettlementDetailPage() {
         </div>
         <div className="rounded border p-4">
           <div className="text-sm text-gray-500">Stellar reference</div>
-          <div className="break-all font-mono text-sm">{settlement.stellarReference}</div>
+          <div className="break-all font-mono text-sm">
+            {settlement.stellarReference}
+          </div>
         </div>
         <div className="rounded border p-4">
-          <div className="text-sm text-gray-500">Amount</div>
-          <div className="font-medium">{settlement.amount}</div>
+          <div className="text-sm text-gray-500">Amount (NGN)</div>
+          <div className="font-medium">{formatNgn(settlement.amount)}</div>
         </div>
         <div className="rounded border p-4">
-          <div className="text-sm text-gray-500">Fee</div>
-          <div className="font-medium">{settlement.fee}</div>
+          <div className="text-sm text-gray-500">Fee (NGN)</div>
+          <div className="font-medium">{formatNgn(settlement.fee)}</div>
         </div>
         <div className="rounded border p-4">
-          <div className="text-sm text-gray-500">Net</div>
-          <div className="font-medium">{settlement.net}</div>
+          <div className="text-sm text-gray-500">Net (NGN)</div>
+          <div className="font-medium">{formatNgn(settlement.net)}</div>
         </div>
       </div>
 
@@ -172,7 +189,10 @@ export default function AdminSettlementDetailPage() {
 
           {showReject && (
             <div className="space-y-2 rounded border p-4">
-              <label htmlFor="reject-reason" className="block text-sm font-medium">
+              <label
+                htmlFor="reject-reason"
+                className="block text-sm font-medium"
+              >
                 Rejection reason
               </label>
               <textarea
@@ -211,7 +231,11 @@ export default function AdminSettlementDetailPage() {
                   </span>
                 </div>
                 <div className="text-gray-600">by {entry.actor}</div>
-                {entry.reason && <div className="mt-1 text-gray-700">Reason: {entry.reason}</div>}
+                {entry.reason && (
+                  <div className="mt-1 text-gray-700">
+                    Reason: {entry.reason}
+                  </div>
+                )}
               </li>
             ))}
           </ul>

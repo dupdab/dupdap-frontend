@@ -13,7 +13,13 @@
  */
 
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  cleanup,
+} from '@testing-library/react';
 import SettlementsPage from './page';
 
 /* ── Mocks ──────────────────────────────────────────────────────────────── */
@@ -28,16 +34,27 @@ vi.mock('@/lib/api', () => ({
 
 /* next/link — render as a plain anchor so href assertions work */
 vi.mock('next/link', () => ({
-  default: ({ href, children, ...rest }: { href: string; children: React.ReactNode }) => (
-    <a href={href} {...rest}>{children}</a>
+  default: ({
+    href,
+    children,
+    ...rest
+  }: {
+    href: string;
+    children: React.ReactNode;
+  }) => (
+    <a href={href} {...rest}>
+      {children}
+    </a>
   ),
 }));
 
 vi.mock('@/components/Skeleton', () => ({
   SkeletonList: ({ rows }: { rows: number }) => (
-    <div data-testid="skeleton-list">{Array.from({ length: rows }).map((_, i) => (
-      <div key={i} data-testid="skeleton-row" />
-    ))}</div>
+    <div data-testid="skeleton-list">
+      {Array.from({ length: rows }).map((_, i) => (
+        <div key={i} data-testid="skeleton-row" />
+      ))}
+    </div>
   ),
   SkeletonTableRows: ({ rows }: { rows: number }) => (
     <tr data-testid="skeleton-table-rows">
@@ -47,14 +64,24 @@ vi.mock('@/components/Skeleton', () => ({
 }));
 
 vi.mock('@/lib/utils', () => ({
-  formatUsd: (v: number) => `$${v.toFixed(2)}`,
+  formatNgn: (v: number) => `₦${v.toFixed(2)}`,
   formatDate: (s: string) => s.slice(0, 10),
   STATUS_ICONS: {
-    pending: (props: { className?: string; 'aria-hidden'?: boolean }) => <svg data-testid="status-icon" {...props} />,
-    completed: (props: { className?: string; 'aria-hidden'?: boolean }) => <svg data-testid="status-icon" {...props} />,
-    failed: (props: { className?: string; 'aria-hidden'?: boolean }) => <svg data-testid="status-icon" {...props} />,
+    pending: (props: { className?: string; 'aria-hidden'?: boolean }) => (
+      <svg data-testid="status-icon" {...props} />
+    ),
+    completed: (props: { className?: string; 'aria-hidden'?: boolean }) => (
+      <svg data-testid="status-icon" {...props} />
+    ),
+    failed: (props: { className?: string; 'aria-hidden'?: boolean }) => (
+      <svg data-testid="status-icon" {...props} />
+    ),
   },
-  STATUS_COLORS: { pending: 'bg-yellow-100', completed: 'bg-green-100', failed: 'bg-red-100' },
+  STATUS_COLORS: {
+    pending: 'bg-yellow-100',
+    completed: 'bg-green-100',
+    failed: 'bg-red-100',
+  },
   DEFAULT_STATUS_COLOR: 'bg-gray-100 text-gray-600',
 }));
 
@@ -89,25 +116,35 @@ describe('SettlementsPage — loading state', () => {
 
 describe('SettlementsPage — list rendering', () => {
   it('renders settlement rows with amounts and status badges', async () => {
-    mockList.mockResolvedValue({ data: { settlements: twoSettlements, total: 2 } });
+    mockList.mockResolvedValue({
+      data: { settlements: twoSettlements, total: 2 },
+    });
     render(<SettlementsPage />);
 
-    await waitFor(() => expect(screen.queryByTestId('skeleton-table-rows')).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(
+        screen.queryByTestId('skeleton-table-rows')
+      ).not.toBeInTheDocument()
+    );
 
-    // Gross amount of first settlement ($1100.00 = 1000 + 1*100)
-    expect(screen.getAllByText('$1100.00').length).toBeGreaterThan(0);
+    // Gross amount of first settlement (₦1100.00 = 1000 + 1*100)
+    expect(screen.getAllByText('₦1100.00').length).toBeGreaterThan(0);
     // Net amount
-    expect(screen.getAllByText('$1089.00').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('₦1089.00').length).toBeGreaterThan(0);
     // Status badge
     expect(screen.getAllByText('completed').length).toBeGreaterThan(0);
     expect(screen.getAllByText('pending').length).toBeGreaterThan(0);
     const statusIcons = screen.getAllByTestId('status-icon');
     expect(statusIcons.length).toBeGreaterThan(0);
-    statusIcons.forEach((icon) => expect(icon).toHaveAttribute('aria-hidden', 'true'));
+    statusIcons.forEach((icon) =>
+      expect(icon).toHaveAttribute('aria-hidden', 'true')
+    );
   });
 
   it('renders unknown statuses without an icon', async () => {
-    mockList.mockResolvedValue({ data: { settlements: [makeSettlement(3, 'on_hold')], total: 1 } });
+    mockList.mockResolvedValue({
+      data: { settlements: [makeSettlement(3, 'on_hold')], total: 1 },
+    });
     render(<SettlementsPage />);
 
     expect(await screen.findAllByText('on_hold')).toHaveLength(2);
@@ -115,7 +152,9 @@ describe('SettlementsPage — list rendering', () => {
   });
 
   it('falls back to the default color for unknown statuses (#339)', async () => {
-    mockList.mockResolvedValue({ data: { settlements: [makeSettlement(3, 'on_hold')], total: 1 } });
+    mockList.mockResolvedValue({
+      data: { settlements: [makeSettlement(3, 'on_hold')], total: 1 },
+    });
     render(<SettlementsPage />);
 
     const badges = await screen.findAllByText('on_hold');
@@ -128,7 +167,9 @@ describe('SettlementsPage — list rendering', () => {
   });
 
   it('uses the mapped status color for known statuses', async () => {
-    mockList.mockResolvedValue({ data: { settlements: [makeSettlement(3, 'completed')], total: 1 } });
+    mockList.mockResolvedValue({
+      data: { settlements: [makeSettlement(3, 'completed')], total: 1 },
+    });
     render(<SettlementsPage />);
 
     const badges = await screen.findAllByText('completed');
@@ -138,21 +179,33 @@ describe('SettlementsPage — list rendering', () => {
   });
 
   it('renders settlement ID links to detail page', async () => {
-    mockList.mockResolvedValue({ data: { settlements: twoSettlements, total: 2 } });
+    mockList.mockResolvedValue({
+      data: { settlements: twoSettlements, total: 2 },
+    });
     render(<SettlementsPage />);
 
-    await waitFor(() => expect(screen.queryByTestId('skeleton-table-rows')).not.toBeInTheDocument());
+    await waitFor(() =>
+      expect(
+        screen.queryByTestId('skeleton-table-rows')
+      ).not.toBeInTheDocument()
+    );
 
     const links = screen.getAllByRole('link');
-    const detailLink = links.find((l) => l.getAttribute('href')?.includes('/dashboard/settlements/settle-1'));
+    const detailLink = links.find((l) =>
+      l.getAttribute('href')?.includes('/dashboard/settlements/settle-1')
+    );
     expect(detailLink).toBeTruthy();
   });
 
   it('shows total count in subtitle', async () => {
-    mockList.mockResolvedValue({ data: { settlements: twoSettlements, total: 2 } });
+    mockList.mockResolvedValue({
+      data: { settlements: twoSettlements, total: 2 },
+    });
     render(<SettlementsPage />);
 
-    await waitFor(() => expect(screen.getByText('2 total settlements')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText('2 total settlements')).toBeInTheDocument()
+    );
   });
 });
 
@@ -162,7 +215,9 @@ describe('SettlementsPage — empty state', () => {
     render(<SettlementsPage />);
 
     await waitFor(() =>
-      expect(screen.getAllByText(/no settlements yet/i).length).toBeGreaterThan(0),
+      expect(screen.getAllByText(/no settlements yet/i).length).toBeGreaterThan(
+        0
+      )
     );
   });
 });
@@ -173,7 +228,7 @@ describe('SettlementsPage — error state', () => {
     render(<SettlementsPage />);
 
     await waitFor(() =>
-      expect(screen.getByText(/couldn't load settlements/i)).toBeInTheDocument(),
+      expect(screen.getByText(/couldn't load settlements/i)).toBeInTheDocument()
     );
   });
 });
@@ -202,7 +257,9 @@ describe('SettlementsPage — pagination', () => {
     });
     render(<SettlementsPage />);
 
-    await waitFor(() => expect(screen.getByText('2 total settlements')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText('2 total settlements')).toBeInTheDocument()
+    );
     expect(screen.queryByTestId('pagination-next')).not.toBeInTheDocument();
   });
 
@@ -226,7 +283,7 @@ describe('SettlementsPage — pagination', () => {
     render(<SettlementsPage />);
 
     await waitFor(() =>
-      expect(screen.getByText('40 total settlements')).toBeInTheDocument(),
+      expect(screen.getByText('40 total settlements')).toBeInTheDocument()
     );
   });
 
