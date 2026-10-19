@@ -174,7 +174,12 @@ export default function Modal({
           <div className="flex items-center justify-between mb-6">
             <h2 className="font-semibold text-lg">{title}</h2>
             {/* aria-label="Close dialog" gives screen readers an unambiguous action name (#161) */}
-            <button type="button" onClick={onClose} aria-label="Close dialog">
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label="Close dialog"
+              data-testid={testId ? `${testId}-close` : undefined}
+            >
               <X className="w-5 h-5 text-gray-400" />
             </button>
           </div>

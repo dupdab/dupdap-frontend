@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { ArrowLeft, Loader2, XCircle } from 'lucide-react';
 import { settlementsApi } from '@/lib/api';
 import { formatUsd, formatDate, STATUS_COLORS } from '@/lib/utils';
+import type { Settlement } from '@/lib/types';
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   if (value === undefined || value === null || value === '') return null;
@@ -41,7 +42,7 @@ export default function SettlementDetailPage({ params }: { params: { settlementI
   if (loadError) {
     return (
       <div className="p-8">
-        <Link href="/dashboard/settlements" className="text-brand-600 text-sm hover:underline flex items-center gap-1 mb-6">
+        <Link href="/dashboard/settlements" className="text-brand-600 text-sm hover:underline flex items-center gap-1 mb-6 no-print">
           <ArrowLeft className="w-4 h-4" /> Back to settlements
         </Link>
         <div className="card p-8 text-center" role="alert">
@@ -55,7 +56,7 @@ export default function SettlementDetailPage({ params }: { params: { settlementI
   if (!settlement) {
     return (
       <div className="p-8">
-        <Link href="/dashboard/settlements" className="text-brand-600 text-sm hover:underline flex items-center gap-1 mb-6">
+        <Link href="/dashboard/settlements" className="text-brand-600 text-sm hover:underline flex items-center gap-1 mb-6 no-print">
           <ArrowLeft className="w-4 h-4" /> Back to settlements
         </Link>
         <div className="card p-8 text-center">
@@ -67,8 +68,8 @@ export default function SettlementDetailPage({ params }: { params: { settlementI
   }
 
   return (
-    <div className="p-8 max-w-2xl">
-      <Link href="/dashboard/settlements" className="text-brand-600 text-sm hover:underline flex items-center gap-1 mb-6">
+    <div className="p-8 max-w-2xl print-area">
+      <Link href="/dashboard/settlements" className="text-brand-600 text-sm hover:underline flex items-center gap-1 mb-6 no-print">
         <ArrowLeft className="w-4 h-4" /> Back to settlements
       </Link>
 

@@ -10,6 +10,22 @@ vi.mock('@/lib/api', () => ({
   },
 }));
 
+// Recharts relies on layout measurements that jsdom does not provide; stub the
+// chart primitives so the dashboard can render its data-driven UI in tests.
+vi.mock('recharts', () => {
+  const Passthrough = ({ children }: { children?: React.ReactNode }) => <>{children}</>;
+  return {
+    ResponsiveContainer: Passthrough,
+    LineChart: Passthrough,
+    Line: () => null,
+    XAxis: () => null,
+    YAxis: () => null,
+    CartesianGrid: () => null,
+    Tooltip: () => null,
+    Legend: () => null,
+  };
+});
+
 const mockedList = vi.mocked(paymentsApi.list);
 const mockedStats = vi.mocked(paymentsApi.stats);
 
@@ -94,6 +110,20 @@ describe('DashboardPage', () => {
     expect(screen.getByText('REF-2')).toBeInTheDocument();
     // Totals derived from the per-status stats breakdown: 2 settled, 1 pending, 3 total.
     expect(screen.getByText('3')).toBeInTheDocument();
+  });
+
+  it('renders the payment volume chart with a compare toggle', async () => {
+    mockedList.mockResolvedValue({ data: { payments, total: payments.length } } as never);
+    mockedStats.mockResolvedValue({ data: stats } as never);
+
+    render(<DashboardPage />);
+
+    await waitFor(() => {
+      expect(screen.getByText('REF-1')).toBeInTheDocument();
+    });
+
+    expect(screen.getByText(/payment volume/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /compare/i })).toBeInTheDocument();
   });
 
   it('renders a payment with an unrecognized status without crashing', async () => {
