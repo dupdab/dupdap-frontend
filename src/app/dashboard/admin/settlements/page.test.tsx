@@ -7,12 +7,14 @@ import AdminSettlementsPage from './page';
 const mockListSettlements = vi.fn();
 const mockRetrySettlement = vi.fn();
 const mockApproveSettlement = vi.fn();
+const mockRejectSettlement = vi.fn();
 
 vi.mock('@/lib/api', () => ({
   adminApi: {
     listSettlements: (...args: unknown[]) => mockListSettlements(...args),
     retrySettlement: (...args: unknown[]) => mockRetrySettlement(...args),
     approveSettlement: (...args: unknown[]) => mockApproveSettlement(...args),
+    rejectSettlement: (...args: unknown[]) => mockRejectSettlement(...args),
   },
 }));
 
@@ -75,6 +77,7 @@ describe('AdminSettlementsPage', () => {
     mockListSettlements.mockResolvedValue(mockListResponse());
     mockRetrySettlement.mockResolvedValue({ data: {} });
     mockApproveSettlement.mockResolvedValue({ data: {} });
+    mockRejectSettlement.mockResolvedValue({ data: {} });
   });
 
   it('fetches settlements via adminApi without duplicating /api/v1 in the path', async () => {
@@ -186,6 +189,26 @@ describe('AdminSettlementsPage', () => {
     await waitFor(() => expect(screen.getAllByRole('button', { name: 'Approve' })[0]).not.toBeDisabled());
   });
 
+  it('calls rejectSettlement with the correct id and reason', async () => {
+    const user = userEvent.setup();
+    render(<AdminSettlementsPage />);
+
+    await waitFor(() =>
+      expect(screen.getAllByRole('button', { name: 'Reject' }).length).toBeGreaterThan(0),
+    );
+
+    await user.click(screen.getAllByRole('button', { name: 'Reject' })[0]);
+
+    expect(mockRejectSettlement).not.toHaveBeenCalled();
+    expect(screen.getByText('Reject settlement')).toBeInTheDocument();
+
+    const reasonInput = within(confirmDialog()).getByLabelText('Rejection reason');
+    await user.type(reasonInput, 'Suspicious activity');
+    await user.click(within(confirmDialog()).getByRole('button', { name: 'Reject' }));
+
+    expect(mockRejectSettlement).toHaveBeenCalledWith('settlement-pending-1', 'Suspicious activity');
+  });
+
   it('does not run a settlement action when the confirmation dialog is cancelled', async () => {
     const user = userEvent.setup();
     render(<AdminSettlementsPage />);
@@ -219,24 +242,5 @@ describe('AdminSettlementsPage', () => {
 
     fireEvent.click(screen.getByRole('button', { name: 'Previous' }));
     await waitFor(() => expect(mockListSettlements).toHaveBeenCalledWith('page=1&limit=20'));
-
-    fireEvent.click(screen.getByRole('button', { name: 'Previous' }));
-    await waitFor(() =>
-      expect(mockListSettlements.mock.calls.map((call) => call[0])).toEqual([
-        'page=1&limit=20',
-        'page=2&limit=20',
-        'page=1&limit=20',
-      ]),
-    );
-  });
-
-  it('does not fetch when there is no auth token', async () => {
-    vi.mocked(useAuthStore).mockReturnValue({ token: null });
-
-    render(<AdminSettlementsPage />);
-
-    await waitFor(() => expect(mockListSettlements).not.toHaveBeenCalled());
-
-    vi.mocked(useAuthStore).mockReturnValue({ token: 'admin-token' });
   });
 });

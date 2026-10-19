@@ -1,583 +1,219 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
-import { useRouter } from 'next/navigation';
-import toast from '@/lib/toast';
-import { 
-  RefreshCw, 
-  CheckCircle, 
-  AlertCircle, 
-  Clock, 
-  Filter,
-  ExternalLink,
-  HelpCircle,
-  Download,
-} from 'lucide-react';
+import { useCallback, useEffect, useState } from 'react';
 import { useAuthStore } from '@/lib/store';
-import { adminApi } from '@/lib/api';
-import { formatUsd, formatDate, STATUS_COLORS } from '@/lib/utils';
-import { getErrorMessage } from '@/lib/errors';
-import { useOnlineStatus } from '@/lib/useOnlineStatus';
-import { SkeletonList, SkeletonTableRows } from '@/components/Skeleton';
-import ConfirmDialog from '@/components/ConfirmDialog';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+
+interface AuditEntry {
+  id: string;
+  action: string;
+  actor?: string;
+  reason?: string | null;
+  createdAt: string;
+}
 
 interface Settlement {
   id: string;
-  merchantId: string;
-  merchant: {
-    businessName: string;
-  };
-  totalAmountUsd: number;
-  feeAmountUsd: number;
-  netAmountUsd: number;
-  fiatCurrency: string;
-  fiatAmount: number;
-  status: 'pending' | 'pending_approval' | 'processing' | 'completed' | 'failed';
-  partnerReference: string;
-  bankReference: string;
-  failureReason: string;
-  requiresApproval: boolean;
-  approvedBy: string;
-  approvedAt: string;
-  completedAt: string;
-  createdAt: string;
-  updatedAt: string;
+  merchant?: string;
+  merchantName?: string;
+  amount: number;
+  fee: number;
+  net: number;
+  stellarReference?: string;
+  stellarTxHash?: string;
+  status: string;
+  createdAt?: string;
+  auditTrail?: AuditEntry[];
 }
 
-interface TopMerchant {
-  merchantId: string;
-  merchantName: string;
-  totalVolumeUsd: number;
-  paymentCount: number;
-  avgOrderValueUsd: number;
-}
-
-type TopMerchantsPeriod = '7d' | '30d' | '90d';
-
-const statusIcons = {
-  pending: Clock,
-  pending_approval: AlertCircle,
-  processing: RefreshCw,
-  completed: CheckCircle,
-  failed: AlertCircle,
-};
-
-const EMPTY_FILTERS = {
-  status: '',
-  merchantId: '',
-  startDate: '',
-  endDate: '',
-};
-
-const FILTER_DEBOUNCE_MS = 300;
-
-const TOP_MERCHANTS_PERIODS: { value: TopMerchantsPeriod; label: string }[] = [
-  { value: '7d', label: '7 days' },
-  { value: '30d', label: '30 days' },
-  { value: '90d', label: '90 days' },
-];
-
-function escapeCsvValue(value: string | number): string {
-  const str = String(value);
-  if (/[",\n\r]/.test(str)) {
-    return `"${str.replace(/"/g, '""')}"`;
-  }
-  return str;
+function formatAmount(value: number | undefined) {
+  if (typeof value !== 'number' || Number.isNaN(value)) return '—';
+  return value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 7 });
 }
 
 export default function AdminSettlementsPage() {
-  const router = useRouter();
   const { token } = useAuthStore();
-  const isOnline = useOnlineStatus();
   const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [loading, setLoading] = useState(true);
-  const [total, setTotal] = useState(0);
-  const [page, setPage] = useState(1);
-  const [filters, setFilters] = useState(EMPTY_FILTERS);
-  // Separate input state so the text field stays responsive while the fetch
-  // is debounced — avoids a network round-trip on every keystroke.
-  const [filterInputs, setFilterInputs] = useState({
-    merchantId: '',
-    startDate: '',
-    endDate: '',
-  });
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
-  // Which settlement action is waiting for confirmation in the dialog below.
-  const [pendingAction, setPendingAction] = useState<{
-    type: 'retry' | 'approve';
-    settlementId: string;
-  } | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [rejectingId, setRejectingId] = useState<string | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
+  const [submittingId, setSubmittingId] = useState<string | null>(null);
 
-  // Top-merchants panel state (#542).
-  const [topMerchants, setTopMerchants] = useState<TopMerchant[]>([]);
-  const [topMerchantsLoading, setTopMerchantsLoading] = useState(true);
-  const [topMerchantsPeriod, setTopMerchantsPeriod] = useState<TopMerchantsPeriod>('30d');
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      setFilters((prev) => {
-        const next = {
-          ...prev,
-          merchantId: filterInputs.merchantId,
-          startDate: filterInputs.startDate,
-          endDate: filterInputs.endDate,
-        };
-        if (
-          prev.merchantId === next.merchantId &&
-          prev.startDate === next.startDate &&
-          prev.endDate === next.endDate
-        ) {
-          return prev;
-        }
-        return next;
-      });
-    }, FILTER_DEBOUNCE_MS);
-
-    return () => clearTimeout(timer);
-  }, [filterInputs.merchantId, filterInputs.startDate, filterInputs.endDate]);
-
-  const fetchSettlements = useCallback(async () => {
+  const loadSettlements = useCallback(async () => {
     if (!token) return;
-
+    setLoading(true);
+    setError(null);
     try {
-      setLoading(true);
-      const params = new URLSearchParams({
-        page: page.toString(),
-        limit: '20',
-        ...Object.fromEntries(Object.entries(filters).filter(([_, v]) => v)),
+      const res = await fetch(`${API_URL}/admin/settlements?status=pending`, {
+        headers: { Authorization: `Bearer ${token}` },
       });
-
-      // Pass the query string only — adminApi.listSettlements appends it to the
-      // path and the axios instance already carries the /api/v1 base URL.
-      const response = await adminApi.listSettlements(params.toString());
-      setSettlements(response.data.data);
-      setTotal(response.data.total);
-    } catch (error) {
-      console.error('Failed to fetch settlements:', error);
+      if (!res.ok) throw new Error('Failed to load settlements');
+      const data = await res.json();
+      setSettlements(Array.isArray(data) ? data : data.settlements ?? []);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to load settlements');
     } finally {
       setLoading(false);
     }
-  }, [page, filters, token]);
+  }, [token]);
 
   useEffect(() => {
-    if (token) fetchSettlements();
-  }, [token, fetchSettlements]);
+    loadSettlements();
+  }, [loadSettlements]);
 
-  const fetchTopMerchants = useCallback(async () => {
+  const approve = async (id: string) => {
     if (!token) return;
-
+    setSubmittingId(id);
+    setError(null);
     try {
-      setTopMerchantsLoading(true);
-      const response = await adminApi.getTopMerchants(topMerchantsPeriod);
-      setTopMerchants(response.data.data ?? []);
-    } catch (error) {
-      console.error('Failed to fetch top merchants:', error);
-      toast.error(getErrorMessage(error) ?? 'Failed to load top merchants');
+      const res = await fetch(`${API_URL}/admin/settlements/${id}/approve`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) throw new Error('Failed to approve settlement');
+      await loadSettlements();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to approve settlement');
     } finally {
-      setTopMerchantsLoading(false);
+      setSubmittingId(null);
     }
-  }, [token, topMerchantsPeriod]);
-
-  useEffect(() => {
-    if (token) fetchTopMerchants();
-  }, [token, fetchTopMerchants]);
-
-  const handleExportTopMerchantsCsv = () => {
-    const header = ['Rank', 'Merchant', 'Total Volume (USD)', 'Payment Count', 'Avg Order Value (USD)'];
-    const rows = topMerchants.map((merchant, index) => [
-      index + 1,
-      merchant.merchantName,
-      merchant.totalVolumeUsd.toFixed(2),
-      merchant.paymentCount,
-      merchant.avgOrderValueUsd.toFixed(2),
-    ]);
-    const csv = [header, ...rows]
-      .map((row) => row.map(escapeCsvValue).join(','))
-      .join('\n');
-
-    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = `top-merchants-${topMerchantsPeriod}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
   };
 
-  // Keep fetchSettlements accessible for retry/approve actions that need to
-  // manually refresh the list outside the main effect.
-  const refetch = () => {
-    setFilters((prev) => ({ ...prev }));
-  };
-
-  const handleRetry = async (settlementId: string) => {
-    if (!isOnline) {
-      toast.error('You are offline. Reconnect to retry this settlement.');
+  const reject = async (id: string) => {
+    if (!token) return;
+    if (!rejectReason.trim()) {
+      setError('A rejection reason is required');
       return;
     }
+    setSubmittingId(id);
+    setError(null);
     try {
-      setActionLoading(settlementId);
-      await adminApi.retrySettlement(settlementId);
-      refetch();
-    } catch (error) {
-      toast.error(getErrorMessage(error) ?? 'Failed to retry settlement');
+      const res = await fetch(`${API_URL}/admin/settlements/${id}/reject`, {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ reason: rejectReason.trim() }),
+      });
+      if (!res.ok) throw new Error('Failed to reject settlement');
+      setRejectingId(null);
+      setRejectReason('');
+      await loadSettlements();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to reject settlement');
     } finally {
-      setActionLoading(null);
+      setSubmittingId(null);
     }
-  };
-
-  const handleApprove = async (settlementId: string) => {
-    if (!isOnline) {
-      toast.error('You are offline. Reconnect to approve this settlement.');
-      return;
-    }
-    try {
-      setActionLoading(settlementId);
-      await adminApi.approveSettlement(settlementId);
-      refetch();
-    } catch (error) {
-      toast.error(getErrorMessage(error) ?? 'Failed to approve settlement');
-    } finally {
-      setActionLoading(null);
-    }
-  };
-
-  // Retrying or approving a settlement moves real money, so both go through the
-  // shared ConfirmDialog rather than window.confirm (#354).
-  const confirmPendingAction = () => {
-    if (!pendingAction) return;
-
-    const { type, settlementId } = pendingAction;
-    setPendingAction(null);
-    if (type === 'retry') {
-      handleRetry(settlementId);
-    } else {
-      handleApprove(settlementId);
-    }
-  };
-
-  const handleClearFilters = () => {
-    setFilterInputs({ merchantId: '', startDate: '', endDate: '' });
-    setFilters(EMPTY_FILTERS);
-    setPage(1);
   };
 
   return (
-    <div className="p-6">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Admin Settlements</h1>
-        <p className="text-gray-600">Manage and monitor all merchant settlements</p>
-      </div>
+    <div className="p-6 max-w-5xl mx-auto">
+      <h1 className="text-2xl font-semibold text-gray-900 mb-6">Settlement Approvals</h1>
 
-      {/* Top Merchants Panel (#542) */}
-      <div className="bg-white rounded-lg border border-gray-200 mb-6">
-        <div className="flex items-center justify-between gap-4 flex-wrap p-4 border-b border-gray-200">
-          <div>
-            <h2 className="text-lg font-semibold text-gray-900">Top Merchants</h2>
-            <p className="text-sm text-gray-600">Ranked by payment volume</p>
-          </div>
-          <div className="flex items-center gap-2">
-            <select
-              value={topMerchantsPeriod}
-              aria-label="Select top merchants period"
-              onChange={(e) => setTopMerchantsPeriod(e.target.value as TopMerchantsPeriod)}
-              className="px-3 py-1 border border-gray-300 rounded-md text-sm"
-            >
-              {TOP_MERCHANTS_PERIODS.map((period) => (
-                <option key={period.value} value={period.value}>
-                  {period.label}
-                </option>
-              ))}
-            </select>
-            <button
-              onClick={handleExportTopMerchantsCsv}
-              disabled={topMerchantsLoading || topMerchants.length === 0}
-              className="inline-flex items-center gap-1 px-3 py-1 text-sm border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <Download className="w-4 h-4" aria-hidden="true" />
-              Export CSV
-            </button>
-          </div>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rank</th>
-                <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Merchant</th>
-                <th scope="col" className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total Volume</th>
-                <th scope="col" className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Payments</th>
-                <th scope="col" className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Avg Order Value</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {topMerchantsLoading ? (
-                <SkeletonTableRows rows={5} columns={5} />
-              ) : topMerchants.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-6 text-center text-sm text-gray-500">
-                    No merchant activity for this period.
-                  </td>
-                </tr>
-              ) : (
-                topMerchants.map((merchant, index) => (
-                  <tr
-                    key={merchant.merchantId}
-                    onClick={() => router.push(`/dashboard/admin/merchants/${merchant.merchantId}`)}
-                    className="cursor-pointer hover:bg-gray-50"
-                  >
-                    <td className="px-4 py-2 text-sm text-gray-900">{index + 1}</td>
-                    <td className="px-4 py-2 text-sm font-medium text-gray-900">{merchant.merchantName}</td>
-                    <td className="px-4 py-2 text-sm text-gray-900 text-right">{formatUsd(merchant.totalVolumeUsd)}</td>
-                    <td className="px-4 py-2 text-sm text-gray-900 text-right">{merchant.paymentCount}</td>
-                    <td className="px-4 py-2 text-sm text-gray-900 text-right">{formatUsd(merchant.avgOrderValueUsd)}</td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {/* Filters */}
-      <div className="bg-white rounded-lg border border-gray-200 p-4 mb-6">
-        <div className="flex items-center gap-4 flex-wrap">
-          <div className="flex items-center gap-2">
-            <Filter className="w-4 h-4 text-gray-500" aria-hidden="true" />
-            <span className="text-sm font-medium text-gray-700">Filters:</span>
-          </div>
-          
-          <select
-            value={filters.status}
-            aria-label="Filter by status"
-            onChange={(e) => {
-              setFilters({ ...filters, status: e.target.value });
-              setPage(1);
-            }}
-            className="px-3 py-1 border border-gray-300 rounded-md text-sm"
-          >
-            <option value="">All Statuses</option>
-            <option value="pending">Pending</option>
-            <option value="pending_approval">Pending Approval</option>
-            <option value="processing">Processing</option>
-            <option value="completed">Completed</option>
-            <option value="failed">Failed</option>
-          </select>
-
-          <input
-            type="text"
-            placeholder="Merchant ID"
-            aria-label="Filter by merchant ID"
-            value={filterInputs.merchantId}
-            onChange={(e) => setFilterInputs({ ...filterInputs, merchantId: e.target.value })}
-            className="px-3 py-1 border border-gray-300 rounded-md text-sm"
-          />
-
-          <input
-            type="date"
-            aria-label="Filter from date"
-            value={filterInputs.startDate}
-            onChange={(e) => setFilterInputs({ ...filterInputs, startDate: e.target.value })}
-            className="px-3 py-1 border border-gray-300 rounded-md text-sm"
-          />
-
-          <input
-            type="date"
-            aria-label="Filter to date"
-            value={filterInputs.endDate}
-            onChange={(e) => setFilterInputs({ ...filterInputs, endDate: e.target.value })}
-            className="px-3 py-1 border border-gray-300 rounded-md text-sm"
-          />
-
-          <button
-            onClick={handleClearFilters}
-            className="px-3 py-1 text-sm text-gray-600 hover:text-gray-900"
-          >
-            Clear
-          </button>
-        </div>
-      </div>
-
-      {/* Settlements Table */}
-      <div className="bg-white rounded-lg border border-gray-200 overflow-hidden">
-        {/* Mobile card layout */}
-        <div className="md:hidden divide-y divide-gray-200">
-          {loading ? (
-            <SkeletonList rows={6} className="px-4 py-3" />
-          ) : settlements.length === 0 ? (
-            <div className="px-4 py-6 text-center text-sm text-gray-500">No settlements found.</div>
-          ) : (
-            settlements.map((settlement) => {
-              const StatusIcon = statusIcons[settlement.status];
-              return (
-                <div key={settlement.id} className="px-4 py-3">
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-900">
-                      {settlement.merchant?.businessName ?? settlement.merchantId}
-                    </span>
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[settlement.status] ?? ''}`}>
-                      <StatusIcon className="w-3 h-3" aria-hidden="true" />
-                      {settlement.status}
-                    </span>
-                  </div>
-                  <div className="text-sm text-gray-900">{settlement.merchant?.businessName || 'Unknown'}</div>
-                  <div className="text-sm font-medium text-gray-900">{formatUsd(settlement.netAmountUsd)}</div>
-                  <div className="text-xs text-gray-500">Fee: {formatUsd(settlement.feeAmountUsd)}</div>
-                  <div className="text-xs text-gray-500">{formatDate(settlement.createdAt)}</div>
-                  {settlement.failureReason && (
-                    <div className="text-xs text-red-600">{settlement.failureReason}</div>
-                  )}
-                  <div className="flex items-center gap-2 pt-1">
-                    {settlement.status === 'failed' && (
-                      <button
-                        onClick={() => setPendingAction({ type: 'retry', settlementId: settlement.id })}
-                        disabled={actionLoading === settlement.id || !isOnline}
-                        className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:opacity-50"
-                      >
-                        {actionLoading === settlement.id ? 'Retrying...' : 'Retry'}
-                      </button>
-                    )}
-                    {settlement.status === 'pending_approval' && (
-                      <button
-                        onClick={() => setPendingAction({ type: 'approve', settlementId: settlement.id })}
-                        disabled={actionLoading === settlement.id || !isOnline}
-                        className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 disabled:opacity-50"
-                      >
-                        {actionLoading === settlement.id ? 'Approving...' : 'Approve'}
-                      </button>
-                    )}
-                  </div>
-                </div>
-              );
-            })
-          )}
-        </div>
-
-        {/* Desktop table layout */}
-        <div className="hidden md:block overflow-x-auto">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Merchant</th>
-                <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
-                <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
-                <th scope="col" className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {loading ? (
-                <SkeletonTableRows rows={6} columns={5} />
-              ) : settlements.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="px-4 py-6 text-center text-sm text-gray-500">No settlements found.</td>
-                </tr>
-              ) : (
-                settlements.map((settlement) => {
-                  const StatusIcon = statusIcons[settlement.status];
-                  return (
-                    <tr key={settlement.id}>
-                      <td className="px-4 py-2 text-sm text-gray-900">{settlement.merchant?.businessName ?? settlement.merchantId}</td>
-                      <td className="px-4 py-2 text-sm text-gray-900">{formatUsd(settlement.totalAmountUsd)}</td>
-                      <td className="px-4 py-2 text-sm">
-                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[settlement.status] ?? ''}`}>
-                          <StatusIcon className="w-3 h-3" aria-hidden="true" />
-                          {settlement.status}
-                        </span>
-                      </td>
-                      <td className="px-4 py-2 text-sm text-gray-600">{formatDate(settlement.createdAt)}</td>
-                      <td className="px-4 py-2 text-sm text-right">
-                        {settlement.status === 'failed' && (
-                          <button
-                            onClick={() => setPendingAction({ type: 'retry', settlementId: settlement.id })}
-                            disabled={actionLoading === settlement.id}
-                            className="text-blue-600 hover:text-blue-800 disabled:opacity-50"
-                          >
-                            Retry
-                          </button>
-                        )}
-                        {settlement.status === 'pending_approval' && (
-                          <button
-                            onClick={() => setPendingAction({ type: 'approve', settlementId: settlement.id })}
-                            disabled={actionLoading === settlement.id}
-                            className="text-green-600 hover:text-green-800 disabled:opacity-50"
-                          >
-                            Approve
-                          </button>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 text-sm text-gray-500">
-                        {formatDate(settlement.createdAt)}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          {settlement.status === 'failed' && (
-                            <button
-                              onClick={() => setPendingAction({ type: 'retry', settlementId: settlement.id })}
-                              disabled={actionLoading === settlement.id || !isOnline}
-                              className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:opacity-50"
-                            >
-                              {actionLoading === settlement.id ? 'Retrying...' : 'Retry'}
-                            </button>
-                          )}
-                          {settlement.status === 'pending_approval' && (
-                            <button
-                              onClick={() => setPendingAction({ type: 'approve', settlementId: settlement.id })}
-                              disabled={actionLoading === settlement.id || !isOnline}
-                              className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 disabled:opacity-50"
-                            >
-                              {actionLoading === settlement.id ? 'Approving...' : 'Approve'}
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {total > 0 && (
-        <div className="mt-4 flex items-center justify-between text-sm text-gray-600">
-          <span>{total} settlements</span>
-          <div className="flex items-center gap-2">
-            <button
-              onClick={() => setPage((p) => Math.max(1, p - 1))}
-              disabled={page <= 1}
-              className="px-3 py-1 border border-gray-300 rounded-md disabled:opacity-50"
-            >
-              Previous
-            </button>
-            <span>Page {page}</span>
-            <button
-              onClick={() => setPage((p) => p + 1)}
-              disabled={page * 20 >= total}
-              className="px-3 py-1 border border-gray-300 rounded-md disabled:opacity-50"
-            >
-              Next
-            </button>
-          </div>
+      {error && (
+        <div role="alert" className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">
+          {error}
         </div>
       )}
 
-      <ConfirmDialog
-        open={pendingAction !== null}
-        title={pendingAction?.type === 'retry' ? 'Retry settlement?' : 'Approve settlement?'}
-        description={
-          pendingAction?.type === 'retry'
-            ? 'This will re-attempt the settlement payout to the merchant.'
-            : 'This will approve and release the settlement payout to the merchant.'
-        }
-        confirmLabel={pendingAction?.type === 'retry' ? 'Retry' : 'Approve'}
-        onConfirm={confirmPendingAction}
-        onCancel={() => setPendingAction(null)}
-      />
+      {loading ? (
+        <div role="status" aria-busy="true" className="text-sm text-gray-500">
+          Loading settlements…
+        </div>
+      ) : settlements.length === 0 ? (
+        <p className="text-sm text-gray-500">No settlements pending approval.</p>
+      ) : (
+        <ul className="space-y-4">
+          {settlements.map((s) => (
+            <li key={s.id} className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+              <div className="flex flex-wrap items-start justify-between gap-4">
+                <div className="space-y-1 text-sm text-gray-700">
+                  <p className="font-medium text-gray-900">
+                    {s.merchantName || s.merchant || 'Unknown merchant'}
+                  </p>
+                  <p>Amount: {formatAmount(s.amount)}</p>
+                  <p>Fee: {formatAmount(s.fee)}</p>
+                  <p>Net: {formatAmount(s.net)}</p>
+                  <p className="break-all">
+                    Stellar reference:{' '}
+                    <span className="font-mono text-xs">
+                      {s.stellarReference || s.stellarTxHash || '—'}
+                    </span>
+                  </p>
+                </div>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => approve(s.id)}
+                    disabled={submittingId === s.id}
+                    className="rounded-md bg-brand-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-50"
+                  >
+                    Approve
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setRejectingId(rejectingId === s.id ? null : s.id);
+                      setRejectReason('');
+                    }}
+                    disabled={submittingId === s.id}
+                    className="rounded-md border border-red-300 px-3 py-1.5 text-sm font-medium text-red-700 hover:bg-red-50 disabled:opacity-50"
+                  >
+                    Reject
+                  </button>
+                </div>
+              </div>
+
+              {rejectingId === s.id && (
+                <div className="mt-3 space-y-2">
+                  <label htmlFor={`reason-${s.id}`} className="block text-sm font-medium text-gray-700">
+                    Rejection reason
+                  </label>
+                  <textarea
+                    id={`reason-${s.id}`}
+                    value={rejectReason}
+                    onChange={(e) => setRejectReason(e.target.value)}
+                    rows={2}
+                    className="w-full rounded-md border border-gray-300 p-2 text-sm"
+                    placeholder="Explain why this settlement is rejected"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => reject(s.id)}
+                    disabled={submittingId === s.id}
+                    className="rounded-md bg-red-600 px-3 py-1.5 text-sm font-medium text-white hover:bg-red-700 disabled:opacity-50"
+                  >
+                    Confirm rejection
+                  </button>
+                </div>
+              )}
+
+              <div className="mt-4 border-t border-gray-100 pt-3">
+                <h2 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+                  Audit trail
+                </h2>
+                {s.auditTrail && s.auditTrail.length > 0 ? (
+                  <ul className="mt-2 space-y-1 text-xs text-gray-600">
+                    {s.auditTrail.map((entry) => (
+                      <li key={entry.id}>
+                        <span className="font-medium">{entry.action}</span>
+                        {entry.actor ? ` by ${entry.actor}` : ''}
+                        {entry.reason ? ` — ${entry.reason}` : ''}
+                        {entry.createdAt ? ` (${new Date(entry.createdAt).toLocaleString()})` : ''}
+                      </li>
+                    ))}
+                  </ul>
+                ) : (
+                  <p className="mt-2 text-xs text-gray-400">No audit entries yet.</p>
+                )}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 }
