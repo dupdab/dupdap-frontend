@@ -44,7 +44,7 @@ export default function DashboardPage() {
   return (
     <div className="p-4 md:p-8">
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
           {t('dashboard.welcome')}{merchant?.businessName ? `, ${merchant.businessName}` : ''}
         </h1>
         <p className="text-gray-500 text-sm mt-1">{t('dashboard.subtitle')}</p>
@@ -61,7 +61,7 @@ export default function DashboardPage() {
             {loading ? (
               <Skeleton className="h-8 w-24" />
             ) : (
-              <div className="text-2xl font-bold text-gray-900">{value}</div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{value}</div>
             )}
           </div>
         ))}
@@ -70,7 +70,7 @@ export default function DashboardPage() {
       {/* Recent payments */}
       <div className="card">
         <div className="px-6 py-4 border-b border-gray-100">
-          <h2 className="font-semibold text-gray-900">{t('dashboard.recentPayments')}</h2>
+          <h2 className="font-semibold text-gray-900 dark:text-gray-100">{t('dashboard.recentPayments')}</h2>
         </div>
         <div className="divide-y divide-gray-50">
           {error ? (
@@ -91,7 +91,7 @@ export default function DashboardPage() {
               return (
                 <div key={p.id} className="px-6 py-4 flex items-center justify-between">
                   <div>
-                    <p className="text-sm font-medium text-gray-900">{p.reference}</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{p.reference}</p>
                     <p className="text-xs text-gray-400">{formatDate(p.createdAt, locale)}</p>
                   </div>
                   <div className="flex items-center gap-3">

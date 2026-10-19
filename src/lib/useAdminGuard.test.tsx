@@ -43,8 +43,9 @@ function stubAuth(overrides: Partial<StoreState> = {}) {
     hasHydrated: true,
     ...overrides,
   };
-  mockUseAuthStore.mockImplementation((selector?: (s: StoreState) => unknown) =>
-    selector ? (selector(state) as ReturnType<typeof useAuthStore>) : (state as never),
+  mockUseAuthStore.mockImplementation(
+    ((selector?: (s: StoreState) => unknown) =>
+      selector ? selector(state) : state) as unknown as typeof useAuthStore,
   );
 }
 

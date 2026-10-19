@@ -9,6 +9,10 @@
  * non-admin merchants — it should render an explicit loading state instead,
  * and still redirect non-admin merchants to /dashboard.
  *
+ * Issue #490: unauthenticated users must not be able to access /dashboard.
+ * The layout checks Zustand auth state on mount and redirects to
+ * /auth/login when no token exists.
+ *
  * Combinations of token × merchant state:
  *   - token + merchant   → renders dashboard UI
  *   - token only         → renders loading state (no blank flash), no redirect
@@ -26,10 +30,11 @@ import AdminLayout from '@/app/dashboard/admin/layout';
 
 const mockPush = vi.fn();
 const mockReplace = vi.fn();
+let mockPathname = '/dashboard';
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush, replace: mockReplace }),
-  usePathname: () => '/dashboard',
+  usePathname: () => mockPathname,
 }));
 
 vi.mock('next/link', () => ({
@@ -81,7 +86,9 @@ function stubAuth(overrides: {
 describe('DashboardLayout — auth guards and hydration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockPathname = '/dashboard';
     vi.useFakeTimers();
+    mockPathname.mockReturnValue('/dashboard');
   });
 
   afterEach(() => {
@@ -186,12 +193,38 @@ describe('DashboardLayout — auth guards and hydration', () => {
 
     expect(mockPush).toHaveBeenCalledWith('/auth/login?next=%2Fdashboard');
   });
+
+  it('[unauthenticated GET /dashboard] redirects to /auth/login', async () => {
+    // Issue #490: an unauthenticated visitor landing on /dashboard must be
+    // sent to /auth/login rather than seeing the merchant interface.
+    stubAuth({ token: null, merchant: null, hasHydrated: true });
+
+    render(
+      <DashboardLayout>
+        <div data-testid="child-content">Dashboard Content</div>
+      </DashboardLayout>,
+    );
+
+    // The merchant interface must not be rendered for unauthenticated users.
+    expect(screen.queryByTestId('child-content')).not.toBeInTheDocument();
+
+    await act(async () => {
+      vi.runAllTimers();
+    });
+
+    expect(mockPush).toHaveBeenCalledWith('/auth/login?next=%2Fdashboard');
+  });
 });
 
 describe('AdminLayout — admin authorization guard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    // The admin layout only ever mounts under the admin route tree, so the
+    // guard must see an admin pathname for its authorization decision.
+    mockPathname = '/dashboard/admin/settlements';
     vi.useFakeTimers();
+    // Restore default path for each test; individual tests may override.
+    mockPathname.mockReturnValue('/dashboard/admin');
   });
 
   afterEach(() => {
@@ -215,6 +248,10 @@ describe('AdminLayout — admin authorization guard', () => {
   });
 
   it('[non-admin merchant] renders an explicit loading state — no blank flash — then redirects to /dashboard', async () => {
+    // Simulate a non-admin merchant navigating directly to an admin route.
+    // The pathname must be an admin path so useAdminGuard marks the merchant
+    // unauthorized for this route (#357).
+    mockPathname.mockReturnValue('/dashboard/admin/settlements');
     stubAuth({ token: 'valid-token', merchant: MOCK_MERCHANT });
 
     const { container } = render(

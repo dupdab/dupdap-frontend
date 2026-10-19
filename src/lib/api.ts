@@ -18,6 +18,34 @@ const api = axios.create({
   baseURL: getApiUrl(),
 });
 
+/** Extra config field used to bound reconnect retries for one request. */
+interface OfflineRetryConfig {
+  __offlineRetryCount?: number;
+}
+
+const MAX_OFFLINE_RETRIES = 2;
+
+function isOffline(): boolean {
+  return typeof navigator !== 'undefined' && navigator.onLine === false;
+}
+
+/**
+ * Resolves as soon as the browser reports a connection again. Requests that
+ * fail while offline await this instead of rejecting, so the caller's original
+ * promise settles once the request is replayed (#547).
+ */
+function waitForOnline(): Promise<void> {
+  if (!isOffline()) return Promise.resolve();
+
+  return new Promise((resolve) => {
+    const handleOnline = () => {
+      window.removeEventListener('online', handleOnline);
+      resolve();
+    };
+    window.addEventListener('online', handleOnline);
+  });
+}
+
 api.interceptors.request.use((config) => {
   const token = useAuthStore.getState().token;
   if (token) config.headers.Authorization = `Bearer ${token}`;
@@ -26,11 +54,25 @@ api.interceptors.request.use((config) => {
 
 api.interceptors.response.use(
   (res) => res,
-  (err) => {
+  async (err) => {
     if (err.response?.status === 401 && typeof window !== 'undefined') {
       useAuthStore.getState().logout();
-      redirectToLogin();
+      // Preserve the page the user was on so they land back there after signing in.
+      const returnPath = `${window.location.pathname}${window.location.search}`;
+      redirectToLogin(returnPath);
     }
+
+    // A network failure while offline is queued until the connection returns
+    // and then replayed through the same axios instance, so awaiting callers
+    // receive the real response and can render fresh data automatically (#547).
+    const config = err.config as (typeof err.config & OfflineRetryConfig) | undefined;
+    const retryCount = config?.__offlineRetryCount ?? 0;
+    if (config && !err.response && isOffline() && retryCount < MAX_OFFLINE_RETRIES) {
+      config.__offlineRetryCount = retryCount + 1;
+      await waitForOnline();
+      return api.request(config);
+    }
+
     return Promise.reject(err);
   },
 );
@@ -65,6 +107,7 @@ export const merchantApi = {
   profile: () => api.get<Merchant>('/merchants/me'),
   update: (data: Record<string, string>) => api.patch<Merchant>('/merchants/me', data),
   generateApiKey: (scopes?: string[]) => api.post<ApiKey>('/merchants/api-keys', { scopes }),
+  rateLimit: () => api.get('/merchants/api-keys/rate-limit'),
 };
 
 export const webhooksApi = {
