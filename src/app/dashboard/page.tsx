@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useQuery } from '@tanstack/react-query';
 import { TrendingUp, CreditCard, Banknote, Clock } from 'lucide-react';
 import { paymentsApi } from '@/lib/api';
 import { formatUsd, formatDate, PAYMENT_STATUS_COLORS, STATUS_ICONS, DEFAULT_STATUS_COLOR } from '@/lib/utils';
@@ -13,21 +14,22 @@ import type { Payment, PaymentStats } from '@/lib/types';
 export default function DashboardPage() {
   const { merchant } = useAuthStore();
   const { t, locale } = useLocale();
-  const [payments, setPayments] = useState<Payment[]>([]);
-  const [stats, setStats] = useState<PaymentStats[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
 
-  useEffect(() => {
-    Promise.all([paymentsApi.list(1, 5), paymentsApi.stats()])
-      .then(([p, s]) => {
-        setError('');
-        setPayments(p.data.payments);
-        setStats(s.data);
-      })
-      .catch(() => setError(t('dashboard.loadError')))
-      .finally(() => setLoading(false));
-  }, []);
+  // Deduplicated, abortable queries: React Query shares in-flight requests by key
+  // and passes an AbortSignal that cancels the request on unmount/navigation.
+  const paymentsQuery = useQuery({
+    queryKey: ['payments', 'list', 1, 5],
+    queryFn: ({ signal }) => paymentsApi.list(1, 5, { signal }),
+  });
+  const statsQuery = useQuery({
+    queryKey: ['payments', 'stats'],
+    queryFn: ({ signal }) => paymentsApi.stats({ signal }),
+  });
+
+  const payments: Payment[] = paymentsQuery.data?.data.payments ?? [];
+  const stats: PaymentStats[] = statsQuery.data?.data ?? [];
+  const loading = paymentsQuery.isLoading || statsQuery.isLoading;
+  const error = paymentsQuery.isError || statsQuery.isError ? t('dashboard.loadError') : '';
 
   const { totalVolume, settledCount, pendingCount, totalPayments } = aggregatePaymentStats(stats);
 
