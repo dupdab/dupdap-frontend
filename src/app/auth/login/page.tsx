@@ -7,6 +7,7 @@ import toast from '@/lib/toast';
 import { authApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { FormField } from '@/components/FormField';
+import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { isAuthResponse } from '@/lib/types';
 import {
   CAPTCHA_THRESHOLD as SHARED_CAPTCHA_THRESHOLD,
@@ -151,7 +152,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-screen items-center justify-center">Loading...</div>}>
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center"><LoadingSpinner showLabel /></div>}>
       <LoginForm />
     </Suspense>
   );
