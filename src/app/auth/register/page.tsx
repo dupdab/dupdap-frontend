@@ -1,8 +1,10 @@
 'use client';
 
-import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import toast from '@/lib/toast';
 import { authApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
@@ -18,39 +20,67 @@ const PASSWORD_REQUIREMENTS = [
   { key: 'special', label: 'One special character', test: (v: string) => /[^A-Za-z0-9]/.test(v) },
 ];
 
+const registerSchema = z
+  .object({
+    businessName: z.string().min(1, 'Business name is required'),
+    email: z.string().min(1, 'Email is required').email('Enter a valid email address'),
+    password: z
+      .string()
+      .min(8, 'At least 8 characters')
+      .regex(/[A-Z]/, 'One uppercase letter')
+      .regex(/[a-z]/, 'One lowercase letter')
+      .regex(/[0-9]/, 'One number')
+      .regex(/[^A-Za-z0-9]/, 'One special character'),
+    confirmPassword: z.string().min(1, 'Please confirm your password'),
+    country: z.string().optional(),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: 'Passwords do not match',
+    path: ['confirmPassword'],
+  });
+
+type RegisterFormValues = z.infer<typeof registerSchema>;
+
 export default function RegisterPage() {
   const router = useRouter();
   const setAuth = useAuthStore((state) => state.setAuth);
-  const [form, setForm] = useState({
-    email: '',
-    password: '',
-    businessName: '',
-    country: '',
+  const {
+    register,
+    handleSubmit,
+    watch,
+    setError: setFieldError,
+    formState: { errors, isSubmitting },
+  } = useForm<RegisterFormValues>({
+    resolver: zodResolver(registerSchema),
+    defaultValues: {
+      businessName: '',
+      email: '',
+      password: '',
+      confirmPassword: '',
+      country: '',
+    },
   });
-  const [confirmPassword, setConfirmPassword] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+
+  const password = watch('password') ?? '';
+  const confirmPassword = watch('confirmPassword') ?? '';
 
   const checks = PASSWORD_REQUIREMENTS.reduce<Record<string, boolean>>((acc, req) => {
-    acc[req.key] = req.test(form.password);
+    acc[req.key] = req.test(password);
     return acc;
   }, {});
   const metCount = PASSWORD_REQUIREMENTS.filter((req) => checks[req.key]).length;
   const passwordValid =
     checks.length && checks.uppercase && checks.lowercase && checks.number && checks.special;
-  const passwordsMatch = form.password === confirmPassword;
+  const passwordsMatch = password === confirmPassword;
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setError('');
-    setLoading(true);
-
+  const onSubmit = async (values: RegisterFormValues) => {
     try {
-      const response = await authApi.register(form);
+      const response = await authApi.register({
+        email: values.email,
+        password: values.password,
+        businessName: values.businessName,
+        country: values.country ?? '',
+      });
       if (!isAuthResponse(response.data)) {
         throw new Error('Unexpected response from server');
       }
@@ -60,12 +90,12 @@ export default function RegisterPage() {
       // Surface the failure both inline (persistent banner) and as a toast so
       // it is announced immediately without losing context on scroll (#408).
       const message = getErrorMessage(err) ?? 'Registration failed';
-      setError(message);
+      setFieldError('root', { type: 'server', message });
       toast.error(message);
-    } finally {
-      setLoading(false);
     }
   };
+
+  const loading = isSubmitting;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
@@ -77,19 +107,19 @@ export default function RegisterPage() {
           </p>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4" aria-busy={loading}>
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" aria-busy={loading} noValidate>
           {/* Visually-hidden live region announces submit outcomes to screen readers (#158) */}
           <p className="sr-only" aria-live="polite" aria-atomic="true">
             {loading ? 'Creating account, please wait…' : ''}
           </p>
 
-          {error && (
+          {errors.root?.message && (
             <div
               data-testid="register-form-error"
               role="alert"
               className="bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700"
             >
-              {error}
+              {errors.root.message}
             </div>
           )}
 
@@ -100,13 +130,17 @@ export default function RegisterPage() {
             </label>
             <input
               id="businessName"
-              name="businessName"
               type="text"
-              required
-              value={form.businessName}
-              onChange={handleChange}
+              {...register('businessName')}
+              aria-invalid={!!errors.businessName}
+              aria-describedby={errors.businessName ? 'businessName-error' : undefined}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
             />
+            {errors.businessName && (
+              <p id="businessName-error" role="alert" className="text-xs text-red-500 mt-1">
+                {errors.businessName.message}
+              </p>
+            )}
           </div>
 
           <div>
@@ -115,13 +149,17 @@ export default function RegisterPage() {
             </label>
             <input
               id="email"
-              name="email"
               type="email"
-              required
-              value={form.email}
-              onChange={handleChange}
+              {...register('email')}
+              aria-invalid={!!errors.email}
+              aria-describedby={errors.email ? 'email-error' : undefined}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
             />
+            {errors.email && (
+              <p id="email-error" role="alert" className="text-xs text-red-500 mt-1">
+                {errors.email.message}
+              </p>
+            )}
           </div>
 
           <div>
@@ -130,12 +168,10 @@ export default function RegisterPage() {
             </label>
             <input
               id="password"
-              name="password"
               type="password"
-              required
-              value={form.password}
-              onChange={handleChange}
+              {...register('password')}
               aria-describedby="password-requirements"
+              aria-invalid={!!errors.password}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
             />
             <ul
@@ -161,22 +197,19 @@ export default function RegisterPage() {
             </label>
             <input
               id="confirmPassword"
-              name="confirmPassword"
               type="password"
-              required
-              value={confirmPassword}
-              onChange={(e) => setConfirmPassword(e.target.value)}
-              aria-describedby={!passwordsMatch ? 'confirm-password-error' : undefined}
-              aria-invalid={!passwordsMatch}
+              {...register('confirmPassword')}
+              aria-describedby={errors.confirmPassword ? 'confirm-password-error' : undefined}
+              aria-invalid={!!errors.confirmPassword}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
             />
-            {!passwordsMatch && (
+            {errors.confirmPassword && (
               <p
                 id="confirm-password-error"
                 role="alert"
                 className="text-xs text-red-500 mt-1"
               >
-                Passwords do not match
+                {errors.confirmPassword.message}
               </p>
             )}
           </div>
@@ -187,9 +220,7 @@ export default function RegisterPage() {
             </label>
             <select
               id="country"
-              name="country"
-              value={form.country}
-              onChange={handleChange}
+              {...register('country')}
               className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
             >
               <option value="">Select a country</option>
@@ -209,17 +240,16 @@ export default function RegisterPage() {
             disabled={loading || !passwordValid || !passwordsMatch}
             className="w-full flex justify-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-50"
           >
-            {loading ? 'Creating account...' : 'Create account'}
+            {loading ? 'Creating account…' : 'Create account'}
           </button>
-          </fieldset>
-        </form>
 
-        <p className="mt-4 text-center text-sm text-gray-600">
-          Already have an account?{' '}
-          <Link href="/auth/login" className="font-medium text-indigo-600 hover:text-indigo-500">
-            Sign in
-          </Link>
-        </p>
+          <p className="text-center text-sm text-gray-600">
+            Already have an account?{' '}
+            <Link href="/auth/login" className="font-medium text-indigo-600 hover:text-indigo-500">
+              Sign in
+            </Link>
+          </p>
+        </form>
       </div>
     </div>
   );

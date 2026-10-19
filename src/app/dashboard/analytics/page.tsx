@@ -5,6 +5,8 @@ import dynamic from 'next/dynamic';
 import { paymentsApi } from '@/lib/api';
 import { formatUsd } from '@/lib/utils';
 import type { PaymentStats } from '@/lib/types';
+import RevenueByMethodCard from './RevenueByMethodCard';
+import { LoadingSpinner } from '@/components/LoadingSpinner';
 
 // Recharts is a large library only used on this page. Wrapping the chart
 // components with next/dynamic (ssr: false) does two things:
@@ -60,7 +62,7 @@ export default function AnalyticsPage() {
       </div>
 
       {loading ? (
-        <div className="text-center py-12 text-gray-400">Loading...</div>
+        <div className="text-center py-12 text-gray-400"><LoadingSpinner showLabel /></div>
       ) : error ? (
         <div className="text-center py-12 text-red-500">
           <p>{error}</p>
@@ -132,6 +134,8 @@ export default function AnalyticsPage() {
               </table>
             </div>
           </div>
+
+          <RevenueByMethodCard />
         </div>
       )}
     </div>

@@ -8,10 +8,12 @@
  *  - Renders hero headline, subheadline, and main CTA buttons
  *  - Renders feature cards (Why DupDub?)
  *  - Renders step-by-step onboarding guide (How it works)
+ *  - Renders pricing section with fee tiers, comparison table, FAQ, and CTA (Issue #557)
  *  - Renders footer with copyright text
+ *  - Renders the animated payment flow illustration (Issue #573)
  */
 
-import { describe, it, expect, vi, afterEach } from 'vitest';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import LandingPage from './page';
 
@@ -37,8 +39,34 @@ vi.mock('next/headers', () => ({
   headers: () => new Headers({ 'x-nonce': 'test-nonce' }),
 }));
 
+// The hero illustration is lazy-loaded via next/dynamic with ssr:false so it
+// does not contribute to LCP (#573). In tests we render it eagerly so its
+// accessible content is queryable.
+vi.mock('next/dynamic', () => ({
+  default: () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const mod = require('@/components/PaymentFlowIllustration');
+    return mod.PaymentFlowIllustration;
+  },
+}));
+
+beforeEach(() => {
+  // jsdom does not implement IntersectionObserver; provide a no-op stub so the
+  // illustration can mount without throwing (#573).
+  class MockIntersectionObserver {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+    takeRecords() {
+      return [];
+    }
+  }
+  vi.stubGlobal('IntersectionObserver', MockIntersectionObserver);
+});
+
 afterEach(() => {
   cleanup();
+  vi.unstubAllGlobals();
 });
 
 describe('LandingPage — smoke test & rendering', () => {
@@ -86,6 +114,14 @@ describe('LandingPage — smoke test & rendering', () => {
     expect(waitlistLink).toHaveAttribute('href', '/waitlist');
   });
 
+  it('renders the animated payment flow illustration with an accessible label', () => {
+    render(<LandingPage />);
+    const illustration = screen.getByRole('img', {
+      name: /payment flow: merchant qr code to customer wallet to bank account/i,
+    });
+    expect(illustration).toBeInTheDocument();
+  });
+
   it('renders the "Why DupDub?" features section with 4 feature items', () => {
     render(<LandingPage />);
     expect(screen.getByRole('heading', { level: 2, name: /why dupdub\?/i })).toBeInTheDocument();
@@ -103,6 +139,35 @@ describe('LandingPage — smoke test & rendering', () => {
     expect(screen.getByText('Create payment')).toBeInTheDocument();
     expect(screen.getByText('Customer approves + deposits')).toBeInTheDocument();
     expect(screen.getByText('Receive fiat')).toBeInTheDocument();
+  });
+
+  it('renders the pricing section with fee tiers', () => {
+    render(<LandingPage />);
+    expect(screen.getByRole('heading', { level: 2, name: /pricing/i })).toBeInTheDocument();
+
+    // Standard tier fee
+    expect(screen.getByText('1.5%')).toBeInTheDocument();
+    // Volume tiers offer lower rates
+    expect(screen.getByText('1.0%')).toBeInTheDocument();
+    expect(screen.getByText('0.5%')).toBeInTheDocument();
+  });
+
+  it('renders the pricing comparison table vs traditional processors', () => {
+    render(<LandingPage />);
+    expect(screen.getByRole('table')).toBeInTheDocument();
+    expect(screen.getByText(/traditional payment processors/i)).toBeInTheDocument();
+  });
+
+  it('renders the pricing FAQ accordion', () => {
+    render(<LandingPage />);
+    expect(screen.getByRole('heading', { level: 2, name: /frequently asked questions/i })).toBeInTheDocument();
+    expect(screen.getByText(/how are fees calculated/i)).toBeInTheDocument();
+  });
+
+  it('renders a CTA within the pricing section', () => {
+    render(<LandingPage />);
+    const pricingCta = screen.getByRole('link', { name: /get started with dupdub/i });
+    expect(pricingCta).toHaveAttribute('href', '/auth/register');
   });
 
   it('renders the bottom CTA section and footer', () => {
