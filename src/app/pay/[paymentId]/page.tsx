@@ -7,6 +7,8 @@ import { Clock, CheckCircle, XCircle, Loader2, Copy, Check, AlertTriangle } from
 import { paymentsApi } from '@/lib/api';
 import { formatUsd } from '@/lib/utils';
 import type { Payment } from '@/lib/types';
+import XlmEquivalent from '@/components/XlmEquivalent';
+import { OpenInWalletButtons } from '@/components/OpenInWalletButtons';
 
 const STATUS_ICONS: Record<string, React.ReactNode> = {
   pending: <Clock className="w-8 h-8 text-yellow-500" />,
@@ -189,10 +191,14 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
 
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div role="status" aria-live="polite" aria-atomic="true" className="sr-only" data-testid="payment-status-live-region">
+        Payment status: {payment.status}
+      </div>
       <div className="card w-full max-w-[92vw] xs:max-w-sm">
         <div className="p-4 xs:p-6 border-b border-gray-100 text-center">
           <p className="text-sm text-gray-500 font-medium">DupDub</p>
           <h1 className="text-3xl font-bold mt-1">{formatUsd(payment.amountUsd)}</h1>
+          <XlmEquivalent amountXlm={payment.amountXlm} updatedAt={payment.updatedAt} />
           {payment.description && <p className="text-sm text-gray-500 mt-1 break-words">{payment.description}</p>}
         </div>
 
@@ -225,6 +231,26 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
                     <Loader2 className="w-8 h-8 text-brand-500 animate-spin" />
                   </div>
                 )}
+              </div>
+              <p className="text-center text-xs text-gray-500 mb-4">
+                Scan with a Stellar wallet app, then approve USDC before deposit
+              </p>
+              {stellarUri && (
+                <OpenInWalletButtons
+                  payment={{
+                    destination: payment.stellarDepositAddress ?? '',
+                    amount: payment.amountXlm as number,
+                    memo: payment.stellarMemo,
+                  }}
+                />
+              )}
+              <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs mb-4">
+                <p className="font-semibold text-blue-900 mb-1">Required customer flow</p>
+                <p className="text-blue-800">1) approve(escrow_contract, amount)</p>
+                <p className="text-blue-800">2) deposit()</p>
+                <p className="text-blue-700 mt-1">
+                  Your wallet signs both steps. No private keys are shared with DupDub.
+                </p>
               </div>
 
               {stellarUri && (

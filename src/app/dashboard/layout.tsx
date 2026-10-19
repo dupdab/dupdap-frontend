@@ -20,6 +20,8 @@ import { isAdmin } from '@/lib/auth';
 import { isNavItemActive } from '@/lib/nav-active';
 import { cn } from '@/lib/utils';
 import { useFocusTrap } from '@/lib/useFocusTrap';
+import { cn } from '@/lib/utils';
+import WhatsNewBanner from '@/components/WhatsNewBanner';
 
 declare global {
   interface Window {
@@ -237,8 +239,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       )}
 
-      {/* Main content */}
-      <main className="flex-1 md:ml-64 pt-14 md:pt-0 print:ml-0 print:pt-0">
+      {/* Main */}
+      <main className="flex-1 overflow-auto pt-14 md:pt-0 print:ml-0 print:pt-0">
+        <WhatsNewBanner />
         {children}
       </main>
     </div>
