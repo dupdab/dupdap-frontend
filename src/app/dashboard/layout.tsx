@@ -19,10 +19,8 @@ import { useAuthStore } from '@/lib/store';
 import { isAdmin } from '@/lib/auth';
 import { isNavItemActive } from '@/lib/nav-active';
 import { cn } from '@/lib/utils';
-import { useAuthStore } from '@/lib/store';
-import { isAdmin } from '@/lib/auth';
 import { useFocusTrap } from '@/lib/useFocusTrap';
-import { cn } from '@/lib/utils';
+import { useAdminGuard, useAdminRedirect } from '@/lib/useAdminGuard';
 
 declare global {
   interface Window {
@@ -69,6 +67,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // focus-trap so focus moves into the drawer on open, Tab cycles inside it,
   // and focus returns to the hamburger button on close (#356).
   const drawerRef = useFocusTrap<HTMLElement>(mobileNavOpen);
+  // Admin authorization gate — returns 'authorized' for all non-admin routes,
+  // 'unauthorized' for admin routes when the merchant is not an admin (#357).
+  const adminStatus = useAdminGuard();
+  useAdminRedirect(adminStatus);
 
   useEffect(() => {
     if (!token) {

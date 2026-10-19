@@ -2,9 +2,20 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Clock, CheckCircle, XCircle, Loader2, Copy, Check, AlertTriangle } from 'lucide-react';
+import {
+  Clock,
+  CheckCircle,
+  XCircle,
+  Loader2,
+  Copy,
+  Check,
+  AlertTriangle,
+  WifiOff,
+  Printer,
+  Download,
+} from 'lucide-react';
 import { paymentsApi } from '@/lib/api';
-import { formatUsd } from '@/lib/utils';
+import { formatUsd, formatDate } from '@/lib/utils';
 import type { Payment } from '@/lib/types';
 
 const STATUS_ICONS: Record<string, React.ReactNode> = {
@@ -22,9 +33,17 @@ const POLL_INTERVAL_MS = 5000;
 const POLL_MAX_ATTEMPTS = 24;
 const POLL_MAX_BACKOFF_MS = 60_000;
 
-function computeExpiresAt(payment: any): Date | null {
-  if (payment?.expiresAt) return new Date(payment.expiresAt);
-  if (payment?.expiryMinutes && payment?.createdAt) {
+/**
+ * Number of consecutive poll failures before we show the network degradation
+ * banner. Two failures correspond to roughly 10 s of silence — enough to
+ * distinguish a transient hiccup from a real outage without alarming customers
+ * on a normal 5-s retry bounce.
+ */
+const DEGRADED_FAILURE_THRESHOLD = 2;
+
+function computeExpiresAt(payment: Payment): Date | null {
+  if (payment.expiresAt) return new Date(payment.expiresAt);
+  if (payment.expiryMinutes && payment.createdAt) {
     return new Date(new Date(payment.createdAt).getTime() + payment.expiryMinutes * 60_000);
   }
   return null;
@@ -38,6 +57,143 @@ function formatRemaining(ms: number): string {
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
 }
 
+// ─── Network degradation banner ────────────────────────────────────────────
+
+interface DegradedBannerProps {
+  visible: boolean;
+}
+
+function DegradedBanner({ visible }: DegradedBannerProps) {
+  if (!visible) return null;
+  return (
+    <div
+      role="alert"
+      aria-live="assertive"
+      data-testid="degraded-banner"
+      className="flex items-start gap-3 rounded-lg bg-amber-50 border border-amber-300 p-3 mb-4 text-sm text-amber-800"
+    >
+      <WifiOff className="w-4 h-4 mt-0.5 shrink-0 text-amber-600" aria-hidden="true" />
+      <div>
+        <p className="font-semibold">Stellar network connection issue</p>
+        <p className="mt-0.5 text-xs">
+          We&apos;re having trouble reaching the payment network. Your payment has
+          <strong> not been lost</strong> — we&apos;ll confirm it as soon as the connection
+          is restored. Please keep this page open.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Receipt ───────────────────────────────────────────────────────────────
+
+interface ReceiptProps {
+  payment: Payment;
+}
+
+function Receipt({ payment }: ReceiptProps) {
+  const handlePrint = () => {
+    window.print();
+  };
+
+  /** Generate a minimal text receipt and trigger a browser download. */
+  const handleDownload = () => {
+    const lines = [
+      'DupDub Payment Receipt',
+      '======================',
+      `Reference:   ${payment.reference}`,
+      `Amount:      ${formatUsd(payment.amountUsd)}`,
+      `Status:      ${payment.status}`,
+      payment.description ? `Description: ${payment.description}` : '',
+      payment.customerEmail ? `Customer:    ${payment.customerEmail}` : '',
+      `Date:        ${formatDate(payment.createdAt)}`,
+      payment.updatedAt ? `Settled:     ${formatDate(payment.updatedAt)}` : '',
+    ]
+      .filter(Boolean)
+      .join('\n');
+
+    const blob = new Blob([lines], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `dupdub-receipt-${payment.reference}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div
+      data-testid="payment-receipt"
+      className="space-y-4"
+    >
+      {/* Status stamp */}
+      <div className="flex flex-col items-center py-6">
+        <CheckCircle className="w-14 h-14 text-green-500 mb-3" />
+        <h2 className="text-xl font-bold text-gray-900">Payment Complete</h2>
+        <p className="text-sm text-gray-500 mt-1">Your payment has been confirmed and settled.</p>
+      </div>
+
+      {/* Receipt details */}
+      <dl className="divide-y divide-gray-100 text-sm border border-gray-200 rounded-lg overflow-hidden">
+        <div className="flex justify-between px-4 py-3 bg-white">
+          <dt className="text-gray-500">Amount</dt>
+          <dd className="font-semibold text-gray-900">{formatUsd(payment.amountUsd)}</dd>
+        </div>
+        <div className="flex justify-between px-4 py-3 bg-gray-50">
+          <dt className="text-gray-500">Reference</dt>
+          <dd className="font-mono text-gray-900 text-xs break-all">{payment.reference}</dd>
+        </div>
+        {payment.description && (
+          <div className="flex justify-between px-4 py-3 bg-white">
+            <dt className="text-gray-500">Description</dt>
+            <dd className="text-gray-900 text-right max-w-[60%] break-words">{payment.description}</dd>
+          </div>
+        )}
+        {payment.customerEmail && (
+          <div className="flex justify-between px-4 py-3 bg-gray-50">
+            <dt className="text-gray-500">Email</dt>
+            <dd className="text-gray-900">{payment.customerEmail}</dd>
+          </div>
+        )}
+        <div className="flex justify-between px-4 py-3 bg-white">
+          <dt className="text-gray-500">Date</dt>
+          <dd className="text-gray-900">{formatDate(payment.createdAt)}</dd>
+        </div>
+        {payment.updatedAt && (
+          <div className="flex justify-between px-4 py-3 bg-gray-50">
+            <dt className="text-gray-500">Settled</dt>
+            <dd className="text-gray-900">{formatDate(payment.updatedAt)}</dd>
+          </div>
+        )}
+      </dl>
+
+      {/* Actions */}
+      <div className="flex gap-3 print:hidden">
+        <button
+          type="button"
+          onClick={handlePrint}
+          aria-label="Print receipt"
+          className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+        >
+          <Printer className="w-4 h-4" aria-hidden="true" />
+          Print
+        </button>
+        <button
+          type="button"
+          onClick={handleDownload}
+          aria-label="Download receipt"
+          className="flex-1 flex items-center justify-center gap-2 px-4 py-2 border border-gray-300 rounded-lg text-sm font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+        >
+          <Download className="w-4 h-4" aria-hidden="true" />
+          Download
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// ─── Main page ─────────────────────────────────────────────────────────────
+
 export default function PayPage({ params }: { params: { paymentId: string } }) {
   const [payment, setPayment] = useState<Payment | null>(null);
   const [loading, setLoading] = useState(true);
@@ -45,6 +201,8 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
   const [now, setNow] = useState(Date.now());
   const [copied, setCopied] = useState<string | null>(null);
   const [pollWarning, setPollWarning] = useState<string>('');
+  /** True when consecutive poll failures have crossed the degradation threshold. */
+  const [networkDegraded, setNetworkDegraded] = useState(false);
   const pollNowRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
@@ -55,7 +213,13 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
 
     paymentsApi.getByReference(params.paymentId)
       .then(({ data }) => setPayment(data))
-      .catch(() => setLoadError(true))
+      .catch(() => {
+        setLoadError(true);
+        // Treat a failed initial load as a degraded network too — the customer
+        // landing on the page sees nothing working, which is worse than polling
+        // recovering after mount.
+        setNetworkDegraded(true);
+      })
       .finally(() => setLoading(false));
 
     const scheduleNext = () => {
@@ -78,6 +242,8 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
         .then(({ data }) => {
           consecutiveFailures = 0;
           setPollWarning('');
+          // Recovery: clear the degradation banner once the network is back.
+          setNetworkDegraded(false);
           setPayment(data);
           if (['settled', 'failed', 'expired'].includes(data.status)) return;
           scheduleNext();
@@ -85,6 +251,9 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
         .catch(() => {
           consecutiveFailures += 1;
           setPollWarning('We are having trouble checking your payment status right now.');
+          if (consecutiveFailures >= DEGRADED_FAILURE_THRESHOLD) {
+            setNetworkDegraded(true);
+          }
           scheduleNext();
         });
     };
@@ -111,6 +280,7 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
 
   const expiresAt = payment ? computeExpiresAt(payment) : null;
   const isPending = payment?.status === 'pending';
+  const isSettled = payment?.status === 'settled' || payment?.status === 'completed';
   const remainingMs = expiresAt ? expiresAt.getTime() - now : 0;
   const isExpiredByClock = isPending && expiresAt ? remainingMs <= 0 : false;
 
@@ -156,9 +326,20 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
       <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <XCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
-          <p className="text-gray-600">
-            {loadError ? 'Something went wrong loading this payment — try again' : 'Payment not found'}
-          </p>
+          {networkDegraded ? (
+            <>
+              <p className="text-gray-700 font-semibold">Network connection issue</p>
+              <p className="text-gray-500 text-sm mt-1">
+                {loadError
+                  ? 'We couldn\'t load this payment — the Stellar network or our backend may be temporarily down.'
+                  : 'Payment not found'}
+              </p>
+            </>
+          ) : (
+            <p className="text-gray-600">
+              {loadError ? 'Something went wrong loading this payment — try again' : 'Payment not found'}
+            </p>
+          )}
         </div>
       </div>
     );
@@ -175,18 +356,39 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
         <div className="p-4 xs:p-6 border-b border-gray-100 text-center">
           <p className="text-sm text-gray-500 font-medium">DupDub</p>
           <h1 className="text-3xl font-bold mt-1">{formatUsd(payment.amountUsd)}</h1>
-          {payment.description && <p className="text-sm text-gray-500 mt-1 break-words">{payment.description}</p>}
+          {payment.description && (
+            <p className="text-sm text-gray-500 mt-1 break-words">{payment.description}</p>
+          )}
         </div>
 
         <div className="p-4 xs:p-6">
-          {isPending ? (
+          {/* Network degradation banner — shown for any non-terminal status */}
+          {!isSettled && payment.status !== 'failed' && payment.status !== 'expired' && (
+            <DegradedBanner visible={networkDegraded} />
+          )}
+
+          {isSettled ? (
+            <Receipt payment={payment} />
+          ) : isPending ? (
             <>
               {expiresAt && (
-                <div className={`flex items-center justify-center gap-2 rounded-lg p-3 mb-4 text-sm font-semibold ${
-                  isExpiredByClock ? 'bg-red-50 text-red-700 border border-red-200' : remainingMs < 60_000 ? 'bg-red-50 text-red-700 border border-red-200' : 'bg-gray-100 text-gray-700 border border-gray-200'
-                }`}>
-                  {isExpiredByClock ? <AlertTriangle className="w-4 h-4" /> : <Clock className="w-4 h-4" />}
-                  {isExpiredByClock ? 'This payment request has expired' : <>Expires in {formatRemaining(remainingMs)}</>}
+                <div
+                  className={`flex items-center justify-center gap-2 rounded-lg p-3 mb-4 text-sm font-semibold ${
+                    isExpiredByClock || remainingMs < 60_000
+                      ? 'bg-red-50 text-red-700 border border-red-200'
+                      : 'bg-gray-100 text-gray-700 border border-gray-200'
+                  }`}
+                >
+                  {isExpiredByClock ? (
+                    <AlertTriangle className="w-4 h-4" />
+                  ) : (
+                    <Clock className="w-4 h-4" />
+                  )}
+                  {isExpiredByClock ? (
+                    'This payment request has expired'
+                  ) : (
+                    <>Expires in {formatRemaining(remainingMs)}</>
+                  )}
                 </div>
               )}
 
@@ -224,13 +426,19 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs mb-3">
                 <p className="text-xs text-gray-500 mb-1">Deposit address (exact)</p>
                 <div className="flex items-center gap-2">
-                  <code className="text-sm font-mono font-bold break-all flex-1 text-gray-900">{payment.stellarDepositAddress}</code>
+                  <code className="text-sm font-mono font-bold break-all flex-1 text-gray-900">
+                    {payment.stellarDepositAddress}
+                  </code>
                   <button
                     onClick={() => copy(payment.stellarDepositAddress ?? '', 'address')}
                     aria-label="Copy deposit address"
                     className="shrink-0"
                   >
-                    {copied === 'address' ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4 text-gray-400" />}
+                    {copied === 'address' ? (
+                      <Check className="w-4 h-4 text-green-500" />
+                    ) : (
+                      <Copy className="w-4 h-4 text-gray-400" />
+                    )}
                   </button>
                 </div>
               </div>

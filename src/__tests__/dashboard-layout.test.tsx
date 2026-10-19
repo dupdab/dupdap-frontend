@@ -26,10 +26,11 @@ import AdminLayout from '@/app/dashboard/admin/layout';
 
 const mockPush = vi.fn();
 const mockReplace = vi.fn();
+const mockPathname = vi.fn(() => '/dashboard');
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush, replace: mockReplace }),
-  usePathname: () => '/dashboard',
+  usePathname: () => mockPathname(),
 }));
 
 vi.mock('next/link', () => ({
@@ -82,6 +83,7 @@ describe('DashboardLayout — auth guards and hydration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
+    mockPathname.mockReturnValue('/dashboard');
   });
 
   afterEach(() => {
@@ -192,6 +194,8 @@ describe('AdminLayout — admin authorization guard', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
+    // Restore default path for each test; individual tests may override.
+    mockPathname.mockReturnValue('/dashboard/admin');
   });
 
   afterEach(() => {
@@ -215,6 +219,10 @@ describe('AdminLayout — admin authorization guard', () => {
   });
 
   it('[non-admin merchant] renders an explicit loading state — no blank flash — then redirects to /dashboard', async () => {
+    // Simulate a non-admin merchant navigating directly to an admin route.
+    // The pathname must be an admin path so useAdminGuard marks the merchant
+    // unauthorized for this route (#357).
+    mockPathname.mockReturnValue('/dashboard/admin/settlements');
     stubAuth({ token: 'valid-token', merchant: MOCK_MERCHANT });
 
     const { container } = render(
