@@ -91,7 +91,7 @@ export default function SettlementsPage() {
   return (
     <div className="p-8">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Settlements</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Settlements</h1>
         <p className="text-sm text-gray-500 mt-1">{total} total settlements</p>
       </div>
 

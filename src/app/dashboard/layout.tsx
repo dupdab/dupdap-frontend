@@ -18,11 +18,10 @@ import {
 import { useAuthStore } from '@/lib/store';
 import { isAdmin } from '@/lib/auth';
 import { isNavItemActive } from '@/lib/nav-active';
-import { cn } from '@/lib/utils';
-import { useAuthStore } from '@/lib/store';
-import { isAdmin } from '@/lib/auth';
+import { useAdminGuard } from '@/lib/useAdminGuard';
 import { useFocusTrap } from '@/lib/useFocusTrap';
 import { cn } from '@/lib/utils';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 declare global {
   interface Window {
@@ -69,6 +68,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // focus-trap so focus moves into the drawer on open, Tab cycles inside it,
   // and focus returns to the hamburger button on close (#356).
   const drawerRef = useFocusTrap<HTMLElement>(mobileNavOpen);
+  // Admin guard — determines whether the current merchant may view admin routes.
+  // Must be called unconditionally (Rules of Hooks) even for non-admin paths;
+  // useAdminGuard returns 'authorized' for all non-admin paths (#357).
+  const adminStatus = useAdminGuard();
 
   useEffect(() => {
     if (!token) {
@@ -193,6 +196,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
       </nav>
 
       <div className="p-4 border-t border-gray-100 dark:border-gray-800">
+        <ThemeToggle />
         <button
           onClick={() => {
             if (!confirmNavigation()) return;
