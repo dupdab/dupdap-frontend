@@ -7,7 +7,7 @@ import { paymentsApi } from '@/lib/api';
 import { formatUsd } from '@/lib/utils';
 import type { PaymentStats } from '@/lib/types';
 import RevenueByMethodCard from './RevenueByMethodCard';
-import { LoadingSpinner } from '@/components/LoadingSpinner';
+import { Skeleton, SkeletonTableRows } from '@/components/Skeleton';
 
 // Recharts is a large library only used on this page. Wrapping the chart
 // components with next/dynamic (ssr: false) does two things:
@@ -17,12 +17,20 @@ import { LoadingSpinner } from '@/components/LoadingSpinner';
 //      merchants who never open analytics never download it.
 const StatusPieChart = dynamic(() => import('./StatusPieChart'), {
   ssr: false,
-  loading: () => <div className="h-[250px] flex items-center justify-center text-sm text-gray-400">Loading chart…</div>,
+  loading: () => (
+    <div className="h-[250px] flex items-center justify-center text-sm text-gray-400">
+      Loading chart…
+    </div>
+  ),
 });
 
 const VolumeBarChart = dynamic(() => import('./VolumeBarChart'), {
   ssr: false,
-  loading: () => <div className="h-[250px] flex items-center justify-center text-sm text-gray-400">Loading chart…</div>,
+  loading: () => (
+    <div className="h-[250px] flex items-center justify-center text-sm text-gray-400">
+      Loading chart…
+    </div>
+  ),
 });
 
 type Period = '7d' | '30d' | '90d';
@@ -59,7 +67,8 @@ export default function AnalyticsPage() {
   const loadStats = useCallback(() => {
     setLoading(true);
     setError('');
-    paymentsApi.stats()
+    paymentsApi
+      .stats()
       .then(({ data }) => {
         setError('');
         setStats(data);
@@ -71,7 +80,8 @@ export default function AnalyticsPage() {
   const loadTopMerchants = useCallback((range: Period) => {
     setTopLoading(true);
     setTopError('');
-    paymentsApi.topMerchants(range)
+    paymentsApi
+      .topMerchants(range)
       .then(({ data }) => {
         setTopError('');
         setTopMerchants(data);
@@ -94,16 +104,28 @@ export default function AnalyticsPage() {
     amount: parseFloat(String(s.totalUsd ?? 0)),
   }));
 
-  const totalVolume = stats.reduce((acc, s) => acc + parseFloat(String(s.totalUsd ?? 0)), 0);
-  const totalCount = stats.reduce((acc, s) => acc + parseInt(String(s.count), 10), 0);
+  const totalVolume = stats.reduce(
+    (acc, s) => acc + parseFloat(String(s.totalUsd ?? 0)),
+    0
+  );
+  const totalCount = stats.reduce(
+    (acc, s) => acc + parseInt(String(s.count), 10),
+    0
+  );
 
   const rankedMerchants = useMemo(
     () => [...topMerchants].sort((a, b) => b.totalVolume - a.totalVolume),
-    [topMerchants],
+    [topMerchants]
   );
 
   const exportCsv = useCallback(() => {
-    const header = ['Rank', 'Merchant', 'Total Volume (USD)', 'Payment Count', 'Avg Order Value (USD)'];
+    const header = [
+      'Rank',
+      'Merchant',
+      'Total Volume (USD)',
+      'Payment Count',
+      'Avg Order Value (USD)',
+    ];
     const rows = rankedMerchants.map((m, i) => [
       i + 1,
       m.merchantName,
@@ -111,7 +133,9 @@ export default function AnalyticsPage() {
       m.paymentCount,
       m.avgOrderValue.toFixed(2),
     ]);
-    const csv = [header, ...rows].map((row) => row.map(csvEscape).join(',')).join('\n');
+    const csv = [header, ...rows]
+      .map((row) => row.map(csvEscape).join(','))
+      .join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -126,12 +150,35 @@ export default function AnalyticsPage() {
   return (
     <div className="p-4 md:p-8">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Analytics</h1>
-        <p className="text-sm text-gray-500 mt-1">Payment volume and status breakdown</p>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+          Analytics
+        </h1>
+        <p className="text-sm text-gray-500 mt-1">
+          Payment volume and status breakdown
+        </p>
       </div>
 
       {loading ? (
-        <div className="text-center py-12 text-gray-400"><LoadingSpinner showLabel /></div>
+        <div className="space-y-6" aria-busy="true">
+          {/* stat card skeletons */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {[0, 1].map((i) => (
+              <div key={i} className="card p-6">
+                <Skeleton className="h-4 w-24 mb-3" />
+                <Skeleton className="h-9 w-32" />
+              </div>
+            ))}
+          </div>
+          {/* chart card skeletons */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {[0, 1].map((i) => (
+              <div key={i} className="card p-6">
+                <Skeleton className="h-5 w-40 mb-4" />
+                <Skeleton className="h-[250px] w-full" />
+              </div>
+            ))}
+          </div>
+        </div>
       ) : error ? (
         <div className="text-center py-12 text-red-500">
           <p>{error}</p>
@@ -208,7 +255,11 @@ export default function AnalyticsPage() {
             <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
               <h2 className="font-semibold">Top Merchants</h2>
               <div className="flex items-center gap-2">
-                <div className="inline-flex rounded-md border border-gray-200" role="group" aria-label="Period selector">
+                <div
+                  className="inline-flex rounded-md border border-gray-200"
+                  role="group"
+                  aria-label="Period selector"
+                >
                   {PERIODS.map((p) => (
                     <button
                       key={p.value}
@@ -233,7 +284,11 @@ export default function AnalyticsPage() {
             </div>
 
             {topLoading ? (
-              <div className="text-center py-8 text-gray-400">Loading...</div>
+              <table className="w-full text-sm">
+                <tbody>
+                  <SkeletonTableRows rows={5} cols={5} />
+                </tbody>
+              </table>
             ) : topError ? (
               <div className="text-center py-8 text-red-500">
                 <p>{topError}</p>
@@ -246,30 +301,50 @@ export default function AnalyticsPage() {
                 </button>
               </div>
             ) : rankedMerchants.length === 0 ? (
-              <div className="text-center py-8 text-gray-400">No merchant activity in this period.</div>
+              <div className="text-center py-8 text-gray-400">
+                No merchant activity in this period.
+              </div>
             ) : (
               <table className="w-full text-sm">
                 <thead>
                   <tr className="text-left text-gray-500 border-b border-gray-200">
-                    <th scope="col" className="py-2 pr-4">Rank</th>
-                    <th scope="col" className="py-2 pr-4">Merchant</th>
-                    <th scope="col" className="py-2 pr-4 text-right">Total Volume</th>
-                    <th scope="col" className="py-2 pr-4 text-right">Payments</th>
-                    <th scope="col" className="py-2 text-right">Avg Order Value</th>
+                    <th scope="col" className="py-2 pr-4">
+                      Rank
+                    </th>
+                    <th scope="col" className="py-2 pr-4">
+                      Merchant
+                    </th>
+                    <th scope="col" className="py-2 pr-4 text-right">
+                      Total Volume
+                    </th>
+                    <th scope="col" className="py-2 pr-4 text-right">
+                      Payments
+                    </th>
+                    <th scope="col" className="py-2 text-right">
+                      Avg Order Value
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {rankedMerchants.map((m, i) => (
                     <tr
                       key={m.merchantId}
-                      onClick={() => router.push(`/dashboard/merchants/${m.merchantId}`)}
+                      onClick={() =>
+                        router.push(`/dashboard/merchants/${m.merchantId}`)
+                      }
                       className="border-b border-gray-100 cursor-pointer hover:bg-gray-50"
                     >
                       <td className="py-2 pr-4 text-gray-500">{i + 1}</td>
-                      <td className="py-2 pr-4 font-medium text-gray-900">{m.merchantName}</td>
-                      <td className="py-2 pr-4 text-right">{formatUsd(m.totalVolume)}</td>
+                      <td className="py-2 pr-4 font-medium text-gray-900">
+                        {m.merchantName}
+                      </td>
+                      <td className="py-2 pr-4 text-right">
+                        {formatUsd(m.totalVolume)}
+                      </td>
                       <td className="py-2 pr-4 text-right">{m.paymentCount}</td>
-                      <td className="py-2 text-right">{formatUsd(m.avgOrderValue)}</td>
+                      <td className="py-2 text-right">
+                        {formatUsd(m.avgOrderValue)}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
