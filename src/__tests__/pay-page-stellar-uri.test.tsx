@@ -111,7 +111,6 @@ describe('PayPage — stellarUri construction', () => {
         reference: 'REF-004',
         amountUsd: 15,
         amountXlm: 60,
-        status: 'pending',
         stellarMemo: 'MEMO-NO-ADDR',
         stellarDepositAddress: undefined,
         createdAt: new Date().toISOString(),
@@ -126,5 +125,28 @@ describe('PayPage — stellarUri construction', () => {
     const expectedUri =
       'web+stellar:pay?destination=&amount=60&memo=MEMO-NO-ADDR&memo_type=text';
     expect(uri).toBe(expectedUri);
+  });
+
+  it('falls back to the QR code when Freighter is not detected', async () => {
+    mockGetByReference.mockResolvedValueOnce({
+      data: {
+        id: 'pay-005',
+        reference: 'REF-005',
+        amountUsd: 20,
+        amountXlm: 80,
+        status: 'pending',
+        description: 'No wallet',
+        stellarMemo: 'MEMO-NO-WALLET',
+        stellarDepositAddress: 'GADDRFALLBACK0000000000',
+        createdAt: new Date().toISOString(),
+      },
+    } as any);
+
+    render(<PayPage params={{ paymentId: 'REF-005' }} />);
+
+    // No Freighter extension is present in the test environment, so the
+    // "Pay with Freighter" button must not render and the QR fallback must.
+    await screen.findByTestId('qrcode');
+    expect(screen.queryByTestId('pay-with-freighter')).not.toBeInTheDocument();
   });
 });
