@@ -1,7 +1,7 @@
 'use client';
 
 import { memo, useEffect, useState } from 'react';
-import { Plus, Copy, Check, Link as LinkIcon } from 'lucide-react';
+import { Plus, Copy, Check, Link as LinkIcon, Download } from 'lucide-react';
 import toast from '@/lib/toast';
 import { QRCodeSVG } from 'qrcode.react';
 import { CopyButton } from '@/components/CopyButton';
@@ -22,6 +22,71 @@ const EXPIRY_MAX_MINUTES = 1440;
 // Maximum length for the optional payment description. Kept in sync with the
 // backend limit so the customer-facing pay page card never overflows (#396).
 const DESCRIPTION_MAX_LENGTH = 200;
+
+// ---------------------------------------------------------------------------
+// CSV export helpers
+// ---------------------------------------------------------------------------
+
+/** Wrap a cell value in double-quotes and escape internal double-quotes. */
+function csvEscape(value: string | number | null | undefined): string {
+  const str = value == null ? '' : String(value);
+  return `"${str.replace(/"/g, '""')}"`;
+}
+
+/**
+ * Fetch every page of payments, convert to CSV, and trigger a browser
+ * download named `dupdub-payments-YYYY-MM-DD.csv`.
+ * Returns an error message string on failure, or null on success.
+ */
+async function exportPaymentsCsv(formatUsdFn: (v: number) => string, formatDateFn: (v: string) => string): Promise<string | null> {
+  const PAGE_SIZE = 20;
+  const allPayments: Payment[] = [];
+
+  try {
+    // Fetch first page to learn the total count
+    const first = await paymentsApi.list(1, PAGE_SIZE);
+    allPayments.push(...first.data.payments);
+    const total: number = first.data.total;
+    const totalPages = Math.ceil(total / PAGE_SIZE);
+
+    // Fetch remaining pages in sequence to avoid hammering the API
+    for (let p = 2; p <= totalPages; p++) {
+      const { data } = await paymentsApi.list(p, PAGE_SIZE);
+      allPayments.push(...data.payments);
+    }
+
+    const header = 'Reference,Amount (USD),Status,Description,Customer Email,Stellar Memo,Created At,Updated At';
+    const rows = allPayments.map((p) =>
+      [
+        csvEscape(p.reference),
+        csvEscape(formatUsdFn(p.amountUsd)),
+        csvEscape(p.status),
+        csvEscape(p.description),
+        csvEscape(p.customerEmail),
+        csvEscape(p.stellarMemo),
+        csvEscape(formatDateFn(p.createdAt)),
+        csvEscape(formatDateFn(p.updatedAt)),
+      ].join(',')
+    );
+
+    const csvContent = [header, ...rows].join('\r\n');
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+
+    const today = new Date().toISOString().slice(0, 10); // YYYY-MM-DD
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `dupdub-payments-${today}.csv`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+
+    return null;
+  } catch (err) {
+    return err instanceof Error ? err.message : 'Failed to export payments';
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Memoized row components — re-render only when the payment data or the
@@ -108,6 +173,7 @@ export default function PaymentsPage() {
   const [form, setForm] = useState({ amountUsd: '', description: '', customerEmail: '', expiryMinutes: '30' });
   const [creating, setCreating] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const load = async (p = 1) => {
     setLoading(true);
@@ -184,6 +250,15 @@ export default function PaymentsPage() {
   const showPagination = total > 20 || page > 1;
   const totalPages = Math.max(1, Math.ceil(total / 20));
 
+  const handleExport = async () => {
+    setExporting(true);
+    const errorMsg = await exportPaymentsCsv(formatUsd, formatDate);
+    setExporting(false);
+    if (errorMsg) {
+      toast.error(errorMsg);
+    }
+  };
+
   return (
     <div className="p-4 md:p-8">
       <div className="flex items-center justify-between mb-6">
@@ -191,9 +266,34 @@ export default function PaymentsPage() {
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Payments</h1>
           <p className="text-sm text-gray-500 mt-1">{total} total payments</p>
         </div>
-        <button data-testid="new-payment-button" onClick={() => setShowCreate(true)} className="btn-primary flex items-center gap-2">
-          <Plus className="w-4 h-4" /> New Payment
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            data-testid="export-csv-button"
+            onClick={handleExport}
+            disabled={exporting}
+            aria-label="Export payments as CSV"
+            className="btn-secondary flex items-center gap-2"
+          >
+            {exporting ? (
+              <svg
+                className="w-4 h-4 animate-spin"
+                xmlns="http://www.w3.org/2000/svg"
+                fill="none"
+                viewBox="0 0 24 24"
+                aria-hidden="true"
+              >
+                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+              </svg>
+            ) : (
+              <Download className="w-4 h-4" aria-hidden="true" />
+            )}
+            {exporting ? 'Exporting…' : 'Export CSV'}
+          </button>
+          <button data-testid="new-payment-button" onClick={() => setShowCreate(true)} className="btn-primary flex items-center gap-2">
+            <Plus className="w-4 h-4" /> New Payment
+          </button>
+        </div>
       </div>
 
       <Modal
