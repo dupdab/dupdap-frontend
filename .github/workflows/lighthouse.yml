@@ -1,0 +1,61 @@
+name: Lighthouse CI
+
+on:
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  lighthouse:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+
+      - run: npm ci
+
+      - run: npm run build
+
+      - name: Run Lighthouse CI
+        run: npx --yes @lhci/cli@0.14.0 autorun --config=./lighthouserc.json
+        env:
+          LHCI_GITHUB_APP_TOKEN: ${{ secrets.LHCI_GITHUB_APP_TOKEN }}
+
+      - name: Post Lighthouse report to PR
+        if: always() && github.event.pull_request.head.repo.full_name == github.repository
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const dir = '.lighthouseci';
+            let body = '## Lighthouse CI\n\n';
+            if (!fs.existsSync(dir)) {
+              body += 'No Lighthouse results were produced. See the workflow run for details.';
+            } else {
+              const reports = fs.readdirSync(dir).filter((f) => /^lhr-.*\.json$/.test(f));
+              body += '| URL | Performance | Accessibility | SEO |\n|---|---|---|---|\n';
+              for (const f of reports) {
+                const lhr = JSON.parse(fs.readFileSync(`${dir}/${f}`, 'utf8'));
+                const c = lhr.categories;
+                const pct = (k) => Math.round((c[k]?.score ?? 0) * 100);
+                body += `| ${lhr.finalUrl} | ${pct('performance')} | ${pct('accessibility')} | ${pct('seo')} |\n`;
+              }
+            }
+            const marker = '<!-- lighthouse-ci -->';
+            body = `${marker}\n${body}`;
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });
+            const existing = comments.find((c) => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }

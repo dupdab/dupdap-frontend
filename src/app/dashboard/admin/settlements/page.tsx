@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import toast from '@/lib/toast';
 import { 
   RefreshCw, 
@@ -10,11 +11,13 @@ import {
   Filter,
   ExternalLink,
   HelpCircle,
+  Download,
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
 import { adminApi } from '@/lib/api';
 import { formatUsd, formatDate, STATUS_COLORS } from '@/lib/utils';
 import { getErrorMessage } from '@/lib/errors';
+import { useOnlineStatus } from '@/lib/useOnlineStatus';
 import { SkeletonList, SkeletonTableRows } from '@/components/Skeleton';
 import ConfirmDialog from '@/components/ConfirmDialog';
 
@@ -41,6 +44,16 @@ interface Settlement {
   updatedAt: string;
 }
 
+interface TopMerchant {
+  merchantId: string;
+  merchantName: string;
+  totalVolumeUsd: number;
+  paymentCount: number;
+  avgOrderValueUsd: number;
+}
+
+type TopMerchantsPeriod = '7d' | '30d' | '90d';
+
 const statusIcons = {
   pending: Clock,
   pending_approval: AlertCircle,
@@ -58,8 +71,24 @@ const EMPTY_FILTERS = {
 
 const FILTER_DEBOUNCE_MS = 300;
 
+const TOP_MERCHANTS_PERIODS: { value: TopMerchantsPeriod; label: string }[] = [
+  { value: '7d', label: '7 days' },
+  { value: '30d', label: '30 days' },
+  { value: '90d', label: '90 days' },
+];
+
+function escapeCsvValue(value: string | number): string {
+  const str = String(value);
+  if (/[",\n\r]/.test(str)) {
+    return `"${str.replace(/"/g, '""')}"`;
+  }
+  return str;
+}
+
 export default function AdminSettlementsPage() {
+  const router = useRouter();
   const { token } = useAuthStore();
+  const isOnline = useOnlineStatus();
   const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [loading, setLoading] = useState(true);
   const [total, setTotal] = useState(0);
@@ -78,6 +107,11 @@ export default function AdminSettlementsPage() {
     type: 'retry' | 'approve';
     settlementId: string;
   } | null>(null);
+
+  // Top-merchants panel state (#542).
+  const [topMerchants, setTopMerchants] = useState<TopMerchant[]>([]);
+  const [topMerchantsLoading, setTopMerchantsLoading] = useState(true);
+  const [topMerchantsPeriod, setTopMerchantsPeriod] = useState<TopMerchantsPeriod>('30d');
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -129,6 +163,49 @@ export default function AdminSettlementsPage() {
     if (token) fetchSettlements();
   }, [token, fetchSettlements]);
 
+  const fetchTopMerchants = useCallback(async () => {
+    if (!token) return;
+
+    try {
+      setTopMerchantsLoading(true);
+      const response = await adminApi.getTopMerchants(topMerchantsPeriod);
+      setTopMerchants(response.data.data ?? []);
+    } catch (error) {
+      console.error('Failed to fetch top merchants:', error);
+      toast.error(getErrorMessage(error) ?? 'Failed to load top merchants');
+    } finally {
+      setTopMerchantsLoading(false);
+    }
+  }, [token, topMerchantsPeriod]);
+
+  useEffect(() => {
+    if (token) fetchTopMerchants();
+  }, [token, fetchTopMerchants]);
+
+  const handleExportTopMerchantsCsv = () => {
+    const header = ['Rank', 'Merchant', 'Total Volume (USD)', 'Payment Count', 'Avg Order Value (USD)'];
+    const rows = topMerchants.map((merchant, index) => [
+      index + 1,
+      merchant.merchantName,
+      merchant.totalVolumeUsd.toFixed(2),
+      merchant.paymentCount,
+      merchant.avgOrderValueUsd.toFixed(2),
+    ]);
+    const csv = [header, ...rows]
+      .map((row) => row.map(escapeCsvValue).join(','))
+      .join('\n');
+
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `top-merchants-${topMerchantsPeriod}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   // Keep fetchSettlements accessible for retry/approve actions that need to
   // manually refresh the list outside the main effect.
   const refetch = () => {
@@ -136,6 +213,10 @@ export default function AdminSettlementsPage() {
   };
 
   const handleRetry = async (settlementId: string) => {
+    if (!isOnline) {
+      toast.error('You are offline. Reconnect to retry this settlement.');
+      return;
+    }
     try {
       setActionLoading(settlementId);
       await adminApi.retrySettlement(settlementId);
@@ -148,6 +229,10 @@ export default function AdminSettlementsPage() {
   };
 
   const handleApprove = async (settlementId: string) => {
+    if (!isOnline) {
+      toast.error('You are offline. Reconnect to approve this settlement.');
+      return;
+    }
     try {
       setActionLoading(settlementId);
       await adminApi.approveSettlement(settlementId);
@@ -184,6 +269,77 @@ export default function AdminSettlementsPage() {
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-gray-900">Admin Settlements</h1>
         <p className="text-gray-600">Manage and monitor all merchant settlements</p>
+      </div>
+
+      {/* Top Merchants Panel (#542) */}
+      <div className="bg-white rounded-lg border border-gray-200 mb-6">
+        <div className="flex items-center justify-between gap-4 flex-wrap p-4 border-b border-gray-200">
+          <div>
+            <h2 className="text-lg font-semibold text-gray-900">Top Merchants</h2>
+            <p className="text-sm text-gray-600">Ranked by payment volume</p>
+          </div>
+          <div className="flex items-center gap-2">
+            <select
+              value={topMerchantsPeriod}
+              aria-label="Select top merchants period"
+              onChange={(e) => setTopMerchantsPeriod(e.target.value as TopMerchantsPeriod)}
+              className="px-3 py-1 border border-gray-300 rounded-md text-sm"
+            >
+              {TOP_MERCHANTS_PERIODS.map((period) => (
+                <option key={period.value} value={period.value}>
+                  {period.label}
+                </option>
+              ))}
+            </select>
+            <button
+              onClick={handleExportTopMerchantsCsv}
+              disabled={topMerchantsLoading || topMerchants.length === 0}
+              className="inline-flex items-center gap-1 px-3 py-1 text-sm border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              <Download className="w-4 h-4" aria-hidden="true" />
+              Export CSV
+            </button>
+          </div>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
+              <tr>
+                <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Rank</th>
+                <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Merchant</th>
+                <th scope="col" className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Total Volume</th>
+                <th scope="col" className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Payments</th>
+                <th scope="col" className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Avg Order Value</th>
+              </tr>
+            </thead>
+            <tbody className="bg-white divide-y divide-gray-200">
+              {topMerchantsLoading ? (
+                <SkeletonTableRows rows={5} columns={5} />
+              ) : topMerchants.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="px-4 py-6 text-center text-sm text-gray-500">
+                    No merchant activity for this period.
+                  </td>
+                </tr>
+              ) : (
+                topMerchants.map((merchant, index) => (
+                  <tr
+                    key={merchant.merchantId}
+                    onClick={() => router.push(`/dashboard/admin/merchants/${merchant.merchantId}`)}
+                    className="cursor-pointer hover:bg-gray-50"
+                  >
+                    <td className="px-4 py-2 text-sm text-gray-900">{index + 1}</td>
+                    <td className="px-4 py-2 text-sm font-medium text-gray-900">{merchant.merchantName}</td>
+                    <td className="px-4 py-2 text-sm text-gray-900 text-right">{formatUsd(merchant.totalVolumeUsd)}</td>
+                    <td className="px-4 py-2 text-sm text-gray-900 text-right">{merchant.paymentCount}</td>
+                    <td className="px-4 py-2 text-sm text-gray-900 text-right">{formatUsd(merchant.avgOrderValueUsd)}</td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Filters */}
@@ -252,17 +408,19 @@ export default function AdminSettlementsPage() {
           {loading ? (
             <SkeletonList rows={6} className="px-4 py-3" />
           ) : settlements.length === 0 ? (
-            <div className="px-4 py-8 text-center text-gray-500">No settlements found</div>
+            <div className="px-4 py-6 text-center text-sm text-gray-500">No settlements found.</div>
           ) : (
             settlements.map((settlement) => {
-              const StatusIcon = statusIcons[settlement.status] ?? HelpCircle;
+              const StatusIcon = statusIcons[settlement.status];
               return (
-                <div key={settlement.id} className="px-4 py-3 space-y-1">
+                <div key={settlement.id} className="px-4 py-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-sm font-medium text-gray-900">{settlement.id.slice(0, 8)}...</span>
-                    <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[settlement.status]}`}>
-                      <StatusIcon className="w-3 h-3" />
-                      {settlement.status.replace('_', ' ')}
+                    <span className="text-sm font-medium text-gray-900">
+                      {settlement.merchant?.businessName ?? settlement.merchantId}
+                    </span>
+                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[settlement.status] ?? ''}`}>
+                      <StatusIcon className="w-3 h-3" aria-hidden="true" />
+                      {settlement.status}
                     </span>
                   </div>
                   <div className="text-sm text-gray-900">{settlement.merchant?.businessName || 'Unknown'}</div>
@@ -276,7 +434,7 @@ export default function AdminSettlementsPage() {
                     {settlement.status === 'failed' && (
                       <button
                         onClick={() => setPendingAction({ type: 'retry', settlementId: settlement.id })}
-                        disabled={actionLoading === settlement.id}
+                        disabled={actionLoading === settlement.id || !isOnline}
                         className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:opacity-50"
                       >
                         {actionLoading === settlement.id ? 'Retrying...' : 'Retry'}
@@ -285,7 +443,7 @@ export default function AdminSettlementsPage() {
                     {settlement.status === 'pending_approval' && (
                       <button
                         onClick={() => setPendingAction({ type: 'approve', settlementId: settlement.id })}
-                        disabled={actionLoading === settlement.id}
+                        disabled={actionLoading === settlement.id || !isOnline}
                         className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 disabled:opacity-50"
                       >
                         {actionLoading === settlement.id ? 'Approving...' : 'Approve'}
@@ -298,80 +456,57 @@ export default function AdminSettlementsPage() {
           )}
         </div>
 
+        {/* Desktop table layout */}
         <div className="hidden md:block overflow-x-auto">
-          <table className="w-full">
-            <thead className="bg-gray-50 border-b border-gray-200">
+          <table className="min-w-full divide-y divide-gray-200">
+            <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Settlement</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Merchant</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Partner Ref</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
-                <th className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Merchant</th>
+                <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Amount</th>
+                <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
+                <th scope="col" className="px-4 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Created</th>
+                <th scope="col" className="px-4 py-2 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-gray-200">
+            <tbody className="bg-white divide-y divide-gray-200">
               {loading ? (
-                <SkeletonTableRows rows={6} cols={7} cellClassName="px-4 py-3" />
+                <SkeletonTableRows rows={6} columns={5} />
               ) : settlements.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="px-4 py-8 text-center text-gray-500">
-                    No settlements found
-                  </td>
+                  <td colSpan={5} className="px-4 py-6 text-center text-sm text-gray-500">No settlements found.</td>
                 </tr>
               ) : (
                 settlements.map((settlement) => {
-                  const StatusIcon = statusIcons[settlement.status] ?? HelpCircle;
+                  const StatusIcon = statusIcons[settlement.status];
                   return (
-                    <tr key={settlement.id} className="hover:bg-gray-50">
-                      <td className="px-4 py-3">
-                        <div className="text-sm font-medium text-gray-900">
-                          {settlement.id.slice(0, 8)}...
-                        </div>
-                        {settlement.failureReason && (
-                          <div className="text-xs text-red-600 mt-1">
-                            {settlement.failureReason}
-                          </div>
-                        )}
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="text-sm text-gray-900">
-                          {settlement.merchant?.businessName || 'Unknown'}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          {settlement.merchantId.slice(0, 8)}...
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="text-sm font-medium text-gray-900">
-                          {formatUsd(settlement.netAmountUsd)}
-                        </div>
-                        <div className="text-xs text-gray-500">
-                          Fee: {formatUsd(settlement.feeAmountUsd)}
-                        </div>
-                      </td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-medium ${STATUS_COLORS[settlement.status]}`}>
-                          <StatusIcon className="w-3 h-3" />
-                          {settlement.status.replace('_', ' ')}
+                    <tr key={settlement.id}>
+                      <td className="px-4 py-2 text-sm text-gray-900">{settlement.merchant?.businessName ?? settlement.merchantId}</td>
+                      <td className="px-4 py-2 text-sm text-gray-900">{formatUsd(settlement.totalAmountUsd)}</td>
+                      <td className="px-4 py-2 text-sm">
+                        <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium ${STATUS_COLORS[settlement.status] ?? ''}`}>
+                          <StatusIcon className="w-3 h-3" aria-hidden="true" />
+                          {settlement.status}
                         </span>
-                        {settlement.requiresApproval && (
-                          <div className="text-xs text-orange-600 mt-1">
-                            Requires approval
-                          </div>
-                        )}
                       </td>
-                      <td className="px-4 py-3">
-                        {settlement.partnerReference ? (
-                          <div className="flex items-center gap-1">
-                            <span className="text-sm text-gray-900">
-                              {settlement.partnerReference}
-                            </span>
-                            <ExternalLink className="w-3 h-3 text-gray-400" />
-                          </div>
-                        ) : (
-                          <span className="text-sm text-gray-400">-</span>
+                      <td className="px-4 py-2 text-sm text-gray-600">{formatDate(settlement.createdAt)}</td>
+                      <td className="px-4 py-2 text-sm text-right">
+                        {settlement.status === 'failed' && (
+                          <button
+                            onClick={() => setPendingAction({ type: 'retry', settlementId: settlement.id })}
+                            disabled={actionLoading === settlement.id}
+                            className="text-blue-600 hover:text-blue-800 disabled:opacity-50"
+                          >
+                            Retry
+                          </button>
+                        )}
+                        {settlement.status === 'pending_approval' && (
+                          <button
+                            onClick={() => setPendingAction({ type: 'approve', settlementId: settlement.id })}
+                            disabled={actionLoading === settlement.id}
+                            className="text-green-600 hover:text-green-800 disabled:opacity-50"
+                          >
+                            Approve
+                          </button>
                         )}
                       </td>
                       <td className="px-4 py-3 text-sm text-gray-500">
@@ -382,7 +517,7 @@ export default function AdminSettlementsPage() {
                           {settlement.status === 'failed' && (
                             <button
                               onClick={() => setPendingAction({ type: 'retry', settlementId: settlement.id })}
-                              disabled={actionLoading === settlement.id}
+                              disabled={actionLoading === settlement.id || !isOnline}
                               className="px-2 py-1 text-xs bg-blue-100 text-blue-700 rounded hover:bg-blue-200 disabled:opacity-50"
                             >
                               {actionLoading === settlement.id ? 'Retrying...' : 'Retry'}
@@ -391,7 +526,7 @@ export default function AdminSettlementsPage() {
                           {settlement.status === 'pending_approval' && (
                             <button
                               onClick={() => setPendingAction({ type: 'approve', settlementId: settlement.id })}
-                              disabled={actionLoading === settlement.id}
+                              disabled={actionLoading === settlement.id || !isOnline}
                               className="px-2 py-1 text-xs bg-green-100 text-green-700 rounded hover:bg-green-200 disabled:opacity-50"
                             >
                               {actionLoading === settlement.id ? 'Approving...' : 'Approve'}
@@ -406,48 +541,42 @@ export default function AdminSettlementsPage() {
             </tbody>
           </table>
         </div>
-
-        {/* Pagination */}
-        {total > 20 && (
-          <div className="px-4 py-3 border-t border-gray-200 flex items-center justify-between">
-            <div className="text-sm text-gray-500">
-              Showing {((page - 1) * 20) + 1} to {Math.min(page * 20, total)} of {total} settlements
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-                className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
-              >
-                Previous
-              </button>
-              <span className="px-3 py-1 text-sm">
-                Page {page} of {Math.ceil(total / 20)}
-              </span>
-              <button
-                onClick={() => setPage(page + 1)}
-                disabled={page >= Math.ceil(total / 20)}
-                className="px-3 py-1 text-sm border border-gray-300 rounded hover:bg-gray-50 disabled:opacity-50"
-              >
-                Next
-              </button>
-            </div>
-          </div>
-        )}
       </div>
+
+      {total > 0 && (
+        <div className="mt-4 flex items-center justify-between text-sm text-gray-600">
+          <span>{total} settlements</span>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page <= 1}
+              className="px-3 py-1 border border-gray-300 rounded-md disabled:opacity-50"
+            >
+              Previous
+            </button>
+            <span>Page {page}</span>
+            <button
+              onClick={() => setPage((p) => p + 1)}
+              disabled={page * 20 >= total}
+              className="px-3 py-1 border border-gray-300 rounded-md disabled:opacity-50"
+            >
+              Next
+            </button>
+          </div>
+        </div>
+      )}
 
       <ConfirmDialog
         open={pendingAction !== null}
-        title={pendingAction?.type === 'approve' ? 'Approve settlement' : 'Retry settlement'}
-        message={
-          pendingAction?.type === 'approve'
-            ? 'Are you sure you want to approve this settlement?'
-            : 'Are you sure you want to retry this settlement?'
+        title={pendingAction?.type === 'retry' ? 'Retry settlement?' : 'Approve settlement?'}
+        description={
+          pendingAction?.type === 'retry'
+            ? 'This will re-attempt the settlement payout to the merchant.'
+            : 'This will approve and release the settlement payout to the merchant.'
         }
-        confirmLabel={pendingAction?.type === 'approve' ? 'Approve' : 'Retry'}
+        confirmLabel={pendingAction?.type === 'retry' ? 'Retry' : 'Approve'}
         onConfirm={confirmPendingAction}
         onCancel={() => setPendingAction(null)}
-        testId="settlement-confirm-dialog"
       />
     </div>
   );
