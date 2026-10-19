@@ -28,7 +28,6 @@ import { useAdminGuard, useAdminRedirect } from '@/lib/useAdminGuard';
 import { useFocusTrap } from '@/lib/useFocusTrap';
 import { useLocale } from '@/lib/locale';
 import { LocaleSwitcher } from '@/components/LocaleSwitcher';
-import { useAdminGuard, useAdminRedirect } from '@/lib/useAdminGuard';
 
 declare global {
   interface Window {
@@ -70,6 +69,44 @@ function LoadingState() {
   );
 }
 
+/**
+ * Merchant avatar shown in the dashboard nav (#553). Falls back to the first
+ * letter of the business name when no avatar has been uploaded.
+ */
+function MerchantAvatar({
+  avatarUrl,
+  name,
+  size = 'md',
+}: {
+  avatarUrl?: string | null;
+  name?: string | null;
+  size?: 'sm' | 'md';
+}) {
+  const dimension = size === 'sm' ? 'w-8 h-8 text-sm' : 'w-10 h-10 text-base';
+  const initial = (name?.trim()?.[0] ?? '?').toUpperCase();
+  if (avatarUrl) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={avatarUrl}
+        alt={name ? `${name} logo` : 'Merchant logo'}
+        className={cn(dimension, 'rounded-full object-cover border border-gray-200 dark:border-gray-700')}
+      />
+    );
+  }
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(
+        dimension,
+        'rounded-full flex items-center justify-center font-semibold bg-brand-100 text-brand-700 dark:bg-brand-900 dark:text-brand-200'
+      )}
+    >
+      {initial}
+    </span>
+  );
+}
+
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   const { merchant, token, logout, hasHydrated } = useAuthStore();
   const router = useRouter();
@@ -86,21 +123,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   // focus-trap so focus moves into the drawer on open, Tab cycles inside it,
   // and focus returns to the hamburger button on close (#356).
   const drawerRef = useFocusTrap<HTMLElement>(mobileNavOpen);
-  // Admin guard — determines whether the current merchant may view admin routes.
-  // Must be called unconditionally (Rules of Hooks) even for non-admin paths;
-  // useAdminGuard returns 'authorized' for all non-admin paths (#357).
-  const adminStatus = useAdminGuard();
-  useAdminRedirect(adminStatus);
   const tutorialRef = useFocusTrap<HTMLDivElement>(tutorialOpen);
-
-  // Admin authorization guard — returns 'loading' | 'authorized' | 'unauthorized'.
-  // When not on an admin path it always returns 'authorized' immediately, so
-  // non-admin routes are unaffected. Replaces the previously-undefined `adminStatus`.
-  const adminStatus = useAdminGuard();
-  useAdminRedirect(adminStatus);
-
-  // Auth guard (#490): once Zustand has rehydrated, redirect unauthenticated
-  // visitors to the login page before any dashboard content is rendered.
 
   // Nav items are derived inside the component so labels can be translated.
   const navItems = [
@@ -203,174 +226,131 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   const sidebarContent = (
     <>
-      <div className="p-6 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
-        <div>
-          <span className="font-bold text-brand-600 text-lg">DupDub</span>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate">{merchant.businessName}</p>
-        </div>
-        <button
-          onClick={() => setMobileNavOpen(false)}
-          className="md:hidden text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-          aria-label="Close menu"
-        >
-          <X className="w-5 h-5" aria-hidden="true" />
-        </button>
+      <div className="p-6 border-b border-gray-100 dark:border-gray-800">
+        <Link href="/dashboard" className="flex items-center gap-3">
+          <MerchantAvatar avatarUrl={merchant.avatarUrl} name={merchant.businessName} />
+          <span className="text-lg font-bold text-gray-900 dark:text-white truncate">
+            {merchant.businessName}
+          </span>
+        </Link>
       </div>
-
-      <nav aria-label="Main navigation" className="flex-1 p-4 space-y-1 overflow-y-auto">
-        {visibleNavItems.map(({ href, label, icon: Icon, exact }) => {
-          // Segment-aware match so a sibling route that merely shares a
-          // prefix (e.g. /dashboard/settlements-export) is not highlighted (#358).
-          const active = isNavItemActive(pathname, href, exact);
+      <nav className="flex-1 p-4 space-y-1" aria-label="Dashboard">
+        {visibleNavItems.map((item) => {
+          const Icon = item.icon;
+          const active = isNavItemActive(pathname, item.href, item.exact);
           return (
             <Link
-              key={href}
-              href={href}
+              key={item.href}
+              href={item.href}
+              onClick={(event) => handleNavClick(event, item.href)}
               aria-current={active ? 'page' : undefined}
-              onClick={(event) => handleNavClick(event, href)}
               className={cn(
                 'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
                 active
-                  ? 'bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-300'
-                  : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100',
+                  ? 'bg-brand-50 text-brand-700 dark:bg-brand-900/40 dark:text-brand-200'
+                  : 'text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800'
               )}
             >
-              <Icon className="w-4 h-4" aria-hidden="true" />
-              {label}
+              <Icon className="w-5 h-5" aria-hidden="true" />
+              {item.label}
             </Link>
           );
         })}
       </nav>
-
-      <div className="p-4 border-t border-gray-100 dark:border-gray-800 space-y-3">
-        {/* Language switcher — lets merchants pick English, French, Pidgin, or Hausa */}
-        <LocaleSwitcher />
+      <div className="p-4 border-t border-gray-100 dark:border-gray-800 space-y-2">
         <button
+          type="button"
           onClick={() => setTutorialOpen(true)}
-          className="flex items-center gap-3 px-3 py-2 text-sm text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300 w-full rounded-lg hover:bg-brand-50 dark:hover:bg-brand-950 transition-colors"
+          className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
         >
-          <PlayCircle className="w-4 h-4" />
-          Watch onboarding tutorial
+          <PlayCircle className="w-5 h-5" aria-hidden="true" />
+          {t('nav.tutorial')}
         </button>
-        <ThemeToggle />
         <button
+          type="button"
           onClick={() => {
-            if (!confirmNavigation()) return;
             logout();
-            router.push('/auth/login');
+            router.replace('/auth/login');
           }}
-          aria-label="Sign out"
-          className="flex items-center gap-3 px-3 py-2 text-sm text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 w-full rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
+          className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"
         >
-          <LogOut className="w-4 h-4" aria-hidden="true" />
-          {t('nav.signOut')}
+          <LogOut className="w-5 h-5" aria-hidden="true" />
+          {t('nav.logout')}
         </button>
       </div>
     </>
   );
 
   return (
-    <div className="min-h-screen flex bg-gray-50 dark:bg-gray-950">
-      {/* Mobile top bar */}
-      <header
-        role="banner"
-        className="md:hidden fixed top-0 inset-x-0 h-14 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex items-center justify-between px-4 z-30 print:hidden"
-      >
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setMobileNavOpen(true)}
-            className="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
-            aria-label="Open navigation menu"
-            aria-expanded={mobileNavOpen}
-            aria-controls="mobile-nav-drawer"
-          >
-            <Menu className="w-6 h-6" aria-hidden="true" />
-          </button>
-          <span className="font-bold text-brand-600 text-lg" aria-hidden="true">DupDub</span>
-        </div>
-        <NotificationCenter />
-      </header>
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+      <OfflineBanner />
+      <WhatsNewBanner />
+      <div className="flex">
+        <aside className="hidden lg:flex lg:flex-col w-64 min-h-screen bg-white dark:bg-gray-900 border-r border-gray-100 dark:border-gray-800">
+          {sidebarContent}
+        </aside>
 
-      {/* Sidebar - desktop */}
-      <aside
-        aria-label="Dashboard sidebar"
-        className="hidden md:flex w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 flex-col print:hidden"
-      >
-        {/* Desktop top bar inside sidebar — brand + notifications */}
-        <div className="hidden md:flex items-center justify-between px-6 py-4 border-b border-gray-100 dark:border-gray-800">
-          <div>
-            <span className="font-bold text-brand-600 text-lg">DupDub</span>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate">{merchant.businessName}</p>
-          </div>
-          <NotificationCenter />
-        </div>
-
-        <nav aria-label="Main navigation" className="flex-1 p-4 space-y-1">
-          {visibleNavItems.map(({ href, label, icon: Icon, exact }) => {
-            const active = isNavItemActive(pathname, href, exact);
-            return (
-              <Link
-                key={href}
-                href={href}
-                aria-current={active ? 'page' : undefined}
-                onClick={(event) => handleNavClick(event, href)}
-                className={cn(
-                  'flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-medium transition-colors',
-                  active
-                    ? 'bg-brand-50 text-brand-700 dark:bg-brand-950 dark:text-brand-300'
-                    : 'text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-100',
-                )}
+        {mobileNavOpen && (
+          <div className="fixed inset-0 z-40 lg:hidden">
+            <div
+              className="absolute inset-0 bg-black/40"
+              onClick={() => setMobileNavOpen(false)}
+              aria-hidden="true"
+            />
+            <aside
+              ref={drawerRef}
+              role="dialog"
+              aria-modal="true"
+              aria-label="Navigation"
+              className="relative flex flex-col w-64 min-h-full bg-white dark:bg-gray-900"
+            >
+              <button
+                type="button"
+                onClick={() => setMobileNavOpen(false)}
+                className="absolute top-4 right-4 p-1 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+                aria-label="Close navigation"
               >
-                <Icon className="w-4 h-4" aria-hidden="true" />
-                {label}
-              </Link>
-            );
-          })}
-        </nav>
+                <X className="w-5 h-5" aria-hidden="true" />
+              </button>
+              {sidebarContent}
+            </aside>
+          </div>
+        )}
 
-        <div className="p-4 border-t border-gray-100 dark:border-gray-800">
-          <button
-            onClick={() => {
-              if (!confirmNavigation()) return;
-              logout();
-              router.push('/auth/login');
-            }}
-            aria-label="Sign out"
-            className="flex items-center gap-3 px-3 py-2 text-sm text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 w-full rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-          >
-            <LogOut className="w-4 h-4" aria-hidden="true" />
-            Sign out
-          </button>
+        <div className="flex-1 min-w-0">
+          <header className="sticky top-0 z-30 flex items-center justify-between gap-4 px-4 py-3 bg-white dark:bg-gray-900 border-b border-gray-100 dark:border-gray-800">
+            <div className="flex items-center gap-3">
+              <button
+                type="button"
+                onClick={() => setMobileNavOpen(true)}
+                className="lg:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
+                aria-label="Open navigation"
+              >
+                <Menu className="w-5 h-5" aria-hidden="true" />
+              </button>
+              <MerchantAvatar
+                avatarUrl={merchant.avatarUrl}
+                name={merchant.businessName}
+                size="sm"
+              />
+              <span className="text-sm font-semibold text-gray-900 dark:text-white truncate">
+                {merchant.businessName}
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <LocaleSwitcher />
+              <ThemeToggle />
+              <NotificationCenter />
+            </div>
+          </header>
+          <main className="p-4 lg:p-6">{children}</main>
         </div>
-      </aside>
+      </div>
 
-      {/* Mobile drawer */}
-      {mobileNavOpen && (
-        <div className="md:hidden fixed inset-0 z-40 print:hidden">
-          <div
-            className="absolute inset-0 bg-black/40"
-            aria-hidden="true"
-            onClick={() => setMobileNavOpen(false)}
-            aria-hidden="true"
-          />
-          <aside
-            id="mobile-nav-drawer"
-            ref={drawerRef}
-            role="dialog"
-            aria-modal="true"
-            aria-label="Navigation menu"
-            className="absolute inset-y-0 left-0 w-64 bg-white dark:bg-gray-900 flex flex-col shadow-xl"
-          >
-            {sidebarContent}
-          </aside>
-        </div>
-      )}
-
-      {/* Onboarding tutorial modal (#582) */}
       {tutorialOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
           <div
-            className="absolute inset-0 bg-black/50"
+            className="absolute inset-0 bg-black/40"
             onClick={() => setTutorialOpen(false)}
             aria-hidden="true"
           />
@@ -378,68 +358,45 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             ref={tutorialRef}
             role="dialog"
             aria-modal="true"
-            aria-labelledby="onboarding-tutorial-title"
-            className="relative w-full max-w-2xl max-h-[90vh] overflow-y-auto rounded-xl bg-white dark:bg-gray-900 shadow-xl"
+            aria-label={t('nav.tutorial')}
+            className="relative w-full max-w-2xl bg-white dark:bg-gray-900 rounded-xl shadow-xl p-6"
           >
-            <div className="flex items-center justify-between p-4 border-b border-gray-100 dark:border-gray-800">
-              <h2
-                id="onboarding-tutorial-title"
-                className="text-lg font-semibold text-gray-900 dark:text-gray-100"
-              >
-                Merchant onboarding tutorial
-              </h2>
-              <button
-                onClick={() => setTutorialOpen(false)}
-                className="text-gray-400 hover:text-gray-600 dark:hover:text-gray-200"
-                aria-label="Close tutorial"
-              >
-                <X className="w-5 h-5" />
-              </button>
+            <button
+              type="button"
+              onClick={() => setTutorialOpen(false)}
+              className="absolute top-4 right-4 p-1 rounded-lg text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
+              aria-label="Close tutorial"
+            >
+              <X className="w-5 h-5" aria-hidden="true" />
+            </button>
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              {t('nav.tutorial')}
+            </h2>
+            <div className="aspect-video mb-4">
+              <iframe
+                src={ONBOARDING_VIDEO_EMBED_URL}
+                title={t('nav.tutorial')}
+                className="w-full h-full rounded-lg"
+                allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                allowFullScreen
+              />
             </div>
-            <div className="p-4 space-y-4">
-              <div className="aspect-video w-full overflow-hidden rounded-lg bg-black">
-                <iframe
-                  src={ONBOARDING_VIDEO_EMBED_URL}
-                  title="Merchant onboarding video tutorial"
-                  className="w-full h-full"
-                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-                  allowFullScreen
-                />
-              </div>
-              <a
-                href={ONBOARDING_VIDEO_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 text-sm font-medium text-brand-600 hover:text-brand-700 dark:text-brand-400 dark:hover:text-brand-300"
-              >
-                <PlayCircle className="w-4 h-4" />
-                Open the full playlist on YouTube
-              </a>
-              <details className="rounded-lg border border-gray-200 dark:border-gray-800 p-3">
-                <summary className="cursor-pointer text-sm font-medium text-gray-900 dark:text-gray-100">
-                  Video transcript
-                </summary>
-                <ol className="mt-2 list-decimal list-inside space-y-1 text-sm text-gray-600 dark:text-gray-400">
-                  {ONBOARDING_TRANSCRIPT.map((line) => (
-                    <li key={line}>{line}</li>
-                  ))}
-                </ol>
-              </details>
-            </div>
+            <a
+              href={ONBOARDING_VIDEO_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-brand-600 hover:underline"
+            >
+              {t('nav.tutorial')}
+            </a>
+            <ol className="mt-4 space-y-2 text-sm text-gray-600 dark:text-gray-300 list-decimal list-inside">
+              {ONBOARDING_TRANSCRIPT.map((line) => (
+                <li key={line}>{line}</li>
+              ))}
+            </ol>
           </div>
         </div>
       )}
-
-      {/* Main content area — offset on desktop to clear the fixed sidebar */}
-      <main
-        id="main-content"
-        className="flex-1 overflow-auto pt-14 md:pt-0 md:ml-64 min-w-0 print:ml-0 print:pt-0"
-        aria-label="Main content"
-      >
-        <OfflineBanner />
-        <WhatsNewBanner />
-        {children}
-      </main>
     </div>
   );
 }
