@@ -3,6 +3,7 @@
  * Issue: loading spinner, "Payment not found", and success QR/status UI
  * Issue #310: countdown timer must not re-render the whole page every tick
  * Issue #575: settled status shows a one-shot, reduced-motion-aware success animation
+ * Issue #558: expired payment links render a dedicated expired state
  */
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -162,5 +163,50 @@ describe('PayPage', () => {
 
     await waitFor(() => expect(screen.getByText('$25.00')).toBeInTheDocument());
     expect(screen.queryByTestId('payment-success-animation')).not.toBeInTheDocument();
+  });
+
+  it('renders a dedicated expired state instead of the QR code (#558)', async () => {
+    const expiresAt = new Date(Date.now() - 60 * 1000).toISOString();
+    mockedGetByReference.mockResolvedValue({ data: { ...basePayment, expiresAt } } as never);
+
+    render(<PayPage params={{ paymentId: 'ref_1' }} />);
+
+    await waitFor(() =>
+      expect(screen.getByText(/This payment has expired/i)).toBeInTheDocument()
+    );
+    expect(screen.queryByTestId('qr-code')).not.toBeInTheDocument();
+  });
+
+  it('shows merchant contact info and a create-new-payment link when expired (#558)', async () => {
+    const expiresAt = new Date(Date.now() - 60 * 1000).toISOString();
+    mockedGetByReference.mockResolvedValue({
+      data: {
+        ...basePayment,
+        expiresAt,
+        merchantName: 'Acme Store',
+        merchantEmail: 'merchant@acme.test',
+      },
+    } as never);
+
+    render(<PayPage params={{ paymentId: 'ref_1' }} />);
+
+    await waitFor(() =>
+      expect(screen.getByText(/This payment has expired/i)).toBeInTheDocument()
+    );
+    expect(screen.getByText(/Acme Store/)).toBeInTheDocument();
+    expect(screen.getByText(/merchant@acme.test/)).toBeInTheDocument();
+  });
+    } as never);
+
+    render(<PayPage params={{ paymentId: 'ref_1' }} />);
+
+    await waitFor(() =>
+      expect(screen.getByText(/This payment has expired/i)).toBeInTheDocument()
+    );
+    expect(screen.getByText(/Acme Store/)).toBeInTheDocument();
+    expect(screen.getByText(/merchant@acme.test/)).toBeInTheDocument();
+
+    const newPaymentLink = screen.getByRole('link', { name: /create new payment/i });
+    expect(newPaymentLink).toHaveAttribute('href', '/dashboard/payments/new');
   });
 });

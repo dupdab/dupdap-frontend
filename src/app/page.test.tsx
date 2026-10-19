@@ -8,6 +8,7 @@
  *  - Renders hero headline, subheadline, and main CTA buttons
  *  - Renders feature cards (Why DupDub?)
  *  - Renders step-by-step onboarding guide (How it works)
+ *  - Renders pricing section with fee tiers, comparison table, FAQ, and CTA (Issue #557)
  *  - Renders footer with copyright text
  *  - Renders the animated payment flow illustration (Issue #573)
  */
@@ -138,6 +139,35 @@ describe('LandingPage — smoke test & rendering', () => {
     expect(screen.getByText('Create payment')).toBeInTheDocument();
     expect(screen.getByText('Customer approves + deposits')).toBeInTheDocument();
     expect(screen.getByText('Receive fiat')).toBeInTheDocument();
+  });
+
+  it('renders the pricing section with fee tiers', () => {
+    render(<LandingPage />);
+    expect(screen.getByRole('heading', { level: 2, name: /pricing/i })).toBeInTheDocument();
+
+    // Standard tier fee
+    expect(screen.getByText('1.5%')).toBeInTheDocument();
+    // Volume tiers offer lower rates
+    expect(screen.getByText('1.0%')).toBeInTheDocument();
+    expect(screen.getByText('0.5%')).toBeInTheDocument();
+  });
+
+  it('renders the pricing comparison table vs traditional processors', () => {
+    render(<LandingPage />);
+    expect(screen.getByRole('table')).toBeInTheDocument();
+    expect(screen.getByText(/traditional payment processors/i)).toBeInTheDocument();
+  });
+
+  it('renders the pricing FAQ accordion', () => {
+    render(<LandingPage />);
+    expect(screen.getByRole('heading', { level: 2, name: /frequently asked questions/i })).toBeInTheDocument();
+    expect(screen.getByText(/how are fees calculated/i)).toBeInTheDocument();
+  });
+
+  it('renders a CTA within the pricing section', () => {
+    render(<LandingPage />);
+    const pricingCta = screen.getByRole('link', { name: /get started with dupdub/i });
+    expect(pricingCta).toHaveAttribute('href', '/auth/register');
   });
 
   it('renders the bottom CTA section and footer', () => {

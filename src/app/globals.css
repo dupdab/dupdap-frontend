@@ -2,44 +2,61 @@
 @tailwind components;
 @tailwind utilities;
 
-@layer base {
-  :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+/* Print stylesheet (#548): hide app chrome and show only receipt/settlement data. */
+@media print {
+  /* Hide navigation, sidebar, and interactive controls. */
+  nav,
+  aside,
+  header,
+  footer,
+  button,
+  [role="navigation"],
+  .no-print {
+    display: none !important;
   }
 
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --background: 222.2 84% 4.9%;
-      --foreground: 210 40% 98%;
-    }
-  }
-
+  /* Neutralize app layout so content fills the printed page. */
+  html,
   body {
-    background-color: hsl(var(--background));
-    color: hsl(var(--foreground));
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  main,
+  .print-area {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Keep cards readable on paper without heavy shadows/backgrounds. */
+  .card {
+    box-shadow: none !important;
+    border: 1px solid #d1d5db !important;
+    break-inside: avoid;
+  }
+
+  /* Avoid awkward page breaks inside data rows. */
+  .card > div,
+  .card .grid > div {
+    break-inside: avoid;
+  }
+
+  a[href]::after {
+    content: "";
   }
 }
 
-@layer components {
-  .btn-primary {
-    @apply bg-brand-500 hover:bg-brand-600 text-white font-semibold px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed;
-  }
-
-  .btn-secondary {
-    @apply bg-white border border-gray-200 hover:bg-gray-50 text-gray-700 font-medium px-4 py-2 rounded-lg transition-colors;
-  }
-
-  .card {
-    @apply bg-white rounded-xl border border-gray-200 shadow-sm;
-  }
-
-  .input {
-    @apply w-full border border-gray-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-transparent;
-  }
-
-  .label {
-    @apply block text-sm font-medium text-gray-700 mb-1;
+/* Respect users who prefer reduced motion: disable CSS animations and transitions. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
