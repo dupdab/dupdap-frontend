@@ -40,7 +40,7 @@ export default function SettlementDetailPage({ params }: { params: { settlementI
 
   if (loadError) {
     return (
-      <div className="p-8">
+      <div className="p-4 md:p-8">
         <Link href="/dashboard/settlements" className="text-brand-600 text-sm hover:underline flex items-center gap-1 mb-6">
           <ArrowLeft className="w-4 h-4" /> Back to settlements
         </Link>
@@ -54,7 +54,7 @@ export default function SettlementDetailPage({ params }: { params: { settlementI
 
   if (!settlement) {
     return (
-      <div className="p-8">
+      <div className="p-4 md:p-8">
         <Link href="/dashboard/settlements" className="text-brand-600 text-sm hover:underline flex items-center gap-1 mb-6">
           <ArrowLeft className="w-4 h-4" /> Back to settlements
         </Link>

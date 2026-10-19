@@ -234,6 +234,22 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
                   </button>
                 </div>
               </div>
+
+              {payment.stellarMemo && (
+                <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs mb-3">
+                  <p className="text-xs text-gray-500 mb-1">Memo (required)</p>
+                  <div className="flex items-center gap-2">
+                    <code className="text-sm font-mono font-bold break-all flex-1 text-gray-900">{payment.stellarMemo}</code>
+                    <button
+                      onClick={() => copy(payment.stellarMemo, 'memo')}
+                      aria-label={copied === 'memo' ? 'Memo copied' : 'Copy memo'}
+                      className="shrink-0"
+                    >
+                      {copied === 'memo' ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4 text-gray-400" />}
+                    </button>
+                  </div>
+                </div>
+              )}
             </>
           ) : (
             <div className="text-center py-6">

@@ -212,7 +212,7 @@ export default function WebhooksPage() {
   }, []);
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Webhooks</h1>

@@ -1,9 +1,10 @@
 'use client';
 
 import { memo, useEffect, useState } from 'react';
-import { Plus, Copy, Check } from 'lucide-react';
+import { Plus, Copy, Check, Link as LinkIcon } from 'lucide-react';
 import toast from '@/lib/toast';
 import { QRCodeSVG } from 'qrcode.react';
+import { CopyButton } from '@/components/CopyButton';
 import { paymentsApi } from '@/lib/api';
 import { formatUsd, formatDate, PAYMENT_STATUS_COLORS, STATUS_ICONS, DEFAULT_STATUS_COLOR } from '@/lib/utils';
 import { FormField } from '@/components/FormField';
@@ -184,7 +185,7 @@ export default function PaymentsPage() {
   const totalPages = Math.max(1, Math.ceil(total / 20));
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Payments</h1>
@@ -262,7 +263,35 @@ export default function PaymentsPage() {
               <QRCodeSVG value={selectedPayment.qrCode ?? selectedPayment.stellarDepositAddress ?? ''} size={200} />
             </div>
             <p className="text-sm font-semibold mb-1">{formatUsd(selectedPayment.amountUsd)}</p>
-            <p className="text-xs text-gray-500 mb-4">{selectedPayment.reference}</p>
+
+            {/* Reference with copy button */}
+            <div className="flex items-center justify-center gap-2 mb-2">
+              <code className="text-xs text-gray-500 font-mono">{selectedPayment.reference}</code>
+              <CopyButton
+                value={selectedPayment.reference}
+                label="Copy reference"
+                copiedLabel="Reference copied"
+                className="text-gray-400 hover:text-gray-600"
+              />
+            </div>
+
+            {/* Payment link with copy button */}
+            {(() => {
+              const paymentUrl = `${window.location.origin}/pay/${selectedPayment.reference}`;
+              return (
+                <div className="flex items-center justify-center gap-2 mb-4 text-xs text-brand-600">
+                  <LinkIcon className="w-3 h-3 shrink-0" aria-hidden="true" />
+                  <span className="truncate max-w-[180px]">/pay/{selectedPayment.reference}</span>
+                  <CopyButton
+                    value={paymentUrl}
+                    label="Copy payment link"
+                    copiedLabel="Link copied"
+                    className="text-brand-500 hover:text-brand-700"
+                  />
+                </div>
+              );
+            })()}
+
             {selectedPayment.stellarMemo && (
               <div className="flex items-center justify-center gap-2">
                 <code className="text-xs font-mono break-all">{selectedPayment.stellarMemo}</code>

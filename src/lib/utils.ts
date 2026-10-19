@@ -5,22 +5,13 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
-export function formatUsd(amount: number): string {
+export function formatUsd(amount: number, locale?: string): string {
   // Normalise -0 to 0 so negative zero never renders as "-$0.00".
   const normalised = amount === 0 ? 0 : amount;
-  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(normalised);
+  const bcp47 = locale === 'pcm' ? 'en-NG' : (locale ?? 'en-US');
+  return new Intl.NumberFormat(bcp47, { style: 'currency', currency: 'USD' }).format(normalised);
 }
 
-/**
- * Formats a timestamp for display.
- *
- * NOTE: This is intentionally client-only. All current call sites live inside
- * `'use client'` components, and the output depends on the runtime's local time
- * zone (via `Intl.DateTimeFormat`). Rendering it during SSR/build would risk a
- * hydration mismatch, since the server's time zone can differ from the browser's.
- * If a server-rendered call site is ever added, format against an explicit
- * `timeZone` (e.g. `'UTC'`) so server and client output match.
- */
 /**
  * Masks a credential (API key, webhook signing secret) for display.
  *
@@ -35,11 +26,33 @@ export function maskSecret(value: string, visible = 2, bullets = 8): string {
   return `${value.slice(0, visible)}${mask}${value.slice(-visible)}`;
 }
 
-export function formatDate(date: string | Date | undefined | null): string {
+/**
+ * Formats a timestamp for display.
+ *
+ * Accepts an optional `locale` (BCP 47 tag, e.g. "fr", "ha") so that merchants
+ * in French-speaking or Hausa-speaking regions see dates in their own locale.
+ * Nigerian Pidgin ("pcm") is not yet a recognised BCP 47 tag in most runtimes,
+ * so it falls back to "en-NG" which uses the same script but Nigeria-region
+ * date conventions.
+ *
+ * NOTE: Intentionally client-only. The output depends on the browser's local
+ * time zone via `Intl.DateTimeFormat`. Rendering during SSR/build risks a
+ * hydration mismatch. If a server-rendered call site is ever added, pass an
+ * explicit `timeZone` (e.g. `'Africa/Lagos'` or `'UTC'`) to match server and
+ * client output.
+ */
+export function formatDate(
+  date: string | Date | undefined | null,
+  locale?: string,
+): string {
   if (!date) return '—';
   const d = new Date(date);
   if (isNaN(d.getTime())) return '—';
-  return new Intl.DateTimeFormat('en-US', {
+
+  // Map app locale codes to BCP 47 tags recognised by Intl.
+  const bcp47 = locale === 'pcm' ? 'en-NG' : (locale ?? 'en-US');
+
+  return new Intl.DateTimeFormat(bcp47, {
     year: 'numeric',
     month: 'short',
     day: 'numeric',
