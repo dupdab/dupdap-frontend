@@ -6,6 +6,7 @@ import Link from 'next/link';
 import toast from '@/lib/toast';
 import { authApi } from '@/lib/api';
 import { getErrorMessage } from '@/lib/errors';
+import { LoadingSpinner } from '@/components/LoadingSpinner';
 
 /**
  * Password strength rules. Shared shape with the register page so a user
@@ -158,7 +159,7 @@ function ResetPasswordForm() {
  */
 export default function ResetPasswordPage() {
   return (
-    <Suspense fallback={<div className="mx-auto w-full max-w-md py-16 text-center text-sm text-muted-foreground">Loading…</div>}>
+    <Suspense fallback={<div className="mx-auto w-full max-w-md py-16 text-center text-sm text-muted-foreground"><LoadingSpinner showLabel /></div>}>
       <ResetPasswordForm />
     </Suspense>
   );
