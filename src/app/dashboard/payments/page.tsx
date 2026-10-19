@@ -9,6 +9,7 @@ import { formatUsd, formatDate, PAYMENT_STATUS_COLORS, STATUS_ICONS, DEFAULT_STA
 import { FormField } from '@/components/FormField';
 import Modal from '@/components/Modal';
 import { SkeletonList } from '@/components/Skeleton';
+import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { getErrorMessage } from '@/lib/errors';
 import type { Payment } from '@/lib/types';
 
@@ -330,7 +331,7 @@ export default function PaymentsPage() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading ? (
-                <tr><td colSpan={PAYMENT_TABLE_COLUMNS} className="px-6 py-8 text-center text-gray-400">Loading...</td></tr>
+                <tr><td colSpan={PAYMENT_TABLE_COLUMNS} className="px-6 py-8 text-center text-gray-400"><LoadingSpinner showLabel /></td></tr>
               ) : error ? null : payments.length === 0 ? (
                 <tr><td colSpan={PAYMENT_TABLE_COLUMNS} className="px-6 py-8 text-center text-gray-400">No payments yet</td></tr>
               ) : (
