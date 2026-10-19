@@ -3,10 +3,14 @@
 import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import { z } from 'zod';
 import toast from '@/lib/toast';
 import { authApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
 import { FormField } from '@/components/FormField';
+import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { isAuthResponse } from '@/lib/types';
 import {
   CAPTCHA_THRESHOLD as SHARED_CAPTCHA_THRESHOLD,
@@ -15,6 +19,13 @@ import {
 } from '@/lib/errors';
 
 const CAPTCHA_THRESHOLD = SHARED_CAPTCHA_THRESHOLD;
+
+const loginSchema = z.object({
+  email: z.string().min(1, 'Email is required').email('Enter a valid email address'),
+  password: z.string().min(1, 'Password is required'),
+});
+
+type LoginFormValues = z.infer<typeof loginSchema>;
 
 function getRateLimitMessage(err: unknown): string {
   return getRateLimitErrorMessage(err) ?? getErrorMessage(err) ?? 'Login failed';
@@ -29,21 +40,24 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const setAuth = useAuthStore((state) => state.setAuth);
 
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const [failedAttempts, setFailedAttempts] = useState(0);
-  const [loading, setLoading] = useState(false);
   const [rateLimitMessage, setRateLimitMessage] = useState<string | null>(null);
   const [rateLimited, setRateLimited] = useState(false);
 
+  const {
+    register,
+    handleSubmit,
+    formState: { errors, isSubmitting },
+  } = useForm<LoginFormValues>({
+    resolver: zodResolver(loginSchema),
+    defaultValues: { email: '', password: '' },
+  });
+
   const showCaptcha = failedAttempts >= CAPTCHA_THRESHOLD;
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-
+  const onSubmit = async (values: LoginFormValues) => {
     try {
-      const response = await authApi.login({ email, password });
+      const response = await authApi.login(values);
 
       if (!isAuthResponse(response.data)) {
         throw new Error('Unexpected response from server');
@@ -69,8 +83,6 @@ function LoginForm() {
         setRateLimitMessage(message);
       }
       toast.error(message);
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -94,24 +106,32 @@ function LoginForm() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <FormField
-            label="Email"
-            type="email"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            autoComplete="email"
-          />
+        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" noValidate>
+          <div>
+            <FormField
+              label="Email"
+              type="email"
+              required
+              autoComplete="email"
+              {...register('email')}
+            />
+            {errors.email && (
+              <p className="mt-1 text-sm text-red-600">{errors.email.message}</p>
+            )}
+          </div>
 
-          <FormField
-            label="Password"
-            type="password"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            autoComplete="current-password"
-          />
+          <div>
+            <FormField
+              label="Password"
+              type="password"
+              required
+              autoComplete="current-password"
+              {...register('password')}
+            />
+            {errors.password && (
+              <p className="mt-1 text-sm text-red-600">{errors.password.message}</p>
+            )}
+          </div>
 
           {showCaptcha && (
             <div
@@ -131,10 +151,10 @@ function LoginForm() {
           <button
             data-testid="login-submit-button"
             type="submit"
-            disabled={loading}
+            disabled={isSubmitting}
             className="w-full rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
           >
-            {loading ? 'Signing in...' : 'Sign in'}
+            {isSubmitting ? 'Signing in...' : 'Sign in'}
           </button>
         </form>
 
@@ -151,7 +171,7 @@ function LoginForm() {
 
 export default function LoginPage() {
   return (
-    <Suspense fallback={<div className="flex min-h-screen items-center justify-center">Loading...</div>}>
+    <Suspense fallback={<div className="flex min-h-screen items-center justify-center"><LoadingSpinner showLabel /></div>}>
       <LoginForm />
     </Suspense>
   );
