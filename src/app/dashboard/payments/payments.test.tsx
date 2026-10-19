@@ -121,3 +121,195 @@ describe('PaymentsPage — Description character limit and counter (#396)', () =
     expect(counter).toHaveTextContent('30/255');
   });
 });
+
+describe('PaymentsPage — Keyboard navigation for payment list table (#576)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(paymentsApi.list).mockResolvedValue({
+      data: {
+        payments: [
+          {
+            id: 'pay_1',
+            reference: 'PAY-001',
+            amountUsd: 50,
+            status: 'completed',
+            createdAt: '2026-09-25T10:00:00Z',
+          },
+          {
+            id: 'pay_2',
+            reference: 'PAY-002',
+            amountUsd: 75,
+            status: 'pending',
+            createdAt: '2026-09-26T10:00:00Z',
+          },
+        ],
+        total: 2,
+      },
+    } as any);
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  it('exposes rows as focusable with roving tabindex and visible focus style', async () => {
+    render(<PaymentsPage />);
+
+    const rows = await screen.findAllByRole('row', { name: /PAY-00/ });
+    expect(rows.length).toBeGreaterThanOrEqual(2);
+
+    // First row is the tab stop; others are not in the tab order.
+    expect(rows[0]).toHaveAttribute('tabindex', '0');
+    expect(rows[1]).toHaveAttribute('tabindex', '-1');
+
+    // Focus style is applied via a focus-visible class.
+    expect(rows[0].className).toMatch(/focus-visible/);
+  });
+
+  it('navigates rows with ArrowDown and ArrowUp', async () => {
+    render(<PaymentsPage />);
+
+    const rows = await screen.findAllByRole('row', { name: /PAY-00/ });
+    rows[0].focus();
+    expect(rows[0]).toHaveFocus();
+
+    fireEvent.keyDown(rows[0], { key: 'ArrowDown' });
+    expect(rows[1]).toHaveFocus();
+    expect(rows[1]).toHaveAttribute('tabindex', '0');
+    expect(rows[0]).toHaveAttribute('tabindex', '-1');
+
+    fireEvent.keyDown(rows[1], { key: 'ArrowUp' });
+    expect(rows[0]).toHaveFocus();
+  });
+
+  it('opens payment detail on Enter', async () => {
+    render(<PaymentsPage />);
+
+    const rows = await screen.findAllByRole('row', { name: /PAY-00/ });
+    rows[0].focus();
+
+    fireEvent.keyDown(rows[0], { key: 'Enter' });
+
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+    expect(screen.getByRole('dialog')).toHaveTextContent('PAY-001');
+  });
+
+  it('moves focus to action buttons within the focused row on Tab', async () => {
+    render(<PaymentsPage />);
+
+    const rows = await screen.findAllByRole('row', { name: /PAY-00/ });
+    rows[0].focus();
+
+    fireEvent.keyDown(rows[0], { key: 'Tab' });
+
+    const actionButton = rows[0].querySelector('button');
+    expect(actionButton).not.toBeNull();
+    expect(actionButton).toHaveFocus();
+  });
+});
+
+describe('PaymentsPage — Amount range filter (#578)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(paymentsApi.list).mockResolvedValue({
+      data: {
+        payments: [
+          {
+            id: 'pay_1',
+            reference: 'PAY-001',
+            amountUsd: 50,
+            status: 'completed',
+            createdAt: '2026-09-25T10:00:00Z',
+          },
+          {
+            id: 'pay_2',
+            reference: 'PAY-002',
+            amountUsd: 150,
+            status: 'completed',
+            createdAt: '2026-09-26T10:00:00Z',
+          },
+          {
+            id: 'pay_3',
+            reference: 'PAY-003',
+            amountUsd: 250,
+            status: 'pending',
+            createdAt: '2026-09-27T10:00:00Z',
+          },
+        ],
+        total: 3,
+      },
+    } as any);
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  it('renders min and max amount inputs in the filter panel', async () => {
+    render(<PaymentsPage />);
+
+    await screen.findAllByText('PAY-001');
+
+    expect(screen.getByLabelText(/min amount/i)).toBeInTheDocument();
+    expect(screen.getByLabelText(/max amount/i)).toBeInTheDocument();
+  });
+
+  it('filters payments by amount range alongside status and search', async () => {
+    render(<PaymentsPage />);
+
+    await screen.findAllByText('PAY-001');
+
+    fireEvent.change(screen.getByLabelText(/min amount/i), { target: { value: '100' } });
+
+    await waitFor(() => {
+      expect(screen.queryByText('PAY-001')).not.toBeInTheDocument();
+      expect(screen.getAllByText('PAY-002').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getAllByText('PAY-003').length).toBeGreaterThanOrEqual(1);
+    });
+
+    fireEvent.change(screen.getByLabelText(/max amount/i), { target: { value: '200' } });
+
+    await waitFor(() => {
+      expect(screen.getAllByText('PAY-002').length).toBeGreaterThanOrEqual(1);
+      expect(screen.queryByText('PAY-003')).not.toBeInTheDocument();
+    });
+  });
+
+  it('updates URL query params for the amount range', async () => {
+    render(<PaymentsPage />);
+
+    await screen.findAllByText('PAY-001');
+
+    fireEvent.change(screen.getByLabelText(/min amount/i), { target: { value: '100' } });
+    fireEvent.change(screen.getByLabelText(/max amount/i), { target: { value: '200' } });
+
+    await waitFor(() => {
+      const params = new URLSearchParams(window.location.search);
+      expect(params.get('minAmount')).toBe('100');
+      expect(params.get('maxAmount')).toBe('200');
+    });
+  });
+
+  it('clears all filters including amount range', async () => {
+    render(<PaymentsPage />);
+
+    await screen.findAllByText('PAY-001');
+
+    fireEvent.change(screen.getByLabelText(/min amount/i), { target: { value: '100' } });
+    fireEvent.change(screen.getByLabelText(/max amount/i), { target: { value: '200' } });
+
+    await waitFor(() => {
+      expect(screen.queryByText('PAY-001')).not.toBeInTheDocument();
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: /clear all filters/i }));
+
+    await waitFor(() => {
+      expect(screen.getAllByText('PAY-001').length).toBeGreaterThanOrEqual(1);
+      expect(screen.getByLabelText(/min amount/i)).toHaveValue(null);
+      expect(screen.getByLabelText(/max amount/i)).toHaveValue(null);
+    });
+  });
+});

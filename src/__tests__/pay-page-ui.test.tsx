@@ -3,6 +3,9 @@
  * Issue: loading spinner, "Payment not found", and success QR/status UI
  * Issue #310: countdown timer must not re-render the whole page every tick
  * Issue #545: Download QR button (SVG + optional PNG 512x512)
+ * Issue #579: copy buttons for Stellar memo and deposit address
+ * Issue #575: settled status shows a one-shot, reduced-motion-aware success animation
+ * Issue #558: expired payment links render a dedicated expired state
  */
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -44,6 +47,8 @@ describe('PayPage', () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
   });
 
   it('renders the payment amount', async () => {
@@ -144,5 +149,138 @@ describe('PayPage', () => {
     expect(screen.getByTestId('qr-code')).toBe(qrBefore);
 
     vi.useRealTimers();
+  });
+
+  it('copies the Stellar memo to the clipboard and shows a Copied! tooltip (#579)', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+
+    mockedGetByReference.mockResolvedValue({ data: basePayment } as never);
+    render(<PayPage params={{ paymentId: 'ref_1' }} />);
+
+    const memoCopy = await screen.findByRole('button', { name: /copy stellar memo/i });
+    fireEvent.click(memoCopy);
+
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('memo-123'));
+    expect(await screen.findByText('Copied!')).toBeInTheDocument();
+  });
+
+  it('copies the Stellar deposit address to the clipboard (#579)', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+
+    mockedGetByReference.mockResolvedValue({ data: basePayment } as never);
+    render(<PayPage params={{ paymentId: 'ref_1' }} />);
+
+    const addressCopy = await screen.findByRole('button', { name: /copy stellar deposit address/i });
+    fireEvent.click(addressCopy);
+
+    await waitFor(() => expect(writeText).toHaveBeenCalledWith('GDESTINATIONADDRESS123'));
+  });
+
+  it('hides the Copied! tooltip after 2 seconds (#579)', async () => {
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+
+    mockedGetByReference.mockResolvedValue({ data: basePayment } as never);
+    render(<PayPage params={{ paymentId: 'ref_1' }} />);
+
+    const memoCopy = await screen.findByRole('button', { name: /copy stellar memo/i });
+
+    vi.useFakeTimers();
+    fireEvent.click(memoCopy);
+
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(screen.getByText('Copied!')).toBeInTheDocument();
+
+    act(() => {
+      vi.advanceTimersByTime(2000);
+    });
+    expect(screen.queryByText('Copied!')).not.toBeInTheDocument();
+  });
+
+  it('plays a one-shot success animation when the payment is settled (#575)', async () => {
+    mockedGetByReference.mockResolvedValue({
+      data: { ...basePayment, status: 'settled' },
+    } as never);
+
+    render(<PayPage params={{ paymentId: 'ref_1' }} />);
+
+    const animation = await screen.findByTestId('payment-success-animation');
+    // Plays once, never loops.
+    expect(animation).toHaveAttribute('data-iteration-count', '1');
+    expect(animation).toHaveAttribute('data-loop', 'false');
+  });
+
+  it('does not render the success animation for non-settled payments (#575)', async () => {
+    mockedGetByReference.mockResolvedValue({ data: basePayment } as never);
+
+    render(<PayPage params={{ paymentId: 'ref_1' }} />);
+
+    await waitFor(() => expect(screen.getByText('$25.00')).toBeInTheDocument());
+    expect(screen.queryByTestId('payment-success-animation')).not.toBeInTheDocument();
+  });
+
+  it('skips the success animation when prefers-reduced-motion is set (#575)', async () => {
+    vi.stubGlobal(
+      'matchMedia',
+      vi.fn().mockImplementation((query: string) => ({
+        matches: query.includes('prefers-reduced-motion'),
+        media: query,
+        onchange: null,
+        addEventListener: vi.fn(),
+        removeEventListener: vi.fn(),
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+      }))
+    );
+
+    mockedGetByReference.mockResolvedValue({
+      data: { ...basePayment, status: 'settled' },
+    } as never);
+
+    render(<PayPage params={{ paymentId: 'ref_1' }} />);
+
+    await waitFor(() => expect(screen.getByText('$25.00')).toBeInTheDocument());
+    expect(screen.queryByTestId('payment-success-animation')).not.toBeInTheDocument();
+  });
+
+  it('renders a dedicated expired state instead of the QR code (#558)', async () => {
+    const expiresAt = new Date(Date.now() - 60 * 1000).toISOString();
+    mockedGetByReference.mockResolvedValue({ data: { ...basePayment, expiresAt } } as never);
+
+    render(<PayPage params={{ paymentId: 'ref_1' }} />);
+
+    await waitFor(() =>
+      expect(screen.getByText(/This payment has expired/i)).toBeInTheDocument()
+    );
+    expect(screen.queryByTestId('qr-code')).not.toBeInTheDocument();
+  });
+
+  it('shows merchant contact info and a create-new-payment link when expired (#558)', async () => {
+    const expiresAt = new Date(Date.now() - 60 * 1000).toISOString();
+    mockedGetByReference.mockResolvedValue({
+      data: {
+        ...basePayment,
+        expiresAt,
+        merchantName: 'Acme Store',
+        merchantEmail: 'merchant@acme.test',
+      },
+    } as never);
+
+    render(<PayPage params={{ paymentId: 'ref_1' }} />);
+
+    await waitFor(() =>
+      expect(screen.getByText(/This payment has expired/i)).toBeInTheDocument()
+    );
+    expect(screen.getByText(/Acme Store/)).toBeInTheDocument();
+    expect(screen.getByText(/merchant@acme.test/)).toBeInTheDocument();
+
+    const newPaymentLink = screen.getByRole('link', { name: /create new payment/i });
+    expect(newPaymentLink).toHaveAttribute('href', '/dashboard/payments/new');
+  });
   });
 });
