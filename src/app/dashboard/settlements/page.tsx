@@ -66,6 +66,38 @@ const SettlementMobileCard = memo(function SettlementMobileCard({ settlement: s 
   );
 });
 
+/** Inline SVG illustration for the settlements empty state (no external requests). */
+function SettlementsEmptyIllustration() {
+  return (
+    <svg
+      aria-hidden="true"
+      viewBox="0 0 120 120"
+      className="w-24 h-24 mx-auto text-brand-200"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+    >
+      <circle cx="60" cy="60" r="52" className="fill-brand-50" />
+      <rect x="34" y="40" width="52" height="44" rx="6" className="stroke-current" strokeWidth="3" />
+      <path d="M34 54h52" className="stroke-current" strokeWidth="3" />
+      <path d="M46 68h20" className="stroke-current" strokeWidth="3" strokeLinecap="round" />
+      <path d="M46 76h12" className="stroke-current" strokeWidth="3" strokeLinecap="round" />
+      <circle cx="82" cy="82" r="14" className="fill-white stroke-current" strokeWidth="3" />
+      <path d="M82 76v12M76 82h12" className="stroke-current" strokeWidth="3" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+/** Shared empty state for both mobile and desktop layouts. */
+function SettlementsEmptyState() {
+  return (
+    <div className="px-6 py-12 text-center">
+      <SettlementsEmptyIllustration />
+      <p className="mt-4 text-sm font-medium text-gray-700">No settlements yet</p>
+      <p className="mt-1 text-sm text-gray-400">Settlements appear after your first payment</p>
+    </div>
+  );
+}
+
 export default function SettlementsPage() {
   const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [total, setTotal] = useState(0);
@@ -91,7 +123,7 @@ export default function SettlementsPage() {
   return (
     <div className="p-8">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Settlements</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Settlements</h1>
         <p className="text-sm text-gray-500 mt-1">{total} total settlements</p>
       </div>
 
@@ -107,7 +139,7 @@ export default function SettlementsPage() {
           {loading ? (
             <SkeletonList rows={6} />
           ) : settlements.length === 0 ? (
-            <div className="px-6 py-8 text-center text-gray-400">No settlements yet</div>
+            <SettlementsEmptyState />
           ) : (
             settlements.map((s) => (
               <SettlementMobileCard key={s.id} settlement={s} />
@@ -131,7 +163,7 @@ export default function SettlementsPage() {
               {loading ? (
                 <SkeletonTableRows rows={6} cols={6} />
               ) : settlements.length === 0 ? (
-                <tr><td colSpan={6} className="px-6 py-8 text-center text-gray-400">No settlements yet</td></tr>
+                <tr><td colSpan={6}><SettlementsEmptyState /></td></tr>
               ) : (
                 settlements.map((s) => (
                   <SettlementTableRow key={s.id} settlement={s} />

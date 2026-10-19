@@ -1,10 +1,13 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
+import { useRouter } from 'next/navigation';
 import { paymentsApi } from '@/lib/api';
 import { formatUsd } from '@/lib/utils';
 import type { PaymentStats } from '@/lib/types';
+import RevenueByMethodCard from './RevenueByMethodCard';
+import { LoadingSpinner } from '@/components/LoadingSpinner';
 
 // Recharts is a large library only used on this page. Wrapping the chart
 // components with next/dynamic (ssr: false) does two things:
@@ -22,10 +25,36 @@ const VolumeBarChart = dynamic(() => import('./VolumeBarChart'), {
   loading: () => <div className="h-[250px] flex items-center justify-center text-sm text-gray-400">Loading chart…</div>,
 });
 
+type Period = '7d' | '30d' | '90d';
+
+const PERIODS: { value: Period; label: string }[] = [
+  { value: '7d', label: '7d' },
+  { value: '30d', label: '30d' },
+  { value: '90d', label: '90d' },
+];
+
+interface TopMerchant {
+  merchantId: string;
+  merchantName: string;
+  totalVolume: number;
+  paymentCount: number;
+  avgOrderValue: number;
+}
+
+function csvEscape(value: string | number): string {
+  const str = String(value);
+  return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+}
+
 export default function AnalyticsPage() {
+  const router = useRouter();
   const [stats, setStats] = useState<PaymentStats[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [period, setPeriod] = useState<Period>('30d');
+  const [topMerchants, setTopMerchants] = useState<TopMerchant[]>([]);
+  const [topLoading, setTopLoading] = useState(true);
+  const [topError, setTopError] = useState('');
 
   const loadStats = useCallback(() => {
     setLoading(true);
@@ -39,9 +68,25 @@ export default function AnalyticsPage() {
       .finally(() => setLoading(false));
   }, []);
 
+  const loadTopMerchants = useCallback((range: Period) => {
+    setTopLoading(true);
+    setTopError('');
+    paymentsApi.topMerchants(range)
+      .then(({ data }) => {
+        setTopError('');
+        setTopMerchants(data);
+      })
+      .catch(() => setTopError("Couldn't load top merchants."))
+      .finally(() => setTopLoading(false));
+  }, []);
+
   useEffect(() => {
     loadStats();
   }, [loadStats]);
+
+  useEffect(() => {
+    loadTopMerchants(period);
+  }, [loadTopMerchants, period]);
 
   const pieData = stats.map((s) => ({
     name: s.status,
@@ -52,15 +97,41 @@ export default function AnalyticsPage() {
   const totalVolume = stats.reduce((acc, s) => acc + parseFloat(String(s.totalUsd ?? 0)), 0);
   const totalCount = stats.reduce((acc, s) => acc + parseInt(String(s.count), 10), 0);
 
+  const rankedMerchants = useMemo(
+    () => [...topMerchants].sort((a, b) => b.totalVolume - a.totalVolume),
+    [topMerchants],
+  );
+
+  const exportCsv = useCallback(() => {
+    const header = ['Rank', 'Merchant', 'Total Volume (USD)', 'Payment Count', 'Avg Order Value (USD)'];
+    const rows = rankedMerchants.map((m, i) => [
+      i + 1,
+      m.merchantName,
+      m.totalVolume.toFixed(2),
+      m.paymentCount,
+      m.avgOrderValue.toFixed(2),
+    ]);
+    const csv = [header, ...rows].map((row) => row.map(csvEscape).join(',')).join('\n');
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `top-merchants-${period}.csv`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  }, [rankedMerchants, period]);
+
   return (
     <div className="p-8">
       <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">Analytics</h1>
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Analytics</h1>
         <p className="text-sm text-gray-500 mt-1">Payment volume and status breakdown</p>
       </div>
 
       {loading ? (
-        <div className="text-center py-12 text-gray-400">Loading...</div>
+        <div className="text-center py-12 text-gray-400"><LoadingSpinner showLabel /></div>
       ) : error ? (
         <div className="text-center py-12 text-red-500">
           <p>{error}</p>
@@ -132,6 +203,81 @@ export default function AnalyticsPage() {
               </table>
             </div>
           </div>
+
+          <div className="card p-6">
+            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+              <h2 className="font-semibold">Top Merchants</h2>
+              <div className="flex items-center gap-2">
+                <div className="inline-flex rounded-md border border-gray-200" role="group" aria-label="Period selector">
+                  {PERIODS.map((p) => (
+                    <button
+                      key={p.value}
+                      type="button"
+                      onClick={() => setPeriod(p.value)}
+                      aria-pressed={period === p.value}
+                      className={`px-3 py-1.5 text-sm font-medium ${period === p.value ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={exportCsv}
+                  disabled={topLoading || rankedMerchants.length === 0}
+                  className="inline-flex items-center rounded-md border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+                >
+                  Export CSV
+                </button>
+              </div>
+            </div>
+
+            {topLoading ? (
+              <div className="text-center py-8 text-gray-400">Loading...</div>
+            ) : topError ? (
+              <div className="text-center py-8 text-red-500">
+                <p>{topError}</p>
+                <button
+                  type="button"
+                  onClick={() => loadTopMerchants(period)}
+                  className="mt-4 inline-flex items-center rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : rankedMerchants.length === 0 ? (
+              <div className="text-center py-8 text-gray-400">No merchant activity in this period.</div>
+            ) : (
+              <table className="w-full text-sm">
+                <thead>
+                  <tr className="text-left text-gray-500 border-b border-gray-200">
+                    <th scope="col" className="py-2 pr-4">Rank</th>
+                    <th scope="col" className="py-2 pr-4">Merchant</th>
+                    <th scope="col" className="py-2 pr-4 text-right">Total Volume</th>
+                    <th scope="col" className="py-2 pr-4 text-right">Payments</th>
+                    <th scope="col" className="py-2 text-right">Avg Order Value</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {rankedMerchants.map((m, i) => (
+                    <tr
+                      key={m.merchantId}
+                      onClick={() => router.push(`/dashboard/merchants/${m.merchantId}`)}
+                      className="border-b border-gray-100 cursor-pointer hover:bg-gray-50"
+                    >
+                      <td className="py-2 pr-4 text-gray-500">{i + 1}</td>
+                      <td className="py-2 pr-4 font-medium text-gray-900">{m.merchantName}</td>
+                      <td className="py-2 pr-4 text-right">{formatUsd(m.totalVolume)}</td>
+                      <td className="py-2 pr-4 text-right">{m.paymentCount}</td>
+                      <td className="py-2 text-right">{formatUsd(m.avgOrderValue)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          <RevenueByMethodCard />
         </div>
       )}
     </div>

@@ -5,13 +5,14 @@ import Link from 'next/link';
 import { ArrowLeft, Loader2, XCircle } from 'lucide-react';
 import { settlementsApi } from '@/lib/api';
 import { formatUsd, formatDate, STATUS_COLORS } from '@/lib/utils';
+import type { Settlement } from '@/lib/types';
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   if (value === undefined || value === null || value === '') return null;
   return (
     <div className="flex items-start justify-between gap-4 py-3 border-b border-gray-100 last:border-0">
       <span className="text-sm text-gray-500">{label}</span>
-      <span className="text-sm font-medium text-gray-900 text-right break-all">{value}</span>
+      <span className="text-sm font-medium text-gray-900 dark:text-gray-100 text-right break-all">{value}</span>
     </div>
   );
 }
@@ -41,7 +42,7 @@ export default function SettlementDetailPage({ params }: { params: { settlementI
   if (loadError) {
     return (
       <div className="p-8">
-        <Link href="/dashboard/settlements" className="text-brand-600 text-sm hover:underline flex items-center gap-1 mb-6">
+        <Link href="/dashboard/settlements" className="text-brand-600 text-sm hover:underline flex items-center gap-1 mb-6 no-print">
           <ArrowLeft className="w-4 h-4" /> Back to settlements
         </Link>
         <div className="card p-8 text-center" role="alert">
@@ -55,7 +56,7 @@ export default function SettlementDetailPage({ params }: { params: { settlementI
   if (!settlement) {
     return (
       <div className="p-8">
-        <Link href="/dashboard/settlements" className="text-brand-600 text-sm hover:underline flex items-center gap-1 mb-6">
+        <Link href="/dashboard/settlements" className="text-brand-600 text-sm hover:underline flex items-center gap-1 mb-6 no-print">
           <ArrowLeft className="w-4 h-4" /> Back to settlements
         </Link>
         <div className="card p-8 text-center">
@@ -67,15 +68,15 @@ export default function SettlementDetailPage({ params }: { params: { settlementI
   }
 
   return (
-    <div className="p-8 max-w-2xl">
-      <Link href="/dashboard/settlements" className="text-brand-600 text-sm hover:underline flex items-center gap-1 mb-6">
+    <div className="p-8 max-w-2xl print-area">
+      <Link href="/dashboard/settlements" className="text-brand-600 text-sm hover:underline flex items-center gap-1 mb-6 no-print">
         <ArrowLeft className="w-4 h-4" /> Back to settlements
       </Link>
 
       <div className="card p-6">
         <div className="flex items-center justify-between mb-6">
           <div>
-            <h1 className="text-xl font-bold text-gray-900">Settlement</h1>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-gray-100">Settlement</h1>
             <p className="text-xs font-mono text-gray-500 mt-1 break-all">{settlement.id}</p>
           </div>
           <span className={`text-xs px-2 py-1 rounded-full font-medium ${STATUS_COLORS[settlement.status] ?? 'bg-gray-100 text-gray-800'}`}>
@@ -86,7 +87,7 @@ export default function SettlementDetailPage({ params }: { params: { settlementI
         <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-6">
           <div className="bg-gray-50 rounded-lg p-3">
             <p className="text-xs text-gray-500 mb-1">Gross</p>
-            <p className="font-semibold text-gray-900">{formatUsd(settlement.totalAmountUsd)}</p>
+            <p className="font-semibold text-gray-900 dark:text-gray-100">{formatUsd(settlement.totalAmountUsd)}</p>
           </div>
           <div className="bg-gray-50 rounded-lg p-3">
             <p className="text-xs text-gray-500 mb-1">Fee</p>

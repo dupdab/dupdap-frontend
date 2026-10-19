@@ -58,6 +58,9 @@ export function LandingNav() {
         <span className="font-bold text-xl text-brand-600">DupDub</span>
 
         <div className="hidden sm:flex items-center gap-4">
+          <Link href="#pricing" className="text-sm text-gray-600 hover:text-gray-900">
+            Pricing
+          </Link>
           <Link href="/auth/login" className="text-sm text-gray-600 hover:text-gray-900">
             Login
           </Link>
@@ -85,6 +88,13 @@ export function LandingNav() {
           id="landing-mobile-menu"
           className="sm:hidden border-t border-gray-100 px-6 py-4 space-y-3"
         >
+          <Link
+            href="#pricing"
+            className="block text-sm text-gray-600 hover:text-gray-900 py-2"
+            onClick={() => setOpen(false)}
+          >
+            Pricing
+          </Link>
           <Link
             href="/auth/login"
             className="block text-sm text-gray-600 hover:text-gray-900 py-2"
