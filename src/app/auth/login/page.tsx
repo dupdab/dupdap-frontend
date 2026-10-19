@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import toast from '@/lib/toast';
@@ -15,6 +15,8 @@ import {
 } from '@/lib/errors';
 
 const CAPTCHA_THRESHOLD = SHARED_CAPTCHA_THRESHOLD;
+const LOCKOUT_THRESHOLD = 3;
+const LOCKOUT_SECONDS = 30;
 
 function getRateLimitMessage(err: unknown): string {
   return getRateLimitErrorMessage(err) ?? getErrorMessage(err) ?? 'Login failed';
@@ -35,11 +37,22 @@ function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [rateLimitMessage, setRateLimitMessage] = useState<string | null>(null);
   const [rateLimited, setRateLimited] = useState(false);
+  const [lockoutSeconds, setLockoutSeconds] = useState(0);
+  const [captchaVerified, setCaptchaVerified] = useState(false);
 
   const showCaptcha = failedAttempts >= CAPTCHA_THRESHOLD;
+  const lockedOut = lockoutSeconds > 0;
+  const submitDisabled = loading || lockedOut || (showCaptcha && !captchaVerified);
+
+  useEffect(() => {
+    if (lockoutSeconds <= 0) return;
+    const timer = setTimeout(() => setLockoutSeconds((s) => s - 1), 1000);
+    return () => clearTimeout(timer);
+  }, [lockoutSeconds]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (submitDisabled) return;
     setLoading(true);
 
     try {
@@ -62,7 +75,11 @@ function LoginForm() {
           : '/dashboard';
       router.push(redirect);
     } catch (err) {
-      setFailedAttempts((prev) => prev + 1);
+      const nextAttempts = failedAttempts + 1;
+      setFailedAttempts(nextAttempts);
+      if (nextAttempts >= LOCKOUT_THRESHOLD) {
+        setLockoutSeconds(LOCKOUT_SECONDS);
+      }
       const message = getRateLimitMessage(err);
       if (isRateLimited(err)) {
         setRateLimited(true);
@@ -91,6 +108,16 @@ function LoginForm() {
             className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
           >
             {rateLimitMessage}
+          </div>
+        )}
+
+        {lockedOut && (
+          <div
+            data-testid="login-lockout-banner"
+            role="alert"
+            className="rounded-md border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700"
+          >
+            Too many attempts. Please wait {lockoutSeconds}s before trying again.
           </div>
         )}
 
@@ -125,16 +152,30 @@ function LoginForm() {
               <p className="mt-1">
                 Please verify you are human before trying again.
               </p>
+              <label className="mt-3 flex items-center gap-2">
+                <input
+                  data-testid="login-captcha-checkbox"
+                  type="checkbox"
+                  checked={captchaVerified}
+                  onChange={(e) => setCaptchaVerified(e.target.checked)}
+                  className="h-4 w-4"
+                />
+                <span>I am not a robot</span>
+              </label>
             </div>
           )}
 
           <button
             data-testid="login-submit-button"
             type="submit"
-            disabled={loading}
+            disabled={submitDisabled}
             className="w-full rounded-md bg-blue-600 px-4 py-2 text-white hover:bg-blue-700 disabled:opacity-50"
           >
-            {loading ? 'Signing in...' : 'Sign in'}
+            {loading
+              ? 'Signing in...'
+              : lockedOut
+                ? `Try again in ${lockoutSeconds}s`
+                : 'Sign in'}
           </button>
         </form>
 

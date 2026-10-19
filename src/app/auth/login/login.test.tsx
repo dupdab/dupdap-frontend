@@ -237,6 +237,8 @@ describe('LoginPage', () => {
     render(React.createElement(LoginPage));
     await fillAndSubmit();
 
-    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/dashboard'));
+    await waitFor(() => {
+      expect(mockPush).toHaveBeenCalledWith('/dashboard');
+    });
   });
 });
