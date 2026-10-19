@@ -1,4 +1,6 @@
 /** @type {import('next').NextConfig} */
+const { withSentryConfig } = require('@sentry/nextjs');
+
 const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000/api/v1';
 
 const nextConfig = {
@@ -65,4 +67,15 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+// Sentry build-time integration: uploads source maps in production builds so
+// stack traces in Sentry resolve to original source. Auth token and org/project
+// are read from SENTRY_AUTH_TOKEN / SENTRY_ORG / SENTRY_PROJECT env vars.
+module.exports = withSentryConfig(nextConfig, {
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  authToken: process.env.SENTRY_AUTH_TOKEN,
+  silent: true,
+  widenClientFileUpload: true,
+  hideSourceMaps: true,
+  disableLogger: true,
+});
