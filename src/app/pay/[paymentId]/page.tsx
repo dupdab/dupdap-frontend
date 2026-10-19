@@ -44,7 +44,9 @@ const DEGRADED_FAILURE_THRESHOLD = 2;
 function computeExpiresAt(payment: Payment): Date | null {
   if (payment.expiresAt) return new Date(payment.expiresAt);
   if (payment.expiryMinutes && payment.createdAt) {
-    return new Date(new Date(payment.createdAt).getTime() + payment.expiryMinutes * 60_000);
+    return new Date(
+      new Date(payment.createdAt).getTime() + payment.expiryMinutes * 60_000
+    );
   }
   return null;
 }
@@ -55,6 +57,68 @@ function formatRemaining(ms: number): string {
   const minutes = Math.floor(total / 60);
   const seconds = total % 60;
   return `${minutes}:${seconds.toString().padStart(2, '0')}`;
+}
+
+/** Urgency tier used to style the countdown banner and drive aria-live cadence. */
+type ExpiryUrgency = 'normal' | 'warning' | 'critical' | 'expired';
+
+function getExpiryUrgency(
+  remainingMs: number,
+  isExpiredByClock: boolean
+): ExpiryUrgency {
+  if (isExpiredByClock || remainingMs <= 0) return 'expired';
+  if (remainingMs < 60_000) return 'critical'; // < 1 min
+  if (remainingMs < 5 * 60_000) return 'warning'; // < 5 min
+  return 'normal';
+}
+
+const URGENCY_STYLES: Record<ExpiryUrgency, string> = {
+  normal: 'bg-gray-100 text-gray-700 border border-gray-200',
+  warning: 'bg-amber-50 text-amber-800 border border-amber-300',
+  critical: 'bg-red-50 text-red-700 border border-red-200',
+  expired: 'bg-red-50 text-red-700 border border-red-200',
+};
+
+// ─── Expiry countdown banner ────────────────────────────────────────────────
+
+interface ExpiryCountdownProps {
+  remainingMs: number;
+  isExpiredByClock: boolean;
+}
+
+function ExpiryCountdown({
+  remainingMs,
+  isExpiredByClock,
+}: ExpiryCountdownProps) {
+  const urgency = getExpiryUrgency(remainingMs, isExpiredByClock);
+  const isUrgent =
+    urgency === 'warning' || urgency === 'critical' || urgency === 'expired';
+
+  return (
+    <div
+      className={`flex items-center justify-center gap-2 rounded-lg p-3 mb-4 text-sm font-semibold ${URGENCY_STYLES[urgency]}`}
+      // Announce changes to screen-readers. Use 'assertive' only when expired;
+      // 'polite' for active warnings so we don't interrupt payment instructions.
+      aria-live={urgency === 'expired' ? 'assertive' : 'polite'}
+      aria-atomic="true"
+      data-testid="expiry-countdown"
+    >
+      {isUrgent ? (
+        <AlertTriangle className="w-4 h-4 shrink-0" aria-hidden="true" />
+      ) : (
+        <Clock className="w-4 h-4 shrink-0" aria-hidden="true" />
+      )}
+      <span>
+        {isExpiredByClock
+          ? 'This payment request has expired'
+          : urgency === 'warning'
+            ? `Expiring soon — ${formatRemaining(remainingMs)} remaining`
+            : urgency === 'critical'
+              ? `Expiring in ${formatRemaining(remainingMs)}!`
+              : `Expires in ${formatRemaining(remainingMs)}`}
+      </span>
+    </div>
+  );
 }
 
 // ─── Network degradation banner ────────────────────────────────────────────
@@ -72,13 +136,17 @@ function DegradedBanner({ visible }: DegradedBannerProps) {
       data-testid="degraded-banner"
       className="flex items-start gap-3 rounded-lg bg-amber-50 border border-amber-300 p-3 mb-4 text-sm text-amber-800"
     >
-      <WifiOff className="w-4 h-4 mt-0.5 shrink-0 text-amber-600" aria-hidden="true" />
+      <WifiOff
+        className="w-4 h-4 mt-0.5 shrink-0 text-amber-600"
+        aria-hidden="true"
+      />
       <div>
         <p className="font-semibold">Stellar network connection issue</p>
         <p className="mt-0.5 text-xs">
-          We&apos;re having trouble reaching the payment network. Your payment has
-          <strong> not been lost</strong> — we&apos;ll confirm it as soon as the connection
-          is restored. Please keep this page open.
+          We&apos;re having trouble reaching the payment network. Your payment
+          has
+          <strong> not been lost</strong> — we&apos;ll confirm it as soon as the
+          connection is restored. Please keep this page open.
         </p>
       </div>
     </div>
@@ -122,31 +190,36 @@ function Receipt({ payment }: ReceiptProps) {
   };
 
   return (
-    <div
-      data-testid="payment-receipt"
-      className="space-y-4"
-    >
+    <div data-testid="payment-receipt" className="space-y-4">
       {/* Status stamp */}
       <div className="flex flex-col items-center py-6">
         <CheckCircle className="w-14 h-14 text-green-500 mb-3" />
         <h2 className="text-xl font-bold text-gray-900">Payment Complete</h2>
-        <p className="text-sm text-gray-500 mt-1">Your payment has been confirmed and settled.</p>
+        <p className="text-sm text-gray-500 mt-1">
+          Your payment has been confirmed and settled.
+        </p>
       </div>
 
       {/* Receipt details */}
       <dl className="divide-y divide-gray-100 text-sm border border-gray-200 rounded-lg overflow-hidden">
         <div className="flex justify-between px-4 py-3 bg-white">
           <dt className="text-gray-500">Amount</dt>
-          <dd className="font-semibold text-gray-900">{formatUsd(payment.amountUsd)}</dd>
+          <dd className="font-semibold text-gray-900">
+            {formatUsd(payment.amountUsd)}
+          </dd>
         </div>
         <div className="flex justify-between px-4 py-3 bg-gray-50">
           <dt className="text-gray-500">Reference</dt>
-          <dd className="font-mono text-gray-900 text-xs break-all">{payment.reference}</dd>
+          <dd className="font-mono text-gray-900 text-xs break-all">
+            {payment.reference}
+          </dd>
         </div>
         {payment.description && (
           <div className="flex justify-between px-4 py-3 bg-white">
             <dt className="text-gray-500">Description</dt>
-            <dd className="text-gray-900 text-right max-w-[60%] break-words">{payment.description}</dd>
+            <dd className="text-gray-900 text-right max-w-[60%] break-words">
+              {payment.description}
+            </dd>
           </div>
         )}
         {payment.customerEmail && (
@@ -211,7 +284,8 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
     let timeout: ReturnType<typeof setTimeout> | null = null;
     let cancelled = false;
 
-    paymentsApi.getByReference(params.paymentId)
+    paymentsApi
+      .getByReference(params.paymentId)
       .then(({ data }) => setPayment(data))
       .catch(() => {
         setLoadError(true);
@@ -226,7 +300,7 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
       if (cancelled) return;
       const backoff = Math.min(
         POLL_INTERVAL_MS * 2 ** consecutiveFailures,
-        POLL_MAX_BACKOFF_MS,
+        POLL_MAX_BACKOFF_MS
       );
       timeout = setTimeout(poll, backoff);
     };
@@ -238,7 +312,8 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
         setPollWarning('Status checks are taking longer than expected.');
         return;
       }
-      paymentsApi.getByReference(params.paymentId)
+      paymentsApi
+        .getByReference(params.paymentId)
         .then(({ data }) => {
           consecutiveFailures = 0;
           setPollWarning('');
@@ -250,7 +325,9 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
         })
         .catch(() => {
           consecutiveFailures += 1;
-          setPollWarning('We are having trouble checking your payment status right now.');
+          setPollWarning(
+            'We are having trouble checking your payment status right now.'
+          );
           if (consecutiveFailures >= DEGRADED_FAILURE_THRESHOLD) {
             setNetworkDegraded(true);
           }
@@ -280,7 +357,8 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
 
   const expiresAt = payment ? computeExpiresAt(payment) : null;
   const isPending = payment?.status === 'pending';
-  const isSettled = payment?.status === 'settled' || payment?.status === 'completed';
+  const isSettled =
+    payment?.status === 'settled' || payment?.status === 'completed';
   const remainingMs = expiresAt ? expiresAt.getTime() - now : 0;
   const isExpiredByClock = isPending && expiresAt ? remainingMs <= 0 : false;
 
@@ -300,7 +378,8 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
       pollNowRef.current?.();
     };
     document.addEventListener('visibilitychange', handleVisibilityChange);
-    return () => document.removeEventListener('visibilitychange', handleVisibilityChange);
+    return () =>
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
   const copy = async (text: string, key: string) => {
@@ -328,16 +407,20 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
           <XCircle className="w-12 h-12 text-red-400 mx-auto mb-4" />
           {networkDegraded ? (
             <>
-              <p className="text-gray-700 font-semibold">Network connection issue</p>
+              <p className="text-gray-700 font-semibold">
+                Network connection issue
+              </p>
               <p className="text-gray-500 text-sm mt-1">
                 {loadError
-                  ? 'We couldn\'t load this payment — the Stellar network or our backend may be temporarily down.'
+                  ? "We couldn't load this payment — the Stellar network or our backend may be temporarily down."
                   : 'Payment not found'}
               </p>
             </>
           ) : (
             <p className="text-gray-600">
-              {loadError ? 'Something went wrong loading this payment — try again' : 'Payment not found'}
+              {loadError
+                ? 'Something went wrong loading this payment — try again'
+                : 'Payment not found'}
             </p>
           )}
         </div>
@@ -355,41 +438,33 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
       <div className="card w-full max-w-[92vw] xs:max-w-sm">
         <div className="p-4 xs:p-6 border-b border-gray-100 text-center">
           <p className="text-sm text-gray-500 font-medium">DupDub</p>
-          <h1 className="text-3xl font-bold mt-1">{formatUsd(payment.amountUsd)}</h1>
+          <h1 className="text-3xl font-bold mt-1">
+            {formatUsd(payment.amountUsd)}
+          </h1>
           {payment.description && (
-            <p className="text-sm text-gray-500 mt-1 break-words">{payment.description}</p>
+            <p className="text-sm text-gray-500 mt-1 break-words">
+              {payment.description}
+            </p>
           )}
         </div>
 
         <div className="p-4 xs:p-6">
           {/* Network degradation banner — shown for any non-terminal status */}
-          {!isSettled && payment.status !== 'failed' && payment.status !== 'expired' && (
-            <DegradedBanner visible={networkDegraded} />
-          )}
+          {!isSettled &&
+            payment.status !== 'failed' &&
+            payment.status !== 'expired' && (
+              <DegradedBanner visible={networkDegraded} />
+            )}
 
           {isSettled ? (
             <Receipt payment={payment} />
           ) : isPending ? (
             <>
               {expiresAt && (
-                <div
-                  className={`flex items-center justify-center gap-2 rounded-lg p-3 mb-4 text-sm font-semibold ${
-                    isExpiredByClock || remainingMs < 60_000
-                      ? 'bg-red-50 text-red-700 border border-red-200'
-                      : 'bg-gray-100 text-gray-700 border border-gray-200'
-                  }`}
-                >
-                  {isExpiredByClock ? (
-                    <AlertTriangle className="w-4 h-4" />
-                  ) : (
-                    <Clock className="w-4 h-4" />
-                  )}
-                  {isExpiredByClock ? (
-                    'This payment request has expired'
-                  ) : (
-                    <>Expires in {formatRemaining(remainingMs)}</>
-                  )}
-                </div>
+                <ExpiryCountdown
+                  remainingMs={remainingMs}
+                  isExpiredByClock={isExpiredByClock}
+                />
               )}
 
               <div className="flex justify-center mb-4">
@@ -407,7 +482,9 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
                     className="bg-white p-6 rounded-xl border border-gray-200 flex flex-col items-center justify-center text-center space-y-2 w-44 h-44"
                   >
                     <Loader2 className="w-8 h-8 text-brand-500 animate-spin" />
-                    <p className="text-xs text-gray-500">Calculating crypto exchange rate…</p>
+                    <p className="text-xs text-gray-500">
+                      Calculating crypto exchange rate…
+                    </p>
                   </div>
                 )}
               </div>
@@ -415,22 +492,31 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
                 Scan with a Stellar wallet app, then approve USDC before deposit
               </p>
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 text-xs mb-4">
-                <p className="font-semibold text-blue-900 mb-1">Required customer flow</p>
-                <p className="text-blue-800">1) approve(escrow_contract, amount)</p>
+                <p className="font-semibold text-blue-900 mb-1">
+                  Required customer flow
+                </p>
+                <p className="text-blue-800">
+                  1) approve(escrow_contract, amount)
+                </p>
                 <p className="text-blue-800">2) deposit()</p>
                 <p className="text-blue-700 mt-1">
-                  Your wallet signs both steps. No private keys are shared with DupDub.
+                  Your wallet signs both steps. No private keys are shared with
+                  DupDub.
                 </p>
               </div>
 
               <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs mb-3">
-                <p className="text-xs text-gray-500 mb-1">Deposit address (exact)</p>
+                <p className="text-xs text-gray-500 mb-1">
+                  Deposit address (exact)
+                </p>
                 <div className="flex items-center gap-2">
                   <code className="text-sm font-mono font-bold break-all flex-1 text-gray-900">
                     {payment.stellarDepositAddress}
                   </code>
                   <button
-                    onClick={() => copy(payment.stellarDepositAddress ?? '', 'address')}
+                    onClick={() =>
+                      copy(payment.stellarDepositAddress ?? '', 'address')
+                    }
                     aria-label="Copy deposit address"
                     className="shrink-0"
                   >
@@ -447,13 +533,21 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
                 <div className="bg-gray-50 border border-gray-200 rounded-lg p-3 text-xs mb-3">
                   <p className="text-xs text-gray-500 mb-1">Memo (required)</p>
                   <div className="flex items-center gap-2">
-                    <code className="text-sm font-mono font-bold break-all flex-1 text-gray-900">{payment.stellarMemo}</code>
+                    <code className="text-sm font-mono font-bold break-all flex-1 text-gray-900">
+                      {payment.stellarMemo}
+                    </code>
                     <button
                       onClick={() => copy(payment.stellarMemo, 'memo')}
-                      aria-label={copied === 'memo' ? 'Memo copied' : 'Copy memo'}
+                      aria-label={
+                        copied === 'memo' ? 'Memo copied' : 'Copy memo'
+                      }
                       className="shrink-0"
                     >
-                      {copied === 'memo' ? <Check className="w-4 h-4 text-green-500" /> : <Copy className="w-4 h-4 text-gray-400" />}
+                      {copied === 'memo' ? (
+                        <Check className="w-4 h-4 text-green-500" />
+                      ) : (
+                        <Copy className="w-4 h-4 text-gray-400" />
+                      )}
                     </button>
                   </div>
                 </div>
@@ -462,8 +556,12 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
           ) : (
             <div className="text-center py-6">
               {STATUS_ICONS[payment.status] ?? DEFAULT_STATUS_ICON}
-              <p className="mt-3 text-sm font-medium text-gray-700 capitalize">{payment.status}</p>
-              {pollWarning && <p className="mt-2 text-xs text-amber-600">{pollWarning}</p>}
+              <p className="mt-3 text-sm font-medium text-gray-700 capitalize">
+                {payment.status}
+              </p>
+              {pollWarning && (
+                <p className="mt-2 text-xs text-amber-600">{pollWarning}</p>
+              )}
             </div>
           )}
         </div>
