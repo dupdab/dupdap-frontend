@@ -42,3 +42,14 @@
     @apply block text-sm font-medium text-gray-700 mb-1;
   }
 }
+
+/* Payment reference QR code: hidden on screen, shown only when printing. */
+.receipt-qr {
+  display: none;
+}
+
+@media print {
+  .receipt-qr {
+    display: block;
+  }
+}

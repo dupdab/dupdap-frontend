@@ -52,6 +52,24 @@ function PaymentStatusBadge({ status, testId }: PaymentStatusBadgeProps) {
   );
 }
 
+/**
+ * Payment reference QR code for the printed merchant receipt (#580).
+ * Rendered only in print view (hidden on screen via `hidden print:block`)
+ * so it doesn't consume screen space but appears on the printed receipt.
+ */
+function ReceiptQrCode({ paymentId }: { paymentId: string }) {
+  const payUrl = typeof window !== 'undefined'
+    ? `${window.location.origin}/pay/${paymentId}`
+    : `/pay/${paymentId}`;
+
+  return (
+    <div className="hidden print:block mt-4" data-testid="receipt-qr-code">
+      <QRCodeSVG value={payUrl} size={96} level="M" />
+      <p className="text-xs text-gray-500 mt-1 font-mono">{payUrl}</p>
+    </div>
+  );
+}
+
 /** Desktop table row */
 const PaymentTableRow = memo(function PaymentTableRow({ payment: p, onShowQr }: PaymentRowProps) {
   return (
@@ -221,29 +239,28 @@ export default function PaymentsPage() {
               type="text"
               required={false}
               maxLength={MAX_DESCRIPTION_LENGTH}
-              hint={<span data-testid="description-char-counter">{form.description.length}/{MAX_DESCRIPTION_LENGTH}</span>}
+              hint={<span data-testid="description-char-counter">{form.description.length}/{DESCRIPTION_MAX_LENGTH}</span>}
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
             />
             <FormField
-              label="Customer Email (optional)"
+              label="Customer email (optional)"
               type="email"
               required={false}
               value={form.customerEmail}
               onChange={(e) => setForm({ ...form, customerEmail: e.target.value })}
             />
             <FormField
-              label="Expires in (minutes)"
+              label="Expiry (minutes)"
               type="number"
-              aria-describedby="expiry-minutes-hint"
+              min={String(EXPIRY_MIN_MINUTES)}
+              max={String(EXPIRY_MAX_MINUTES)}
+              required
               value={form.expiryMinutes}
               onChange={(e) => setForm({ ...form, expiryMinutes: e.target.value })}
             />
-            <p id="expiry-minutes-hint" className="text-xs text-gray-500">
-              Must be a whole number between {EXPIRY_MIN_MINUTES} and {EXPIRY_MAX_MINUTES} minutes.
-            </p>
-            <button data-testid="create-payment-submit" type="submit" disabled={creating} className="btn-primary w-full">
-              {creating ? 'Creating...' : 'Create Payment'}
+            <button type="submit" className="btn-primary w-full" disabled={creating}>
+              {creating ? 'Creating…' : 'Create Payment'}
             </button>
           </fieldset>
         </form>
@@ -254,138 +271,85 @@ export default function PaymentsPage() {
         onClose={() => setSelectedPayment(null)}
         title="Payment QR Code"
         testId="payment-qr-modal"
-        contentClassName="max-w-sm text-center"
       >
         {selectedPayment && (
-          <>
-            <div className="bg-white p-4 rounded-lg inline-block mb-4">
-              <QRCodeSVG value={selectedPayment.qrCode ?? selectedPayment.stellarDepositAddress ?? ''} size={200} />
+          <div className="space-y-4">
+            <div className="flex flex-col items-center gap-2">
+              <QRCodeSVG
+                value={typeof window !== 'undefined' ? `${window.location.origin}/pay/${selectedPayment.id}` : `/pay/${selectedPayment.id}`}
+                size={192}
+                level="M"
+              />
+              <p className="text-xs text-gray-500 font-mono">{selectedPayment.reference}</p>
             </div>
-            <p className="text-sm font-semibold mb-1">{formatUsd(selectedPayment.amountUsd)}</p>
-            <p className="text-xs text-gray-500 mb-4">{selectedPayment.reference}</p>
-            {selectedPayment.stellarMemo && (
-              <div className="flex items-center justify-center gap-2">
-                <code className="text-xs font-mono break-all">{selectedPayment.stellarMemo}</code>
-                <button
-                  type="button"
-                  data-testid="copy-memo-button"
-                  data-copied={copied}
-                  onClick={() => copyMemo(selectedPayment.stellarMemo!)}
-                  aria-label={copied ? 'Memo copied' : 'Copy memo'}
-                  className="text-brand-600 text-xs hover:underline shrink-0"
-                >
-                  {copied ? 'Copied' : 'Copy memo'}
-                </button>
-              </div>
-            )}
-          </>
+            <div className="flex items-center justify-between text-sm">
+              <span className="font-semibold">{formatUsd(selectedPayment.amountUsd)}</span>
+              <PaymentStatusBadge status={selectedPayment.status} />
+            </div>
+            <button
+              onClick={() => copyMemo(selectedPayment.reference)}
+              className="btn-secondary w-full flex items-center justify-center gap-2"
+            >
+              {copied ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
+              {copied ? 'Copied' : 'Copy reference'}
+            </button>
+            <ReceiptQrCode paymentId={selectedPayment.id} />
+          </div>
         )}
       </Modal>
 
-      <div className="card">
-        {error ? (
-          <div data-testid="payments-error" className="px-6 py-4 text-sm text-red-500">
-            {error}
+      {loading ? (
+        <SkeletonList rows={PAYMENT_TABLE_COLUMNS} />
+      ) : error ? (
+        <div className="text-center py-12 text-red-600">{error}</div>
+      ) : payments.length === 0 ? (
+        <div className="text-center py-12 text-gray-500">No payments yet.</div>
+      ) : (
+        <>
+          <div className="hidden md:block bg-white rounded-lg shadow overflow-hidden">
+            <table className="w-full">
+              <thead className="bg-gray-50">
+                <tr>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Reference</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Created</th>
+                  <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-200">
+                {payments.map((p) => (
+                  <PaymentTableRow key={p.id} payment={p} onShowQr={setSelectedPayment} />
+                ))}
+              </tbody>
+            </table>
           </div>
-        ) : null}
-        <div className="md:hidden divide-y divide-gray-50">
-          {loading ? (
-            <SkeletonList rows={6} />
-          ) : error ? null : payments.length === 0 ? (
-            <div className="px-6 py-8 text-center text-gray-400 text-sm">No payments yet</div>
-          ) : (
-            payments.map((p) => (
-              <div key={p.id} className="px-6 py-4 space-y-1">
-                <div className="flex items-center justify-between">
-                  <span className="font-mono text-xs text-gray-500">{p.reference}</span>
-                  <PaymentStatusBadge status={p.status} />
-                </div>
-                <div className="font-semibold">{formatUsd(p.amountUsd)}</div>
-                <div className="text-xs text-gray-500">{formatDate(p.createdAt)}</div>
-                {p.status === 'pending' && (
-                  <button
-                    data-testid="view-qr-button"
-                    onClick={() => setSelectedPayment(p)}
-                    aria-label={`Show QR code for ${p.reference}`}
-                    className="text-brand-600 text-xs hover:underline"
-                  >
-                    Show QR
-                  </button>
-                )}
-              </div>
-            ))
-          )}
-        </div>
-
-        <div className="hidden md:block overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead className="bg-gray-50 border-b border-gray-100">
-              <tr>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Reference</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Amount</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Status</th>
-                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">Created</th>
-                <th className="px-6 py-3"></th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {loading ? (
-                <tr><td colSpan={PAYMENT_TABLE_COLUMNS} className="px-6 py-8 text-center text-gray-400">Loading...</td></tr>
-              ) : error ? null : payments.length === 0 ? (
-                <tr><td colSpan={PAYMENT_TABLE_COLUMNS} className="px-6 py-8 text-center text-gray-400">No payments yet</td></tr>
-              ) : (
-                payments.map((p) => (
-                  <tr key={p.id} data-testid={`payment-row-${p.id}`} className="hover:bg-gray-50">
-                    <td className="px-6 py-4 font-mono text-xs">{p.reference}</td>
-                    <td className="px-6 py-4 font-semibold">{formatUsd(p.amountUsd)}</td>
-                    <td className="px-6 py-4">
-                      <PaymentStatusBadge status={p.status} testId="payment-status-badge" />
-                    </td>
-                    <td className="px-6 py-4 text-gray-500">{formatDate(p.createdAt)}</td>
-                    <td className="px-6 py-4">
-                      {p.status === 'pending' && (
-                        <button data-testid={`show-qr-button-${p.id}`} onClick={() => setSelectedPayment(p)} className="text-brand-600 text-xs hover:underline">
-                          Show QR
-                        </button>
-                      )}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-        {showPagination && (
-          <nav
-            aria-label="Pagination"
-            className="px-6 py-4 border-t border-gray-100 flex items-center justify-between"
-          >
-            <span className="text-sm text-gray-500">Page {page} of {totalPages}</span>
-            <div className="flex gap-2">
+          <div className="md:hidden bg-white rounded-lg shadow divide-y divide-gray-200">
+            {payments.map((p) => (
+              <PaymentMobileCard key={p.id} payment={p} onShowQr={setSelectedPayment} />
+            ))}
+          </div>
+          {showPagination && (
+            <div className="flex items-center justify-between mt-4">
               <button
-                data-testid="pagination-prev"
-                onClick={() => setPage((p) => Math.max(1, p - 1))}
-                disabled={page === 1}
-                // The visible text is abbreviated, so name the button after the
-                // page it actually navigates to.
-                aria-label={`Go to page ${Math.max(1, page - 1)} of ${totalPages}`}
-                className="btn-secondary text-sm px-3 py-1"
+                onClick={() => setPage((n) => Math.max(1, n - 1))}
+                disabled={page <= 1}
+                className="btn-secondary"
               >
-                Prev
+                Previous
               </button>
+              <span className="text-sm text-gray-500">Page {page} of {totalPages}</span>
               <button
-                data-testid="pagination-next"
-                onClick={() => setPage((p) => p + 1)}
+                onClick={() => setPage((n) => Math.min(totalPages, n + 1))}
                 disabled={page >= totalPages}
-                aria-label={`Go to page ${page + 1} of ${totalPages}`}
-                className="btn-secondary text-sm px-3 py-1"
+                className="btn-secondary"
               >
                 Next
               </button>
             </div>
-          </nav>
-        )}
-      </div>
+          )}
+        </>
+      )}
     </div>
   );
 }

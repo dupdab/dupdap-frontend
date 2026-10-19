@@ -120,4 +120,18 @@ describe('PaymentsPage — Description character limit and counter (#396)', () =
     const counter = screen.getByTestId('description-char-counter');
     expect(counter).toHaveTextContent('30/255');
   });
+
+  it('renders a print-only payment reference QR code pointing to /pay/[paymentId] (#580)', async () => {
+    const { container } = render(<PaymentsPage />);
+
+    await screen.findAllByText('PAY-001');
+
+    const qr = container.querySelector('[data-testid="receipt-qr"]');
+    expect(qr).not.toBeNull();
+    expect(qr).toHaveClass('hidden', 'print:block');
+
+    const svg = qr?.querySelector('[data-testid="qr-svg"]');
+    expect(svg).not.toBeNull();
+    expect(svg).toHaveAttribute('data-qr-value', '/pay/pay_1');
+  });
 });
