@@ -4,7 +4,11 @@ import { Toaster } from 'react-hot-toast';
 import { AuthRedirectSetup } from '@/components/AuthRedirectSetup';
 import './globals.css';
 
-const inter = Inter({ subsets: ['latin'] });
+const inter = Inter({
+  subsets: ['latin'],
+  display: 'swap',
+  variable: '--font-sans',
+});
 
 export const metadata: Metadata = {
   title: 'DupDub — Crypto-to-Fiat Settlement',
@@ -31,7 +35,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className={inter.variable}>
       <body className={inter.className}>
         <AuthRedirectSetup />
         {children}

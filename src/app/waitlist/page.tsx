@@ -7,6 +7,8 @@ import { CheckCircle, Loader2, XCircle } from 'lucide-react';
 import { waitlistApi } from '@/lib/api';
 import { FormField } from '@/components/FormField';
 import { getErrorMessage } from '@/lib/errors';
+import { WaitlistConfirmation } from '@/components/WaitlistConfirmation';
+import { buildReferralLink, parseJoinResponse } from '@/lib/waitlist-share';
 
 type UsernameStatus = 'idle' | 'checking' | 'available' | 'taken' | 'error';
 
@@ -16,6 +18,8 @@ export default function WaitlistPage() {
   const [joined, setJoined] = useState(false);
   const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>('idle');
   const [formError, setFormError] = useState('');
+  const [position, setPosition] = useState<number | null>(null);
+  const [referralLink, setReferralLink] = useState('');
   // Monotonic id for the latest username check; stale responses are ignored (#304).
   const usernameCheckId = useRef(0);
 
@@ -60,7 +64,11 @@ export default function WaitlistPage() {
     setLoading(true);
     setFormError('');
     try {
-      await waitlistApi.join(form);
+      const res = await waitlistApi.join(form);
+      const data = res?.data;
+      const parsed = parseJoinResponse(data, form.username.trim() || form.email.trim());
+      setPosition(parsed.position);
+      setReferralLink(buildReferralLink(window.location.origin, parsed.code));
       setJoined(true);
     } catch (err) {
       const msg = getErrorMessage(err) ?? 'Failed to join waitlist';
@@ -85,6 +93,7 @@ export default function WaitlistPage() {
             <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
             <h3 className="font-semibold text-lg">You&apos;re on the list!</h3>
             <p className="text-gray-500 text-sm mt-2">We&apos;ll reach out when your account is ready.</p>
+            <WaitlistConfirmation position={position} referralLink={referralLink} />
             <div className="mt-6 space-y-3">
               <button
                 type="button"

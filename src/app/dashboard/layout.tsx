@@ -21,6 +21,10 @@ import { isAdmin } from '@/lib/auth';
 import { isNavItemActive } from '@/lib/nav-active';
 import { cn } from '@/lib/utils';
 import { useFocusTrap } from '@/lib/useFocusTrap';
+import { useAdminGuard, useAdminRedirect } from '@/lib/useAdminGuard';
+import { OfflineBanner } from '@/components/OfflineBanner';
+import { cn } from '@/lib/utils';
+import WhatsNewBanner from '@/components/WhatsNewBanner';
 
 declare global {
   interface Window {
@@ -78,6 +82,11 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   const pathname = usePathname();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
   const [tutorialOpen, setTutorialOpen] = useState(false);
+
+  // The admin authorization gate is shared with the admin layout so the
+  // decision is made during render, not only by a redirect effect (#357).
+  const adminStatus = useAdminGuard();
+  useAdminRedirect(adminStatus);
   // The off-canvas mobile drawer is a modal surface: it reuses the shared
   // focus-trap so focus moves into the drawer on open, Tab cycles inside it,
   // and focus returns to the hamburger button on close (#356).
@@ -238,7 +247,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
   return (
     <div className="min-h-screen flex bg-gray-50 dark:bg-gray-950">
       {/* Mobile top bar */}
-      <div className="md:hidden fixed top-0 inset-x-0 h-14 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex items-center px-4 z-30">
+      <div className="md:hidden fixed top-0 inset-x-0 h-14 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 flex items-center px-4 z-30 print:hidden">
         <button
           onClick={() => setMobileNavOpen(true)}
           className="text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
@@ -246,16 +255,17 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         >
           <Menu className="w-5 h-5" />
         </button>
+        <span className="ml-3 font-bold text-brand-600">DupDub</span>
       </div>
 
       {/* Desktop sidebar */}
-      <aside className="hidden md:flex md:flex-col w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800">
+      <aside className="hidden md:flex md:flex-col w-64 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-800 fixed inset-y-0 print:hidden">
         {sidebarContent}
       </aside>
 
       {/* Mobile drawer */}
       {mobileNavOpen && (
-        <div className="md:hidden fixed inset-0 z-40">
+        <div className="md:hidden fixed inset-0 z-40 print:hidden">
           <div
             className="absolute inset-0 bg-black/40"
             onClick={() => setMobileNavOpen(false)}
@@ -266,7 +276,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
             role="dialog"
             aria-modal="true"
             aria-label="Navigation menu"
-            className="absolute inset-y-0 left-0 w-64 bg-white dark:bg-gray-900 flex flex-col"
+            className="absolute inset-y-0 left-0 w-64 bg-white dark:bg-gray-900 flex flex-col shadow-xl"
           >
             {sidebarContent}
           </aside>
@@ -337,7 +347,12 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
         </div>
       )}
 
-      <main className="flex-1 md:ml-0 pt-14 md:pt-0">{children}</main>
+      {/* Main */}
+      <main className="flex-1 overflow-auto pt-14 md:pt-0 print:ml-0 print:pt-0">
+        <OfflineBanner />
+        <WhatsNewBanner />
+        {children}
+      </main>
     </div>
   );
 }
