@@ -1,5 +1,9 @@
 /** @type {import('next').NextConfig} */
 const { withSentryConfig } = require('@sentry/nextjs');
+const withBundleAnalyzer = require('@next/bundle-analyzer')({
+  enabled: process.env.ANALYZE === 'true',
+  openAnalyzer: false,
+});
 const withPWA = require('next-pwa')({
   dest: 'public',
   // Disable the service worker in development so hot reloads aren't cached.
@@ -133,7 +137,7 @@ const nextConfig = {
 // Sentry build-time integration: uploads source maps in production builds so
 // stack traces in Sentry resolve to original source. Auth token and org/project
 // are read from SENTRY_AUTH_TOKEN / SENTRY_ORG / SENTRY_PROJECT env vars.
-module.exports = withSentryConfig(withPWA(nextConfig), {
+module.exports = withSentryConfig(withBundleAnalyzer(withPWA(nextConfig)), {
   org: process.env.SENTRY_ORG,
   project: process.env.SENTRY_PROJECT,
   authToken: process.env.SENTRY_AUTH_TOKEN,

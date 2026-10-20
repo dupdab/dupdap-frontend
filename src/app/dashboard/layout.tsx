@@ -28,6 +28,7 @@ import { useAdminGuard, useAdminRedirect } from '@/lib/useAdminGuard';
 import { useFocusTrap } from '@/lib/useFocusTrap';
 import { useLocale } from '@/lib/locale';
 import { LocaleSwitcher } from '@/components/LocaleSwitcher';
+import { HelpWidget } from '@/components/HelpWidget';
 
 declare global {
   interface Window {
@@ -44,7 +45,8 @@ const UNSAVED_CHANGES_MESSAGE =
 
 // Merchant onboarding walkthrough (#582). The video covers registration
 // through first payment; the transcript keeps it accessible.
-const ONBOARDING_VIDEO_URL = 'https://www.youtube.com/playlist?list=PLdupdup-onboarding';
+const ONBOARDING_VIDEO_URL =
+  'https://www.youtube.com/playlist?list=PLdupdup-onboarding';
 const ONBOARDING_VIDEO_EMBED_URL =
   'https://www.youtube.com/embed/videoseries?list=PLdupdup-onboarding';
 const ONBOARDING_TRANSCRIPT = [
@@ -90,7 +92,10 @@ function MerchantAvatar({
       <img
         src={avatarUrl}
         alt={name ? `${name} logo` : 'Merchant logo'}
-        className={cn(dimension, 'rounded-full object-cover border border-gray-200 dark:border-gray-700')}
+        className={cn(
+          dimension,
+          'rounded-full object-cover border border-gray-200 dark:border-gray-700'
+        )}
       />
     );
   }
@@ -107,7 +112,11 @@ function MerchantAvatar({
   );
 }
 
-export default function DashboardLayout({ children }: { children: React.ReactNode }) {
+export default function DashboardLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const { merchant, token, logout, hasHydrated } = useAuthStore();
   const router = useRouter();
   const pathname = usePathname();
@@ -127,13 +136,31 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
   // Nav items are derived inside the component so labels can be translated.
   const navItems = [
-    { href: '/dashboard', label: t('nav.overview'), icon: LayoutDashboard, exact: true },
+    {
+      href: '/dashboard',
+      label: t('nav.overview'),
+      icon: LayoutDashboard,
+      exact: true,
+    },
     { href: '/dashboard/payments', label: t('nav.payments'), icon: CreditCard },
-    { href: '/dashboard/settlements', label: t('nav.settlements'), icon: Banknote },
-    { href: '/dashboard/analytics', label: t('nav.analytics'), icon: BarChart3 },
+    {
+      href: '/dashboard/settlements',
+      label: t('nav.settlements'),
+      icon: Banknote,
+    },
+    {
+      href: '/dashboard/analytics',
+      label: t('nav.analytics'),
+      icon: BarChart3,
+    },
     { href: '/dashboard/webhooks', label: t('nav.webhooks'), icon: Webhook },
     { href: '/dashboard/settings', label: t('nav.settings'), icon: Settings },
-    { href: '/dashboard/admin/settlements', label: t('nav.adminSettlements'), icon: Shield, adminOnly: true },
+    {
+      href: '/dashboard/admin/settlements',
+      label: t('nav.adminSettlements'),
+      icon: Shield,
+      adminOnly: true,
+    },
   ];
 
   useEffect(() => {
@@ -210,14 +237,19 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     return <LoadingState />;
   }
 
-  const visibleNavItems = navItems.filter((item) => !item.adminOnly || isAdmin(merchant));
+  const visibleNavItems = navItems.filter(
+    (item) => !item.adminOnly || isAdmin(merchant)
+  );
 
   const confirmNavigation = () => {
     if (!window.__dashboardHasUnsavedChanges) return true;
     return window.confirm(UNSAVED_CHANGES_MESSAGE);
   };
 
-  const handleNavClick = (event: React.MouseEvent<HTMLAnchorElement>, href: string) => {
+  const handleNavClick = (
+    event: React.MouseEvent<HTMLAnchorElement>,
+    href: string
+  ) => {
     if (pathname === href) return;
     if (!confirmNavigation()) {
       event.preventDefault();
@@ -228,7 +260,10 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
     <>
       <div className="p-6 border-b border-gray-100 dark:border-gray-800">
         <Link href="/dashboard" className="flex items-center gap-3">
-          <MerchantAvatar avatarUrl={merchant.avatarUrl} name={merchant.businessName} />
+          <MerchantAvatar
+            avatarUrl={merchant.avatarUrl}
+            name={merchant.businessName}
+          />
           <span className="text-lg font-bold text-gray-900 dark:text-white truncate">
             {merchant.businessName}
           </span>
@@ -346,6 +381,8 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           <main className="p-4 lg:p-6">{children}</main>
         </div>
       </div>
+
+      <HelpWidget />
 
       {tutorialOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
