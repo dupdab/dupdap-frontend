@@ -9,7 +9,33 @@ export function formatUsd(amount: number, locale?: string): string {
   // Normalise -0 to 0 so negative zero never renders as "-$0.00".
   const normalised = amount === 0 ? 0 : amount;
   const bcp47 = locale === 'pcm' ? 'en-NG' : (locale ?? 'en-US');
-  return new Intl.NumberFormat(bcp47, { style: 'currency', currency: 'USD' }).format(normalised);
+  return new Intl.NumberFormat(bcp47, {
+    style: 'currency',
+    currency: 'USD',
+  }).format(normalised);
+}
+
+/**
+ * Formats an amount in Nigerian Naira (NGN).
+ *
+ * DupDub settlements are denominated and paid out in NGN — the merchant
+ * receives naira in their Nigerian bank account, not dollars. Using
+ * `formatUsd` for settlement amounts showed a "$" prefix which is
+ * misleading. This helper formats with the ₦ symbol and the `en-NG` locale
+ * (Nigerian grouping conventions) so settlement displays match what the
+ * merchant actually receives.
+ *
+ * Accepts an optional `locale` (BCP 47 tag) for merchants in other regions;
+ * the currency is always NGN regardless of locale.
+ */
+export function formatNgn(amount: number, locale?: string): string {
+  // Normalise -0 to 0 so negative zero never renders as "-₦0.00".
+  const normalised = amount === 0 ? 0 : amount;
+  const bcp47 = locale === 'pcm' ? 'en-NG' : (locale ?? 'en-NG');
+  return new Intl.NumberFormat(bcp47, {
+    style: 'currency',
+    currency: 'NGN',
+  }).format(normalised);
 }
 
 /**
@@ -43,7 +69,7 @@ export function maskSecret(value: string, visible = 2, bullets = 8): string {
  */
 export function formatDate(
   date: string | Date | undefined | null,
-  locale?: string,
+  locale?: string
 ): string {
   if (!date) return '—';
   const d = new Date(date);
