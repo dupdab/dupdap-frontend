@@ -117,7 +117,7 @@ export default function DashboardLayout({
 }: {
   children: React.ReactNode;
 }) {
-  const { merchant, token, logout, hasHydrated } = useAuthStore();
+  const { merchant, logout, hasHydrated } = useAuthStore();
   const router = useRouter();
   const pathname = usePathname();
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
@@ -165,11 +165,11 @@ export default function DashboardLayout({
 
   useEffect(() => {
     if (!hasHydrated) return;
-    if (!token) {
+    if (!merchant) {
       const next = pathname ? `?next=${encodeURIComponent(pathname)}` : '';
       router.replace(`/auth/login${next}`);
     }
-  }, [hasHydrated, token, router, pathname]);
+  }, [hasHydrated, merchant, router, pathname]);
 
   useEffect(() => {
     setMobileNavOpen(false);
@@ -233,7 +233,7 @@ export default function DashboardLayout({
   // Render an explicit loading state (instead of null) while the redirect
   // effect above navigates unauthenticated users away, avoiding a flash of
   // blank content.
-  if (!token || !merchant) {
+  if (!merchant) {
     return <LoadingState />;
   }
 
@@ -303,8 +303,8 @@ export default function DashboardLayout({
         </button>
         <button
           type="button"
-          onClick={() => {
-            logout();
+          onClick={async () => {
+            await logout();
             router.replace('/auth/login');
           }}
           className="flex items-center gap-3 w-full px-3 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-800"

@@ -23,14 +23,13 @@ export interface Merchant {
 }
 
 export interface AuthResponse {
-  accessToken: string;
+  accessToken?: string;
   merchant: Merchant;
 }
 
 export function isAuthResponse(data: unknown): data is AuthResponse {
   if (!data || typeof data !== 'object') return false;
   const record = data as Record<string, unknown>;
-  if (typeof record.accessToken !== 'string' || !record.accessToken) return false;
   const merchant = record.merchant;
   if (!merchant || typeof merchant !== 'object') return false;
   const merchantRecord = merchant as Record<string, unknown>;

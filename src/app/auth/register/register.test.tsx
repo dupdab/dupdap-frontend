@@ -216,7 +216,7 @@ describe('RegisterPage', () => {
     });
   });
 
-  it('calls setAuth with token and merchant on success', async () => {
+  it('calls setAuth with merchant on success', async () => {
     const merchant = { id: '2', email: 'merchant@test.com', businessName: 'Acme Corp', status: 'active' };
     mockRegister.mockResolvedValueOnce({ data: { accessToken: 'abc', merchant } });
 
@@ -225,7 +225,7 @@ describe('RegisterPage', () => {
     await userEvent.click(screen.getByTestId('register-submit-button'));
 
     await waitFor(() => {
-      expect(mockSetAuth).toHaveBeenCalledWith('abc', merchant);
+      expect(mockSetAuth).toHaveBeenCalledWith(merchant);
     });
   });
 

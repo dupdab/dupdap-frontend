@@ -18,7 +18,7 @@ import { useAuthStore } from '@/lib/store';
 export function AuthRedirectSetup() {
   const router = useRouter();
   const pathname = usePathname();
-  const token = useAuthStore((s) => s.token);
+  const merchant = useAuthStore((s) => s.merchant);
   const hasHydrated = useAuthStore((s) => s.hasHydrated);
 
   // Track whether this component has mounted on the client. We cannot rely on
@@ -34,10 +34,10 @@ export function AuthRedirectSetup() {
   useEffect(() => {
     // Do not redirect until we are both mounted on the client and Zustand has
     // finished reading from localStorage. Acting before either of these is
-    // ready would redirect users who actually have a valid stored token.
+    // ready would redirect users who actually have a valid stored session.
     if (!mounted || !hasHydrated) return;
 
-    const isAuthenticated = Boolean(token);
+    const isAuthenticated = Boolean(merchant);
     if (isAuthenticated) return;
     if (pathname.startsWith('/auth/login')) return;
 
@@ -49,7 +49,7 @@ export function AuthRedirectSetup() {
         ? returnPath
         : '/dashboard';
     router.replace(`/auth/login?next=${encodeURIComponent(safeNext)}`);
-  }, [mounted, hasHydrated, token, pathname, router]);
+  }, [mounted, hasHydrated, merchant, pathname, router]);
 
   // This component is always invisible — it only manages side-effect redirects.
   return null;

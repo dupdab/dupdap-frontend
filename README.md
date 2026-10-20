@@ -111,7 +111,10 @@ Rule of thumb: if the data comes from the API, it's `useQuery`; if it must survi
 
 ### Auth token security
 
-The access token is persisted in `localStorage` via Zustand. Any XSS vector can read it synchronously. Mitigations in this repo:
+To protect against XSS token theft (where scripts running in the browser could steal tokens stored in `localStorage`), session credentials are managed via secure `httpOnly` cookies:
 
-- **Single storage key** — the Axios client reads from `useAuthStore`, not a duplicate `access_token` key, so 401 logout and UI auth state stay in sync.
-- **CSP headers** — `next.config.js` sets a restrictive Content-Security-Policy (plus `X-Frame-Options`, `Referrer-Policy`) to reduce XSS blast
+- **HttpOnly Cookies** — The backend issues the JWT access token via `Set-Cookie: access_token=...; HttpOnly; Secure; SameSite=Strict`. JavaScript cannot read or write `HttpOnly` cookies, preventing XSS-based session hijacking.
+- **Automatic Credentials** — Axios is configured with `withCredentials: true`, so the browser automatically attaches the cookie to API requests. Manual `Authorization` headers are omitted.
+- **Session Termination** — Logging out triggers `POST /auth/logout`, instructing the backend to clear the cookie.
+- **State Management** — Zustand stores only non-sensitive merchant profile metadata (ID, business name, status) for UI rendering.
+- **CSP Headers** — `next.config.js` sets a restrictive Content-Security-Policy (plus `X-Frame-Options`, `Referrer-Policy`) to further reduce XSS blast radius.

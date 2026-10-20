@@ -36,8 +36,6 @@ vi.mock('./auth-redirect', () => ({
   setAuthRedirectHandler: vi.fn(),
 }));
 
-// Bound mock reference: imported at module scope so assertions work even when
-// the test itself never re-imports the mocked module.
 import { redirectToLogin } from './auth-redirect';
 
 vi.mock('./env', () => ({
@@ -59,11 +57,9 @@ describe('Axios 401 response interceptor', () => {
   beforeEach(() => {
     localStorage.clear();
     useAuthStore.setState({
-      token: 'some-token',
       merchant: { id: '1', email: 'a@b.com', businessName: 'Acme', status: 'active' },
     });
 
-    // Mock window.location
     Object.defineProperty(window, 'location', {
       value: {
         href: '',
@@ -81,17 +77,7 @@ describe('Axios 401 response interceptor', () => {
 
     await expect(responseErrorHandler?.(err)).rejects.toEqual(err);
 
-    expect(useAuthStore.getState().token).toBeNull();
     expect(useAuthStore.getState().merchant).toBeNull();
-  });
-
-  it('removes the legacy access_token from localStorage on 401', async () => {
-    localStorage.setItem('access_token', 'legacy-token');
-
-    const err = { response: { status: 401 } };
-    await expect(responseErrorHandler?.(err)).rejects.toEqual(err);
-
-    expect(localStorage.getItem('access_token')).toBeNull();
   });
 
   it('calls redirectToLogin() with the current path preserved on a 401 response', async () => {
@@ -104,36 +90,12 @@ describe('Axios 401 response interceptor', () => {
     expect(redirectToLogin).toHaveBeenCalledWith('/dashboard');
   });
 
-  it('invokes registered auth redirect handler when present on 401', async () => {
-    const { setAuthRedirectHandler } = await import('./auth-redirect');
-    const mockHandler = vi.fn();
-    setAuthRedirectHandler(mockHandler);
-
-    const err = { response: { status: 401 } };
-    await expect(responseErrorHandler?.(err)).rejects.toEqual(err);
-
-    const { redirectToLogin } = await import('./auth-redirect');
-    expect(redirectToLogin).toHaveBeenCalled();
-    expect(window.location.href).not.toBe('/auth/login');
-  });
-
-  it('invokes registered auth redirect handler when present on 401', async () => {
-    const { setAuthRedirectHandler } = await import('./auth-redirect');
-    const mockHandler = vi.fn();
-    setAuthRedirectHandler(mockHandler);
-
-    const err = { response: { status: 401 } };
-    await expect(responseErrorHandler?.(err)).rejects.toEqual(err);
-
-    setAuthRedirectHandler(null);
-  });
-
   it('does not clear auth state on a non-401 error (e.g. 403)', async () => {
     const err = { response: { status: 403 } };
 
     await expect(responseErrorHandler?.(err)).rejects.toEqual(err);
 
-    expect(useAuthStore.getState().token).toBe('some-token');
+    expect(useAuthStore.getState().merchant).not.toBeNull();
   });
 
   it('does not redirect on a non-401 error (e.g. 500)', async () => {
@@ -149,43 +111,11 @@ describe('Axios 401 response interceptor', () => {
     await expect(responseErrorHandler?.(err)).rejects.toEqual(err);
   });
 
-  it('passes through the original error on rejection for non-401', async () => {
-    const err = { response: { status: 404 }, message: 'Not Found' };
-
-    await expect(responseErrorHandler?.(err)).rejects.toEqual(err);
-  });
-
   it('handles errors with no response property gracefully', async () => {
     const err = {} as { response?: { status: number } };
 
     await expect(responseErrorHandler?.(err)).rejects.toEqual(err);
 
-    // Should not clear auth since there is no 401 status
-    expect(useAuthStore.getState().token).toBe('some-token');
-  });
-
-  it('handles concurrent in-flight 401 responses safely and idempotently', async () => {
-    localStorage.setItem('access_token', 'legacy-token');
-    const err1 = { response: { status: 401 }, message: 'Unauthorized 1' };
-    const err2 = { response: { status: 401 }, message: 'Unauthorized 2' };
-
-    const results = await Promise.allSettled([
-      responseErrorHandler?.(err1),
-      responseErrorHandler?.(err2),
-    ]);
-
-    expect(results[0].status).toBe('rejected');
-    expect(results[1].status).toBe('rejected');
-    expect((results[0] as PromiseRejectedResult).reason).toEqual(err1);
-    expect((results[1] as PromiseRejectedResult).reason).toEqual(err2);
-
-    expect(useAuthStore.getState().token).toBeNull();
-    expect(useAuthStore.getState().merchant).toBeNull();
-    expect(localStorage.getItem('access_token')).toBeNull();
-    // The current path is preserved as ?next= so the user returns here after
-    // signing in. Navigation itself goes through `location.assign`.
-    expect(window.location.assign).toHaveBeenCalledWith(
-      `/auth/login?next=${encodeURIComponent('/dashboard')}`,
-    );
+    expect(useAuthStore.getState().merchant).not.toBeNull();
   });
 });

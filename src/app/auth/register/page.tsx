@@ -106,7 +106,7 @@ export default function RegisterPage() {
       if (!isAuthResponse(response.data)) {
         throw new Error('Unexpected response from server');
       }
-      setAuth(response.data.accessToken, response.data.merchant);
+      setAuth(response.data.merchant);
       router.push('/dashboard');
     } catch (err) {
       // Surface the failure both inline (persistent banner) and as a toast so
