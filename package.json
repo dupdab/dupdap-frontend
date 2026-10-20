@@ -8,6 +8,7 @@
   "scripts": {
     "dev": "next dev",
     "prebuild": "node scripts/validate-env.mjs",
+    "analyze": "ANALYZE=true next build",
     "build": "next build",
     "postbuild": "next-sitemap",
     "start": "next start",
@@ -48,9 +49,11 @@
     "zustand": "4.5.7"
   },
   "devDependencies": {
+    "@next/bundle-analyzer": "14.2.5",
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/forms": "^0.5.7",
     "@testing-library/jest-dom": "7.0.1",
-    "@testing-library/react": "16.3.3",
+    "@testing-library/react": "^16.3.3",
     "@testing-library/user-event": "14.6.6",
     "@types/node": "20.19.39",
     "@types/react": "18.3.28",

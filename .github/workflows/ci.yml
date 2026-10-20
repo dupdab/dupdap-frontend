@@ -39,5 +39,10 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Analyze bundle
+        run: npm run analyze
+        env:
+          ANALYZE: 'true'
+
       - name: Test
         run: npm test

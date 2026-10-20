@@ -19,8 +19,23 @@ export const metadata: Metadata = {
     title: 'DupDub — Accept Crypto, Receive Fiat Instantly',
     description:
       'DupDub bridges Web3 payments with traditional banking. Merchants receive NGN/USD settlements while customers pay with USDC on Stellar.',
-    images: ['/og-image.png'],
+    url: 'https://dupdub.com',
+    images: [
+      {
+        url: 'https://dupdub.com/og-image.png',
+        width: 1200,
+        height: 630,
+        alt: 'DupDub — Accept Crypto, Receive Fiat Instantly',
+      },
+    ],
     type: 'website',
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'DupDub — Accept Crypto, Receive Fiat Instantly',
+    description:
+      'DupDub bridges Web3 payments with traditional banking. Merchants receive NGN/USD settlements while customers pay with USDC on Stellar.',
+    images: ['https://dupdub.com/og-image.png'],
   },
 };
 
