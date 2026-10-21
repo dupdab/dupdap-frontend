@@ -1,11 +1,16 @@
-import React from 'react';
+import React, { useId } from 'react';
 
 interface FormFieldProps {
   label: string;
-  name: string;
+  name?: string;
+  id?: string;
   type?: string;
-  value: string;
-  onChange: (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => void;
+  value?: string;
+  onChange?: (
+    event: React.ChangeEvent<
+      HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement
+    >
+  ) => void;
   error?: string;
   required?: boolean;
   placeholder?: string;
@@ -13,6 +18,11 @@ interface FormFieldProps {
   as?: 'input' | 'textarea' | 'select';
   rows?: number;
   disabled?: boolean;
+  step?: number | string;
+  min?: number | string;
+  maxLength?: number;
+  hint?: React.ReactNode;
+  'aria-describedby'?: string;
 }
 
 const baseFieldClasses =
@@ -21,7 +31,7 @@ const baseFieldClasses =
 const errorFieldClasses =
   'border-red-500 focus-visible:ring-red-500 focus-visible:border-red-500';
 
-export default function FormField({
+export function FormField({
   label,
   name,
   type = 'text',
@@ -34,14 +44,24 @@ export default function FormField({
   as = 'input',
   rows = 3,
   disabled = false,
+  id,
+  step,
+  min,
+  maxLength,
+  hint,
+  'aria-describedby': describedBy,
 }: FormFieldProps) {
-  const fieldId = `field-${name}`;
+  const generatedId = useId();
+  const fieldId = id ?? (name ? `field-${name}` : generatedId);
   const errorId = `${fieldId}-error`;
   const fieldClasses = `${baseFieldClasses} ${error ? errorFieldClasses : ''}`;
 
   return (
     <div className="flex flex-col gap-1">
-      <label htmlFor={fieldId} className="text-sm font-medium text-gray-700">
+      <label
+        htmlFor={fieldId}
+        className="label text-sm font-medium text-gray-700"
+      >
         {label}
         {required && <span className="ml-1 text-red-500">*</span>}
       </label>
@@ -57,8 +77,8 @@ export default function FormField({
           disabled={disabled}
           rows={rows}
           aria-invalid={error ? true : undefined}
-          aria-describedby={error ? errorId : undefined}
-          className={fieldClasses}
+          aria-describedby={describedBy ?? (error ? errorId : undefined)}
+          className={`input ${fieldClasses}`}
         />
       ) : as === 'select' ? (
         <select
@@ -69,8 +89,8 @@ export default function FormField({
           required={required}
           disabled={disabled}
           aria-invalid={error ? true : undefined}
-          aria-describedby={error ? errorId : undefined}
-          className={fieldClasses}
+          aria-describedby={describedBy ?? (error ? errorId : undefined)}
+          className={`input ${fieldClasses}`}
         >
           {placeholder && (
             <option value="" disabled>
@@ -94,10 +114,15 @@ export default function FormField({
           required={required}
           disabled={disabled}
           aria-invalid={error ? true : undefined}
-          aria-describedby={error ? errorId : undefined}
-          className={fieldClasses}
+          aria-describedby={describedBy ?? (error ? errorId : undefined)}
+          step={step}
+          min={min}
+          maxLength={maxLength}
+          className={`input ${fieldClasses}`}
         />
       )}
+
+      {hint}
 
       {error && (
         <p id={errorId} className="text-sm text-red-600">
@@ -107,3 +132,5 @@ export default function FormField({
     </div>
   );
 }
+
+export default FormField;

@@ -1,15 +1,22 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { TrendingUp, CreditCard, Banknote, Clock } from 'lucide-react';
 import { paymentsApi } from '@/lib/api';
-import { formatUsd, formatDate, PAYMENT_STATUS_COLORS, STATUS_ICONS, DEFAULT_STATUS_COLOR } from '@/lib/utils';
+import {
+  formatUsd,
+  formatDate,
+  PAYMENT_STATUS_COLORS,
+  STATUS_ICONS,
+  DEFAULT_STATUS_COLOR,
+} from '@/lib/utils';
 import { aggregatePaymentStats } from '@/lib/dashboard-stats';
 import { useAuthStore } from '@/lib/store';
 import { Skeleton, SkeletonList } from '@/components/Skeleton';
 import { useLocale } from '@/lib/locale';
-import type { Payment, PaymentStats } from '@/lib/types';
+import type { Payment, PaymentStat } from '@/types/dashboard';
+import { MerchantOnboardingChecklist } from '@/components/MerchantOnboardingChecklist';
 
 export default function DashboardPage() {
   const { merchant } = useAuthStore();
@@ -27,30 +34,58 @@ export default function DashboardPage() {
   });
 
   const payments: Payment[] = paymentsQuery.data?.data.payments ?? [];
-  const stats: PaymentStats[] = statsQuery.data?.data ?? [];
+  const stats: PaymentStat[] = statsQuery.data?.data ?? [];
   const loading = paymentsQuery.isLoading || statsQuery.isLoading;
-  const error = paymentsQuery.isError || statsQuery.isError ? t('dashboard.loadError') : '';
+  const error =
+    paymentsQuery.isError || statsQuery.isError ? t('dashboard.loadError') : '';
 
-  const { totalVolume, settledCount, pendingCount, totalPayments } = aggregatePaymentStats(stats);
+  const { totalVolume, settledCount, pendingCount, totalPayments } =
+    aggregatePaymentStats(stats);
 
   const statCards = useMemo(
     () => [
-      { label: t('dashboard.totalVolume'), value: formatUsd(totalVolume, locale), icon: TrendingUp, color: 'text-blue-600' },
-      { label: t('dashboard.settledPayments'), value: settledCount, icon: Banknote, color: 'text-green-600' },
-      { label: t('dashboard.pendingPayments'), value: pendingCount, icon: Clock, color: 'text-yellow-600' },
-      { label: t('dashboard.totalPayments'), value: totalPayments, icon: CreditCard, color: 'text-purple-600' },
+      {
+        label: t('dashboard.totalVolume'),
+        value: formatUsd(totalVolume, locale),
+        icon: TrendingUp,
+        color: 'text-blue-600',
+      },
+      {
+        label: t('dashboard.settledPayments'),
+        value: settledCount,
+        icon: Banknote,
+        color: 'text-green-600',
+      },
+      {
+        label: t('dashboard.pendingPayments'),
+        value: pendingCount,
+        icon: Clock,
+        color: 'text-yellow-600',
+      },
+      {
+        label: t('dashboard.totalPayments'),
+        value: totalPayments,
+        icon: CreditCard,
+        color: 'text-purple-600',
+      },
     ],
-    [totalVolume, settledCount, pendingCount, totalPayments, t, locale],
+    [totalVolume, settledCount, pendingCount, totalPayments, t, locale]
   );
 
   return (
     <div className="p-4 md:p-8">
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-          {t('dashboard.welcome')}{merchant?.businessName ? `, ${merchant.businessName}` : ''}
+          {t('dashboard.welcome')}
+          {merchant?.businessName ? `, ${merchant.businessName}` : ''}
         </h1>
         <p className="text-gray-500 text-sm mt-1">{t('dashboard.subtitle')}</p>
       </div>
+
+      <MerchantOnboardingChecklist
+        paymentCount={paymentsQuery.data?.data.total}
+        merchantId={merchant?.id}
+      />
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
@@ -63,7 +98,9 @@ export default function DashboardPage() {
             {loading ? (
               <Skeleton className="h-8 w-24" />
             ) : (
-              <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">{value}</div>
+              <div className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+                {value}
+              </div>
             )}
           </div>
         ))}
@@ -72,7 +109,9 @@ export default function DashboardPage() {
       {/* Recent payments */}
       <div className="card">
         <div className="px-6 py-4 border-b border-gray-100">
-          <h2 className="font-semibold text-gray-900 dark:text-gray-100">{t('dashboard.recentPayments')}</h2>
+          <h2 className="font-semibold text-gray-900 dark:text-gray-100">
+            {t('dashboard.recentPayments')}
+          </h2>
         </div>
         <div className="divide-y divide-gray-50">
           {error ? (
@@ -82,26 +121,54 @@ export default function DashboardPage() {
               className="px-6 py-8 text-center text-red-500 text-sm"
             >
               {error}
+              <button
+                type="button"
+                onClick={() => {
+                  if (paymentsQuery.isError) void paymentsQuery.refetch();
+                  if (statsQuery.isError) void statsQuery.refetch();
+                }}
+                className="ml-3 underline font-medium"
+              >
+                Retry
+              </button>
             </div>
           ) : loading ? (
             <SkeletonList rows={5} />
           ) : payments.length === 0 ? (
-            <div className="px-6 py-8 text-center text-gray-400 text-sm">{t('dashboard.noPayments')}</div>
+            <div className="px-6 py-8 text-center text-gray-400 text-sm">
+              {t('dashboard.noPayments')}
+            </div>
           ) : (
             payments.map((p) => {
               const StatusIcon = STATUS_ICONS[p.status];
               return (
-                <div key={p.id} className="px-6 py-4 flex items-center justify-between">
+                <div
+                  key={p.id}
+                  className="px-6 py-4 flex items-center justify-between"
+                >
                   <div>
-                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{p.reference}</p>
-                    <p className="text-xs text-gray-400">{formatDate(p.createdAt, locale)}</p>
+                    <p className="text-sm font-medium text-gray-900 dark:text-gray-100">
+                      {p.reference}
+                    </p>
+                    <p className="text-xs text-gray-400">
+                      {formatDate(p.createdAt, locale)}
+                    </p>
                   </div>
                   <div className="flex items-center gap-3">
-                    <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${PAYMENT_STATUS_COLORS[p.status] ?? DEFAULT_STATUS_COLOR}`}>
-                      {StatusIcon && <StatusIcon aria-hidden="true" className="w-3 h-3 shrink-0" />}
+                    <span
+                      className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${PAYMENT_STATUS_COLORS[p.status] ?? DEFAULT_STATUS_COLOR}`}
+                    >
+                      {StatusIcon && (
+                        <StatusIcon
+                          aria-hidden="true"
+                          className="w-3 h-3 shrink-0"
+                        />
+                      )}
                       {p.status}
                     </span>
-                    <span className="text-sm font-semibold">{formatUsd(p.amountUsd, locale)}</span>
+                    <span className="text-sm font-semibold">
+                      {formatUsd(p.amountUsd, locale)}
+                    </span>
                   </div>
                 </div>
               );

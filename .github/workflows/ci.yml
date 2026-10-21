@@ -9,6 +9,8 @@ jobs:
   ci:
     name: Lint, Type-check, Build & Test
     runs-on: ubuntu-latest
+    env:
+      NEXT_PUBLIC_API_URL: https://api.dupdap.io/v1
 
     steps:
       - name: Checkout

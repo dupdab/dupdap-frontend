@@ -55,7 +55,10 @@ function csvEscape(value: string | number | null | undefined): string {
  * download named `dupdub-payments-YYYY-MM-DD.csv`.
  * Returns an error message string on failure, or null on success.
  */
-async function exportPaymentsCsv(formatUsdFn: (v: number) => string, formatDateFn: (v: string) => string): Promise<string | null> {
+async function exportPaymentsCsv(
+  formatUsdFn: (v: number) => string,
+  formatDateFn: (v: string) => string
+): Promise<string | null> {
   const PAGE_SIZE = 20;
   const allPayments: Payment[] = [];
 
@@ -72,7 +75,8 @@ async function exportPaymentsCsv(formatUsdFn: (v: number) => string, formatDateF
       allPayments.push(...data.payments);
     }
 
-    const header = 'Reference,Amount (USD),Status,Description,Customer Email,Stellar Memo,Created At,Updated At';
+    const header =
+      'Reference,Amount (USD),Status,Description,Customer Email,Stellar Memo,Created At,Updated At';
     const rows = allPayments.map((p) =>
       [
         csvEscape(p.reference),
@@ -344,8 +348,19 @@ export default function PaymentsPage() {
                 viewBox="0 0 24 24"
                 aria-hidden="true"
               >
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                />
               </svg>
             ) : (
               <Download className="w-4 h-4" aria-hidden="true" />
@@ -409,6 +424,7 @@ export default function PaymentsPage() {
           <fieldset disabled={creating} className="space-y-4">
             <FormField
               label="Amount (USD)"
+              name="amountUsd"
               type="number"
               step="0.01"
               min="0.01"
@@ -418,6 +434,7 @@ export default function PaymentsPage() {
             />
             <FormField
               label="Description (optional)"
+              name="description"
               type="text"
               required={false}
               maxLength={MAX_DESCRIPTION_LENGTH}
@@ -433,6 +450,7 @@ export default function PaymentsPage() {
             />
             <FormField
               label="Customer Email (optional)"
+              name="customerEmail"
               type="email"
               required={false}
               value={form.customerEmail}
@@ -442,6 +460,7 @@ export default function PaymentsPage() {
             />
             <FormField
               label="Expires in (minutes)"
+              name="expiryMinutes"
               type="number"
               aria-describedby="expiry-minutes-hint"
               value={form.expiryMinutes}
@@ -657,15 +676,7 @@ export default function PaymentsPage() {
                     No payments yet
                   </td>
                 </tr>
-              ) : (
-                payments.map((p) => (
-                <tr>
-                  <td
-                    colSpan={PAYMENT_TABLE_COLUMNS}
-                    className="px-6 py-8 text-center text-gray-400"
-                  >
-                <SkeletonTableRows rows={6} cols={PAYMENT_TABLE_COLUMNS} />
-              ) : error ? null : filteredPayments.length === 0 ? (
+              ) : filteredPayments.length === 0 ? (
                 <tr>
                   <td
                     colSpan={PAYMENT_TABLE_COLUMNS}

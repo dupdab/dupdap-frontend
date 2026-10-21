@@ -22,13 +22,18 @@ vi.mock('axios', () => {
 });
 
 describe('Axios request interceptor', () => {
-  let requestInterceptor: ((config: { headers: Record<string, string> }) => { headers: Record<string, string> }) | undefined;
+  let requestInterceptor:
+    | ((config: { headers: Record<string, string> }) => {
+        headers: Record<string, string>;
+      })
+    | undefined;
 
   beforeAll(async () => {
     await import('./api');
 
     const instance = vi.mocked(axios.create).mock.results[0]?.value;
-    requestInterceptor = vi.mocked(instance.interceptors.request.use).mock.calls[0]?.[0];
+    requestInterceptor = vi.mocked(instance.interceptors.request.use).mock
+      .calls[0]?.[0];
   });
 
   beforeEach(() => {
@@ -101,5 +106,25 @@ describe('Axios request interceptor', () => {
     const config2 = { headers: {} as Record<string, string> };
     const result2 = requestInterceptor?.(config2);
     expect(result2?.headers.Authorization).toBe('Bearer second-token');
+  });
+
+  it('sends the double-submit CSRF token on mutations', () => {
+    document.cookie = 'csrf_token=csrf-value';
+    const config = { method: 'post', headers: {} as Record<string, string> };
+
+    const result = requestInterceptor?.(config);
+
+    expect(result?.headers['X-CSRF-Token']).toBe('csrf-value');
+    document.cookie = 'csrf_token=; Max-Age=0';
+  });
+
+  it('does not send the CSRF header on safe requests', () => {
+    document.cookie = 'csrf_token=csrf-value';
+    const config = { method: 'get', headers: {} as Record<string, string> };
+
+    const result = requestInterceptor?.(config);
+
+    expect(result?.headers['X-CSRF-Token']).toBeUndefined();
+    document.cookie = 'csrf_token=; Max-Age=0';
   });
 });

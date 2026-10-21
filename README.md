@@ -7,8 +7,21 @@
 This is the Next.js app merchants use to manage payments and settlements, and the page customers land on to pay a merchant with USDC on Stellar. It talks exclusively to the [`dupdap-backend`](../dupdap-backend) REST API — there is no direct on-chain write path from the frontend itself beyond what the customer's wallet signs.
 
 Related repos:
+
 - [`dupdap-backend`](../dupdap-backend) — the API this app calls (`NEXT_PUBLIC_API_URL`)
 - [`dupdapp_stellar`](../dupdapp_stellar) — the Soroban contracts (`payment_escrow`, etc.) that the customer payment flow ultimately settles into
+
+## Environment variables
+
+`NEXT_PUBLIC_API_URL` is required for production builds and must be an HTTPS URL. Set it in the deployment environment and CI. For example:
+
+```sh
+NEXT_PUBLIC_API_URL=https://api.example.com/api/v1
+```
+
+Local development may omit it and uses `http://localhost:3000/api/v1`.
+
+For state-changing API calls, the frontend reads the API-provided `csrf_token` cookie and sends its value in `X-CSRF-Token`. The API must validate that this header matches the cookie on every non-GET request. Use `SameSite=Strict; Secure` for the cookie and allow the header through CORS when the app and API use different origins.
 
 ## Why Stellar
 

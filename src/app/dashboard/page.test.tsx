@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import DashboardPage from './page';
 import { paymentsApi } from '@/lib/api';
 
@@ -8,12 +9,24 @@ vi.mock('@/lib/api', () => ({
     list: vi.fn(),
     stats: vi.fn(),
   },
+  merchantApi: {
+    profile: vi
+      .fn()
+      .mockResolvedValue({
+        data: { businessName: 'Acme', bankAccountNumber: '1234567890' },
+      }),
+  },
+  webhooksApi: {
+    list: vi.fn().mockResolvedValue({ data: [{ id: 'webhook-1' }] }),
+  },
 }));
 
 // Recharts relies on layout measurements that jsdom does not provide; stub the
 // chart primitives so the dashboard can render its data-driven UI in tests.
 vi.mock('recharts', () => {
-  const Passthrough = ({ children }: { children?: React.ReactNode }) => <>{children}</>;
+  const Passthrough = ({ children }: { children?: React.ReactNode }) => (
+    <>{children}</>
+  );
   return {
     ResponsiveContainer: Passthrough,
     LineChart: Passthrough,
@@ -28,6 +41,17 @@ vi.mock('recharts', () => {
 
 const mockedList = vi.mocked(paymentsApi.list);
 const mockedStats = vi.mocked(paymentsApi.stats);
+
+function renderDashboard() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <DashboardPage />
+    </QueryClientProvider>
+  );
+}
 
 /** paymentsApi.stats() returns a per-status breakdown, not a single summary object. */
 const stats = [
@@ -67,7 +91,7 @@ describe('DashboardPage', () => {
     mockedList.mockReturnValue(new Promise(() => {}) as never);
     mockedStats.mockReturnValue(new Promise(() => {}) as never);
 
-    render(<DashboardPage />);
+    renderDashboard();
 
     expect(screen.getByText(/recent payments/i)).toBeInTheDocument();
     expect(screen.queryByText(/no payments yet/i)).not.toBeInTheDocument();
@@ -77,20 +101,21 @@ describe('DashboardPage', () => {
     mockedList.mockRejectedValue(new Error('boom'));
     mockedStats.mockRejectedValue(new Error('boom'));
 
-    render(<DashboardPage />);
+    renderDashboard();
 
     await waitFor(() => {
       expect(screen.getByTestId('dashboard-error')).toHaveTextContent(
-        /couldn't load your dashboard right now/i,
+        /couldn't load your dashboard right now/i
       );
     });
+    expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
   });
 
   it('renders the empty state when there are no payments', async () => {
     mockedList.mockResolvedValue({ data: { payments: [], total: 0 } } as never);
     mockedStats.mockResolvedValue({ data: [] } as never);
 
-    render(<DashboardPage />);
+    renderDashboard();
 
     await waitFor(() => {
       expect(screen.getByText(/no payments yet/i)).toBeInTheDocument();
@@ -98,10 +123,12 @@ describe('DashboardPage', () => {
   });
 
   it('renders the populated state with summary stats and recent payments', async () => {
-    mockedList.mockResolvedValue({ data: { payments, total: payments.length } } as never);
+    mockedList.mockResolvedValue({
+      data: { payments, total: payments.length },
+    } as never);
     mockedStats.mockResolvedValue({ data: stats } as never);
 
-    render(<DashboardPage />);
+    renderDashboard();
 
     await waitFor(() => {
       expect(screen.getByText('REF-1')).toBeInTheDocument();
@@ -112,18 +139,23 @@ describe('DashboardPage', () => {
     expect(screen.getByText('3')).toBeInTheDocument();
   });
 
-  it('renders the payment volume chart with a compare toggle', async () => {
-    mockedList.mockResolvedValue({ data: { payments, total: payments.length } } as never);
+  it('allows dismissal after all onboarding steps are complete', async () => {
+    mockedList.mockResolvedValue({
+      data: { payments, total: payments.length },
+    } as never);
     mockedStats.mockResolvedValue({ data: stats } as never);
 
-    render(<DashboardPage />);
+    renderDashboard();
 
     await waitFor(() => {
       expect(screen.getByText('REF-1')).toBeInTheDocument();
     });
 
-    expect(screen.getByText(/payment volume/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /compare/i })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('button', {
+        name: /dismiss onboarding checklist/i,
+      })
+    ).toBeInTheDocument();
   });
 
   it('renders a payment with an unrecognized status without crashing', async () => {
@@ -136,10 +168,12 @@ describe('DashboardPage', () => {
       createdAt: '2024-01-03T00:00:00.000Z',
     };
 
-    mockedList.mockResolvedValue({ data: { payments: [unknownStatusPayment], total: 1 } } as never);
+    mockedList.mockResolvedValue({
+      data: { payments: [unknownStatusPayment], total: 1 },
+    } as never);
     mockedStats.mockResolvedValue({ data: [] } as never);
 
-    render(<DashboardPage />);
+    renderDashboard();
 
     await waitFor(() => {
       expect(screen.getByText('REF-3')).toBeInTheDocument();

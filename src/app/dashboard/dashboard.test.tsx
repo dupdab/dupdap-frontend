@@ -21,12 +21,14 @@
 
 import { describe, it, expect, vi, beforeAll, afterEach } from 'vitest';
 import { render, screen, waitFor, cleanup } from '@testing-library/react';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import type { Payment } from '@/lib/types';
 
 /* ── Global stubs ─────────────────────────────────────────────────────────── */
 /* DEFAULT_STATUS_COLOR is used as a global in page.tsx without an import */
 beforeAll(() => {
-  (globalThis as Record<string, unknown>).DEFAULT_STATUS_COLOR = 'bg-gray-100 text-gray-700';
+  (globalThis as Record<string, unknown>).DEFAULT_STATUS_COLOR =
+    'bg-gray-100 text-gray-700';
 });
 
 /* ── Mocks ──────────────────────────────────────────────────────────────── */
@@ -39,10 +41,16 @@ vi.mock('@/lib/api', () => ({
     list: (...args: unknown[]) => mockList(...args),
     stats: (...args: unknown[]) => mockStats(...args),
   },
+  merchantApi: {
+    profile: vi.fn().mockResolvedValue({ data: { businessName: 'Acme' } }),
+  },
+  webhooksApi: { list: vi.fn().mockResolvedValue({ data: [] }) },
 }));
 
 vi.mock('@/lib/store', () => ({
-  useAuthStore: () => ({ merchant: { id: 'merch-1', businessName: 'Acme Corp' } }),
+  useAuthStore: () => ({
+    merchant: { id: 'merch-1', businessName: 'Acme Corp' },
+  }),
 }));
 
 vi.mock('@/lib/utils', () => ({
@@ -50,8 +58,12 @@ vi.mock('@/lib/utils', () => ({
   formatDate: (s: string) => s.slice(0, 10),
   DEFAULT_STATUS_COLOR: 'bg-gray-100 text-gray-600',
   STATUS_ICONS: {
-    completed: (props: { className?: string; 'aria-hidden'?: boolean }) => <svg data-testid="status-icon" {...props} />,
-    pending: (props: { className?: string; 'aria-hidden'?: boolean }) => <svg data-testid="status-icon" {...props} />,
+    completed: (props: { className?: string; 'aria-hidden'?: boolean }) => (
+      <svg data-testid="status-icon" {...props} />
+    ),
+    pending: (props: { className?: string; 'aria-hidden'?: boolean }) => (
+      <svg data-testid="status-icon" {...props} />
+    ),
   },
   PAYMENT_STATUS_COLORS: {
     completed: 'bg-green-100 text-green-700',
@@ -75,6 +87,9 @@ vi.mock('lucide-react', () => ({
   CreditCard: () => <span>CreditCard</span>,
   Banknote: () => <span>Banknote</span>,
   Clock: () => <span>Clock</span>,
+  CheckCircle2: () => <span />,
+  Circle: () => <span />,
+  X: () => <span />,
 }));
 
 /* ── Fixtures ───────────────────────────────────────────────────────────── */
@@ -85,7 +100,10 @@ const statsData = [
   { status: 'failed', count: 1, totalUsd: 200 },
 ];
 
-const makePayment = (i: number, status: Payment['status'] = 'completed'): Payment => ({
+const makePayment = (
+  i: number,
+  status: Payment['status'] = 'completed'
+): Payment => ({
   id: `pay-${i}`,
   reference: `REF-00${i}`,
   amountUsd: 100 + i * 10,
@@ -98,6 +116,17 @@ const makePayment = (i: number, status: Payment['status'] = 'completed'): Paymen
 /* Lazy import — after globals are set */
 import DashboardPage from './page';
 
+function renderDashboard() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <DashboardPage />
+    </QueryClientProvider>
+  );
+}
+
 afterEach(() => {
   cleanup();
   vi.clearAllMocks();
@@ -109,10 +138,10 @@ describe('DashboardPage — initial render', () => {
   it('renders welcome heading with merchant business name', async () => {
     mockList.mockResolvedValue({ data: { payments: [], total: 0 } });
     mockStats.mockResolvedValue({ data: [] });
-    render(<DashboardPage />);
+    renderDashboard();
     // Heading may include "Welcome back, " prefix
     await waitFor(() =>
-      expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument(),
+      expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument()
     );
     expect(screen.getByText(/acme corp/i)).toBeInTheDocument();
   });
@@ -120,7 +149,7 @@ describe('DashboardPage — initial render', () => {
   it('renders all four stat card labels', () => {
     mockList.mockReturnValue(new Promise(() => {}));
     mockStats.mockReturnValue(new Promise(() => {}));
-    render(<DashboardPage />);
+    renderDashboard();
 
     expect(screen.getByText('Total Volume')).toBeInTheDocument();
     expect(screen.getByText('Settled Payments')).toBeInTheDocument();
@@ -131,7 +160,7 @@ describe('DashboardPage — initial render', () => {
   it('shows skeleton placeholders while APIs are in flight', () => {
     mockList.mockReturnValue(new Promise(() => {}));
     mockStats.mockReturnValue(new Promise(() => {}));
-    render(<DashboardPage />);
+    renderDashboard();
 
     // Stat card skeletons
     expect(screen.getAllByTestId('skeleton').length).toBeGreaterThan(0);
@@ -142,9 +171,9 @@ describe('DashboardPage — initial render', () => {
   it('calls paymentsApi.list(1, 5) and paymentsApi.stats() on mount', () => {
     mockList.mockReturnValue(new Promise(() => {}));
     mockStats.mockReturnValue(new Promise(() => {}));
-    render(<DashboardPage />);
+    renderDashboard();
 
-    expect(mockList).toHaveBeenCalledWith(1, 5);
+    expect(mockList).toHaveBeenCalledWith(1, 5, expect.any(Object));
     expect(mockStats).toHaveBeenCalledOnce();
   });
 });
@@ -153,10 +182,12 @@ describe('DashboardPage — data loaded', () => {
   it('renders stat card values after data resolves', async () => {
     mockList.mockResolvedValue({ data: { payments: [], total: 0 } });
     mockStats.mockResolvedValue({ data: statsData });
-    render(<DashboardPage />);
+    renderDashboard();
 
     // Total volume = 2500 + 1000 + 200 = 3700
-    await waitFor(() => expect(screen.getByText('$3700.00')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText('$3700.00')).toBeInTheDocument()
+    );
     // Settled count = 5
     expect(screen.getByText('5')).toBeInTheDocument();
     // Pending count = 3
@@ -169,21 +200,30 @@ describe('DashboardPage — data loaded', () => {
     const payments = [makePayment(1, 'completed'), makePayment(2, 'pending')];
     mockList.mockResolvedValue({ data: { payments, total: 2 } });
     mockStats.mockResolvedValue({ data: statsData });
-    render(<DashboardPage />);
+    renderDashboard();
 
-    await waitFor(() => expect(screen.getByText('REF-001')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText('REF-001')).toBeInTheDocument()
+    );
     expect(screen.getByText('REF-002')).toBeInTheDocument();
     expect(screen.getByText('$110.00')).toBeInTheDocument(); // 100 + 1*10
     expect(screen.getAllByText(/completed|pending/).length).toBeGreaterThan(0);
     const statusIcons = screen.getAllByTestId('status-icon');
     expect(statusIcons).toHaveLength(2);
-    statusIcons.forEach((icon) => expect(icon).toHaveAttribute('aria-hidden', 'true'));
+    statusIcons.forEach((icon) =>
+      expect(icon).toHaveAttribute('aria-hidden', 'true')
+    );
   });
 
   it('renders an unknown status without an icon and keeps the fallback color', async () => {
-    mockList.mockResolvedValue({ data: { payments: [makePayment(3, 'on_hold' as Payment['status'])], total: 1 } });
+    mockList.mockResolvedValue({
+      data: {
+        payments: [makePayment(3, 'on_hold' as Payment['status'])],
+        total: 1,
+      },
+    });
     mockStats.mockResolvedValue({ data: [] });
-    render(<DashboardPage />);
+    renderDashboard();
 
     const status = await screen.findByText('on_hold');
     expect(status).toHaveClass('bg-gray-100', 'text-gray-600');
@@ -193,10 +233,10 @@ describe('DashboardPage — data loaded', () => {
   it('renders "Recent Payments" section heading', async () => {
     mockList.mockResolvedValue({ data: { payments: [], total: 0 } });
     mockStats.mockResolvedValue({ data: [] });
-    render(<DashboardPage />);
+    renderDashboard();
 
     await waitFor(() =>
-      expect(screen.getByText(/recent payments/i)).toBeInTheDocument(),
+      expect(screen.getByText(/recent payments/i)).toBeInTheDocument()
     );
   });
 });
@@ -205,17 +245,17 @@ describe('DashboardPage — empty state', () => {
   it('shows "No payments yet" when list is empty', async () => {
     mockList.mockResolvedValue({ data: { payments: [], total: 0 } });
     mockStats.mockResolvedValue({ data: [] });
-    render(<DashboardPage />);
+    renderDashboard();
 
     await waitFor(() =>
-      expect(screen.getByText(/no payments yet/i)).toBeInTheDocument(),
+      expect(screen.getByText(/no payments yet/i)).toBeInTheDocument()
     );
   });
 
   it('shows $0.00 for Total Volume when stats is empty', async () => {
     mockList.mockResolvedValue({ data: { payments: [], total: 0 } });
     mockStats.mockResolvedValue({ data: [] });
-    render(<DashboardPage />);
+    renderDashboard();
 
     await waitFor(() => expect(screen.getByText('$0.00')).toBeInTheDocument());
   });
@@ -225,10 +265,12 @@ describe('DashboardPage — error state', () => {
   it('renders error message when API calls fail', async () => {
     mockList.mockRejectedValue(new Error('Network error'));
     mockStats.mockRejectedValue(new Error('Network error'));
-    render(<DashboardPage />);
+    renderDashboard();
 
     await waitFor(() =>
-      expect(screen.getByText(/couldn't load your dashboard/i)).toBeInTheDocument(),
+      expect(
+        screen.getByText(/couldn't load your dashboard/i)
+      ).toBeInTheDocument()
     );
   });
 });
