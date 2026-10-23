@@ -1,6 +1,5 @@
 'use client';
 
-import { memo, useEffect, useState } from 'react';
 import {
   Plus,
   Copy,
@@ -13,10 +12,17 @@ import {
   X,
   Download,
 } from 'lucide-react';
-import toast from '@/lib/toast';
 import { QRCodeSVG } from 'qrcode.react';
+import { memo, useEffect, useState } from 'react';
+
 import { CopyButton } from '@/components/CopyButton';
+import { FormField } from '@/components/FormField';
+import Modal from '@/components/Modal';
+import { SkeletonList, SkeletonTableRows } from '@/components/Skeleton';
 import { paymentsApi } from '@/lib/api';
+import { getErrorMessage } from '@/lib/errors';
+import toast from '@/lib/toast';
+import type { Payment } from '@/lib/types';
 import {
   formatUsd,
   formatDate,
@@ -24,11 +30,6 @@ import {
   STATUS_ICONS,
   DEFAULT_STATUS_COLOR,
 } from '@/lib/utils';
-import { FormField } from '@/components/FormField';
-import Modal from '@/components/Modal';
-import { SkeletonList, SkeletonTableRows } from '@/components/Skeleton';
-import { getErrorMessage } from '@/lib/errors';
-import type { Payment } from '@/lib/types';
 
 const PAYMENT_TABLE_COLUMNS = 5;
 const MAX_DESCRIPTION_LENGTH = 255;
@@ -55,7 +56,10 @@ function csvEscape(value: string | number | null | undefined): string {
  * download named `dupdub-payments-YYYY-MM-DD.csv`.
  * Returns an error message string on failure, or null on success.
  */
-async function exportPaymentsCsv(formatUsdFn: (v: number) => string, formatDateFn: (v: string) => string): Promise<string | null> {
+async function exportPaymentsCsv(
+  formatUsdFn: (v: number) => string,
+  formatDateFn: (v: string) => string
+): Promise<string | null> {
   const PAGE_SIZE = 20;
   const allPayments: Payment[] = [];
 
@@ -72,7 +76,8 @@ async function exportPaymentsCsv(formatUsdFn: (v: number) => string, formatDateF
       allPayments.push(...data.payments);
     }
 
-    const header = 'Reference,Amount (USD),Status,Description,Customer Email,Stellar Memo,Created At,Updated At';
+    const header =
+      'Reference,Amount (USD),Status,Description,Customer Email,Stellar Memo,Created At,Updated At';
     const rows = allPayments.map((p) =>
       [
         csvEscape(p.reference),
@@ -82,7 +87,7 @@ async function exportPaymentsCsv(formatUsdFn: (v: number) => string, formatDateF
         csvEscape(p.customerEmail),
         csvEscape(p.stellarMemo),
         csvEscape(formatDateFn(p.createdAt)),
-        csvEscape(formatDateFn(p.updatedAt)),
+        csvEscape(p.updatedAt ? formatDateFn(p.updatedAt) : ''),
       ].join(',')
     );
 
@@ -369,8 +374,19 @@ export default function PaymentsPage() {
                 viewBox="0 0 24 24"
                 aria-hidden="true"
               >
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z" />
+                <circle
+                  className="opacity-25"
+                  cx="12"
+                  cy="12"
+                  r="10"
+                  stroke="currentColor"
+                  strokeWidth="4"
+                />
+                <path
+                  className="opacity-75"
+                  fill="currentColor"
+                  d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
+                />
               </svg>
             ) : (
               <Download className="w-4 h-4" aria-hidden="true" />
@@ -672,23 +688,6 @@ export default function PaymentsPage() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading ? (
-                <SkeletonTableRows rows={6} cols={PAYMENT_TABLE_COLUMNS} />
-              ) : error ? null : payments.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={PAYMENT_TABLE_COLUMNS}
-                    className="px-6 py-8 text-center text-gray-400"
-                  >
-                    No payments yet
-                  </td>
-                </tr>
-              ) : (
-                payments.map((p) => (
-                <tr>
-                  <td
-                    colSpan={PAYMENT_TABLE_COLUMNS}
-                    className="px-6 py-8 text-center text-gray-400"
-                  >
                 <SkeletonTableRows rows={6} cols={PAYMENT_TABLE_COLUMNS} />
               ) : error ? null : filteredPayments.length === 0 ? (
                 <tr>

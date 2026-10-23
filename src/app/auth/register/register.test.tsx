@@ -1,8 +1,8 @@
-import React from 'react';
 import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AxiosError } from 'axios';
+import React from 'react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 
@@ -95,7 +95,7 @@ describe('RegisterPage', () => {
     const textboxes = screen.getAllByRole('textbox');
     const passwordInputs = document.querySelectorAll('input[type="password"]');
     expect(textboxes.length).toBeGreaterThanOrEqual(2); // businessName + email
-    expect(passwordInputs.length).toBe(2);              // password + confirmPassword
+    expect(passwordInputs.length).toBe(2); // password + confirmPassword
     expect(screen.getByTestId('register-submit-button')).toBeInTheDocument();
   });
 
@@ -105,7 +105,9 @@ describe('RegisterPage', () => {
     expect(selects.length).toBeGreaterThanOrEqual(1);
     // The country select contains the "Select a country" placeholder option
     const countrySelect = selects.find((s) =>
-      Array.from((s as HTMLSelectElement).options).some((o) => /select a country/i.test(o.text))
+      Array.from((s as HTMLSelectElement).options).some((o) =>
+        /select a country/i.test(o.text)
+      )
     );
     expect(countrySelect).toBeDefined();
   });
@@ -202,8 +204,15 @@ describe('RegisterPage', () => {
   // ── Successful registration ───────────────────────────────────────────────
 
   it('calls authApi.register with form values on submit', async () => {
-    const merchant = { id: '2', email: 'merchant@test.com', businessName: 'Acme Corp', status: 'active' };
-    mockRegister.mockResolvedValueOnce({ data: { accessToken: 'tok', merchant } });
+    const merchant = {
+      id: '2',
+      email: 'merchant@test.com',
+      businessName: 'Acme Corp',
+      status: 'active',
+    };
+    mockRegister.mockResolvedValueOnce({
+      data: { accessToken: 'tok', merchant },
+    });
 
     render(React.createElement(RegisterPage));
     await fillForm();
@@ -211,7 +220,10 @@ describe('RegisterPage', () => {
 
     await waitFor(() => {
       expect(mockRegister).toHaveBeenCalledWith(
-        expect.objectContaining({ email: 'merchant@test.com', businessName: 'Acme Corp' }),
+        expect.objectContaining({
+          email: 'merchant@test.com',
+          businessName: 'Acme Corp',
+        })
       );
     });
   });
@@ -230,8 +242,15 @@ describe('RegisterPage', () => {
   });
 
   it('redirects to the dashboard after successful registration', async () => {
-    const merchant = { id: '2', email: 'merchant@test.com', businessName: 'Acme Corp', status: 'active' };
-    mockRegister.mockResolvedValueOnce({ data: { accessToken: 'abc', merchant } });
+    const merchant = {
+      id: '2',
+      email: 'merchant@test.com',
+      businessName: 'Acme Corp',
+      status: 'active',
+    };
+    mockRegister.mockResolvedValueOnce({
+      data: { accessToken: 'abc', merchant },
+    });
 
     render(React.createElement(RegisterPage));
     await fillForm();
@@ -246,13 +265,19 @@ describe('RegisterPage', () => {
 
   it('shows a toast error when registration fails', async () => {
     mockRegister.mockRejectedValueOnce(
-      new AxiosError('Request failed', 'ERR_BAD_REQUEST', undefined, undefined, {
-        status: 400,
-        statusText: 'Bad Request',
-        headers: {},
-        config: {} as never,
-        data: { message: 'Email already in use' },
-      }),
+      new AxiosError(
+        'Request failed',
+        'ERR_BAD_REQUEST',
+        undefined,
+        undefined,
+        {
+          status: 400,
+          statusText: 'Bad Request',
+          headers: {},
+          config: {} as never,
+          data: { message: 'Email already in use' },
+        }
+      )
     );
 
     render(React.createElement(RegisterPage));
@@ -260,7 +285,10 @@ describe('RegisterPage', () => {
     await userEvent.click(screen.getByTestId('register-submit-button'));
 
     await waitFor(() => {
-      expect(mockToastError).toHaveBeenCalledWith('Email already in use', expect.anything());
+      expect(mockToastError).toHaveBeenCalledWith(
+        'Email already in use',
+        expect.anything()
+      );
     });
   });
   it('falls back to "Registration failed" when no error message is present', async () => {
@@ -271,7 +299,10 @@ describe('RegisterPage', () => {
     await userEvent.click(screen.getByTestId('register-submit-button'));
 
     await waitFor(() => {
-      expect(mockToastError).toHaveBeenCalledWith('Registration failed', expect.anything());
+      expect(mockToastError).toHaveBeenCalledWith(
+        'Registration failed',
+        expect.anything()
+      );
     });
   });
 
@@ -305,7 +336,13 @@ describe('RegisterPage', () => {
       'ERR_BAD_REQUEST',
       undefined,
       undefined,
-      { data: { message: 'Email already registered' }, status: 409, statusText: 'Conflict', headers: {}, config: {} as never },
+      {
+        data: { message: 'Email already registered' },
+        status: 409,
+        statusText: 'Conflict',
+        headers: {},
+        config: {} as never,
+      }
     );
     mockRegister.mockRejectedValueOnce(err);
 
@@ -331,7 +368,9 @@ describe('RegisterPage', () => {
     await userEvent.click(screen.getByTestId('register-submit-button'));
 
     await waitFor(() => {
-      expect(screen.getByTestId('register-form-error')).toHaveTextContent('Network error');
+      expect(screen.getByTestId('register-form-error')).toHaveTextContent(
+        'Network error'
+      );
     });
 
     // Mock next submission to hang pending
@@ -339,8 +378,9 @@ describe('RegisterPage', () => {
     await userEvent.click(screen.getByTestId('register-submit-button'));
 
     await waitFor(() => {
-      expect(screen.queryByTestId('register-form-error')).not.toBeInTheDocument();
+      expect(
+        screen.queryByTestId('register-form-error')
+      ).not.toBeInTheDocument();
     });
   });
-
 });

@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
+
 import type { Merchant } from './types';
 import { authApi } from './api';
 

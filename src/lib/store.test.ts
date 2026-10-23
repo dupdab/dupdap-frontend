@@ -1,5 +1,7 @@
 import { describe, expect, it, beforeEach } from 'vitest';
+
 import { useAuthStore, clearLegacyAccessTokenKey } from './store';
+
 import type { Merchant } from './types';
 
 const testMerchant: Merchant = {

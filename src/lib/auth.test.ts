@@ -1,6 +1,7 @@
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { isAdmin } from './auth';
 import axios from 'axios';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+import { isAdmin } from './auth';
 import { useAuthStore } from './store';
 
 vi.mock('./env', () => ({

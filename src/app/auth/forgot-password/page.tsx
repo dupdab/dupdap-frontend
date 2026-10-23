@@ -1,11 +1,12 @@
 'use client';
 
-import { useState } from 'react';
-import Link from 'next/link';
-import toast from '@/lib/toast';
 import { MailCheck } from 'lucide-react';
+import Link from 'next/link';
+import { useState } from 'react';
+
 import { authApi } from '@/lib/api';
 import { getErrorMessage } from '@/lib/errors';
+import toast from '@/lib/toast';
 
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState('');
@@ -23,11 +24,14 @@ export default function ForgotPasswordPage() {
       // clearly a transport/server error. The status is read structurally so
       // the guard holds for both real AxiosError instances and the plain
       // `{ response: { status } }` shapes surfaced by fetch-based clients.
-      const status = (err as { response?: { status?: unknown } } | null)?.response?.status;
+      const status = (err as { response?: { status?: unknown } } | null)
+        ?.response?.status;
       if (typeof status === 'number' && status < 500) {
         setSent(true);
       } else {
-        toast.error(getErrorMessage(err) ?? 'Something went wrong. Please try again.');
+        toast.error(
+          getErrorMessage(err) ?? 'Something went wrong. Please try again.'
+        );
       }
     } finally {
       setLoading(false);
@@ -47,16 +51,17 @@ export default function ForgotPasswordPage() {
             <MailCheck className="w-12 h-12 text-green-500 mx-auto mb-4" />
             <h3 className="font-semibold text-lg">Check your email</h3>
             <p className="text-gray-500 text-sm mt-2">
-              If an account exists for <span className="font-medium">{email}</span>, we&apos;ve sent a link
-              to reset your password.
+              If an account exists for{' '}
+              <span className="font-medium">{email}</span>, we&apos;ve sent a
+              link to reset your password.
             </p>
           </div>
         ) : (
           <form onSubmit={submit} className="space-y-4">
             <fieldset disabled={loading} className="space-y-4">
               <p className="text-sm text-gray-500">
-                Enter the email associated with your account and we&apos;ll send you a link to reset your
-                password.
+                Enter the email associated with your account and we&apos;ll send
+                you a link to reset your password.
               </p>
               <div>
                 <label className="label">Email</label>
@@ -68,7 +73,11 @@ export default function ForgotPasswordPage() {
                   onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
-              <button type="submit" disabled={loading} className="btn-primary w-full">
+              <button
+                type="submit"
+                disabled={loading}
+                className="btn-primary w-full"
+              >
                 {loading ? 'Sending...' : 'Send reset link'}
               </button>
             </fieldset>
@@ -77,7 +86,10 @@ export default function ForgotPasswordPage() {
 
         <p className="text-center text-sm text-gray-500 mt-6">
           Remembered it?{' '}
-          <Link href="/auth/login" className="text-brand-600 font-medium hover:underline">
+          <Link
+            href="/auth/login"
+            className="text-brand-600 font-medium hover:underline"
+          >
             Back to sign in
           </Link>
         </p>

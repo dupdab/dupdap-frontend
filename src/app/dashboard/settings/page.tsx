@@ -1,13 +1,14 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
 import { Eye, EyeOff, Copy, Check } from 'lucide-react';
-import toast from '@/lib/toast';
-import { merchantApi } from '@/lib/api';
-import { maskSecret } from '@/lib/utils';
-import { getErrorMessage } from '@/lib/errors';
-import FormField from '@/components/FormField';
+import { useEffect, useRef, useState, type ChangeEvent } from 'react';
+
 import ConfirmDialog from '@/components/ConfirmDialog';
+import { FormField } from '@/components/FormField';
+import { merchantApi } from '@/lib/api';
+import { getErrorMessage } from '@/lib/errors';
+import toast from '@/lib/toast';
+import { maskSecret } from '@/lib/utils';
 
 /* ── Constants ─────────────────────────────────────────────────────────── */
 
@@ -81,6 +82,7 @@ interface ProfileForm {
   bankName: string;
   bankCode: string;
   bankAccountNumber: string;
+  [key: string]: string;
 }
 
 interface FieldErrors {
@@ -329,7 +331,7 @@ export default function SettingsPage() {
             onClick={dismissKey}
             className="mt-3 text-sm text-yellow-700 underline hover:text-yellow-900"
           >
-            I've saved it
+            I&apos;ve saved it
           </button>
         </div>
       )}
@@ -400,7 +402,7 @@ export default function SettingsPage() {
             label="Business name"
             name="businessName"
             value={profileForm.businessName}
-            onChange={(e) =>
+            onChange={(e: ChangeEvent<HTMLInputElement>) =>
               setProfileForm((f) => ({ ...f, businessName: e.target.value }))
             }
             error={fieldErrors.businessName}
@@ -411,7 +413,7 @@ export default function SettingsPage() {
             label="Country"
             name="country"
             value={profileForm.country}
-            onChange={(e) =>
+            onChange={(e: ChangeEvent<HTMLInputElement>) =>
               setProfileForm((f) => ({ ...f, country: e.target.value }))
             }
             error={fieldErrors.country}
@@ -421,7 +423,7 @@ export default function SettingsPage() {
             label="Bank name"
             name="bankName"
             value={profileForm.bankName}
-            onChange={(e) =>
+            onChange={(e: ChangeEvent<HTMLInputElement>) =>
               setProfileForm((f) => ({ ...f, bankName: e.target.value }))
             }
             error={fieldErrors.bankName}
@@ -431,7 +433,7 @@ export default function SettingsPage() {
             label="Bank code"
             name="bankCode"
             value={profileForm.bankCode}
-            onChange={(e) =>
+            onChange={(e: ChangeEvent<HTMLInputElement>) =>
               setProfileForm((f) => ({ ...f, bankCode: e.target.value }))
             }
             error={fieldErrors.bankCode}
@@ -441,7 +443,7 @@ export default function SettingsPage() {
             label="Bank account number"
             name="bankAccountNumber"
             value={profileForm.bankAccountNumber}
-            onChange={(e) =>
+            onChange={(e: ChangeEvent<HTMLInputElement>) =>
               setProfileForm((f) => ({
                 ...f,
                 bankAccountNumber: e.target.value,

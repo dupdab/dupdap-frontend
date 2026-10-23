@@ -144,7 +144,15 @@ export function FormField({
           className={inputClasses}
           {...rest}
         />
-      )}
+        {error && (
+          <p id={errorId} className="text-xs text-red-500 mt-1">
+            {error}
+          </p>
+        )}
+      </div>
+    );
+  }
+);
 
       {hint && <span className="text-xs text-gray-500">{hint}</span>}
 

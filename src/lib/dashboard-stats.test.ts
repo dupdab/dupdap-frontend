@@ -1,5 +1,7 @@
 import { describe, expect, it } from 'vitest';
+
 import { aggregatePaymentStats } from './dashboard-stats';
+
 import type { PaymentStats } from './types';
 
 describe('aggregatePaymentStats', () => {
@@ -16,7 +18,9 @@ describe('aggregatePaymentStats', () => {
   });
 
   it('aggregates a single status entry', () => {
-    const stats: PaymentStats[] = [{ status: 'settled', count: '12', totalUsd: '4500.50' }];
+    const stats: PaymentStats[] = [
+      { status: 'settled', count: '12', totalUsd: '4500.50' },
+    ];
     const result = aggregatePaymentStats(stats);
 
     expect(result.statMap.settled).toEqual({ count: 12, total: 4500.5 });

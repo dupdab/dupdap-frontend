@@ -1,18 +1,25 @@
 import { spawnSync } from 'node:child_process';
 import { resolve } from 'node:path';
+
 import { describe, expect, it } from 'vitest';
 
 const validatorPath = resolve(process.cwd(), 'scripts/validate-env.mjs');
 
 function runValidator(nodeEnv: string, apiUrl?: string) {
-  const env: NodeJS.ProcessEnv = { ...process.env, NODE_ENV: nodeEnv as NodeJS.ProcessEnv["NODE_ENV"] };
+  const env: NodeJS.ProcessEnv = {
+    ...process.env,
+    NODE_ENV: nodeEnv as NodeJS.ProcessEnv['NODE_ENV'],
+  };
   if (apiUrl === undefined) {
     delete env.NEXT_PUBLIC_API_URL;
   } else {
     env.NEXT_PUBLIC_API_URL = apiUrl;
   }
 
-  return spawnSync(process.execPath, [validatorPath], { env, encoding: 'utf8' });
+  return spawnSync(process.execPath, [validatorPath], {
+    env,
+    encoding: 'utf8',
+  });
 }
 
 describe('validate-env script', () => {

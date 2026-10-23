@@ -1,7 +1,8 @@
-import React from 'react';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import React from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+
 import ConfirmDialog from './ConfirmDialog';
 
 describe('ConfirmDialog', () => {
@@ -52,9 +53,15 @@ describe('ConfirmDialog', () => {
     );
 
     expect(screen.getByText('Revoke API Key')).toBeInTheDocument();
-    expect(screen.getByText('This action cannot be undone.')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Yes, revoke' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Keep key' })).toBeInTheDocument();
+    expect(
+      screen.getByText('This action cannot be undone.')
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Yes, revoke' })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Keep key' })
+    ).toBeInTheDocument();
   });
 
   it('calls onConfirm when the confirm button is clicked', async () => {

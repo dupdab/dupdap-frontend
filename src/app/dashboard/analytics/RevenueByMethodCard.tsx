@@ -1,14 +1,22 @@
 'use client';
 
-import { useEffect, useState } from 'react';
 import dynamic from 'next/dynamic';
+import { useEffect, useState } from 'react';
+
 import { paymentsApi } from '@/lib/api';
+import {
+  breakdownByPaymentMethod,
+  type RevenueBreakdownRow,
+} from '@/lib/revenue-breakdown';
 import { formatUsd } from '@/lib/utils';
-import { breakdownByPaymentMethod, type RevenueBreakdownRow } from '@/lib/revenue-breakdown';
 
 const RevenueByMethodChart = dynamic(() => import('./RevenueByMethodChart'), {
   ssr: false,
-  loading: () => <div className="h-[250px] flex items-center justify-center text-sm text-gray-400">Loading chart…</div>,
+  loading: () => (
+    <div className="h-[250px] flex items-center justify-center text-sm text-gray-400">
+      Loading chart…
+    </div>
+  ),
 });
 
 export default function RevenueByMethodCard() {
@@ -35,9 +43,17 @@ export default function RevenueByMethodCard() {
   return (
     <div className="card p-6">
       <h2 className="font-semibold mb-4">Revenue by Payment Method (USD)</h2>
-      {state === 'loading' && <p className="text-sm text-gray-400">Loading...</p>}
-      {state === 'error' && <p className="text-sm text-red-500">Couldn&apos;t load revenue breakdown.</p>}
-      {state === 'ready' && rows.length === 0 && <p className="text-sm text-gray-400">No payment data yet.</p>}
+      {state === 'loading' && (
+        <p className="text-sm text-gray-400">Loading...</p>
+      )}
+      {state === 'error' && (
+        <p className="text-sm text-red-500">
+          Couldn&apos;t load revenue breakdown.
+        </p>
+      )}
+      {state === 'ready' && rows.length === 0 && (
+        <p className="text-sm text-gray-400">No payment data yet.</p>
+      )}
       {state === 'ready' && rows.length > 0 && (
         <>
           <RevenueByMethodChart data={rows} />

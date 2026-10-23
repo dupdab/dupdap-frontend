@@ -1,5 +1,9 @@
-import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import axios from 'axios';
+import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
+
+// Bound mock reference: imported at module scope so assertions work even when
+// the test itself never re-imports the mocked module.
+import { redirectToLogin } from './auth-redirect';
 import { useAuthStore } from './store';
 
 vi.mock('axios', () => {
@@ -28,10 +32,13 @@ vi.mock('./auth-redirect', () => ({
       (typeof window !== 'undefined'
         ? `${window.location.pathname}${window.location.search}`
         : undefined);
-    const path = rawPath && rawPath.startsWith('/') && !rawPath.startsWith('//')
-      ? rawPath
-      : undefined;
-    window.location.assign(`/auth/login${path ? `?next=${encodeURIComponent(path)}` : ''}`);
+    const path =
+      rawPath && rawPath.startsWith('/') && !rawPath.startsWith('//')
+        ? rawPath
+        : undefined;
+    window.location.assign(
+      `/auth/login${path ? `?next=${encodeURIComponent(path)}` : ''}`
+    );
   }),
   setAuthRedirectHandler: vi.fn(),
 }));
@@ -43,15 +50,18 @@ vi.mock('./env', () => ({
 }));
 
 describe('Axios 401 response interceptor', () => {
-  let responseErrorHandler: ((err: { response?: { status: number } }) => Promise<never>) | undefined;
+  let responseErrorHandler:
+    ((err: { response?: { status: number } }) => Promise<never>) | undefined;
 
   beforeAll(async () => {
     process.env.NEXT_PUBLIC_API_URL = 'http://localhost:3000/api/v1';
-    (globalThis as unknown as { getApiUrl: () => string }).getApiUrl = () => 'http://localhost:3000/api/v1';
+    (globalThis as unknown as { getApiUrl: () => string }).getApiUrl = () =>
+      'http://localhost:3000/api/v1';
     await import('./api');
 
     const instance = vi.mocked(axios.create).mock.results[0]?.value;
-    responseErrorHandler = vi.mocked(instance.interceptors.response.use).mock.calls[0]?.[1];
+    responseErrorHandler = vi.mocked(instance.interceptors.response.use).mock
+      .calls[0]?.[1];
   });
 
   beforeEach(() => {

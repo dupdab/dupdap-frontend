@@ -1,7 +1,8 @@
 'use client';
 
-import { useEffect, useRef, type ReactNode } from 'react';
 import { X } from 'lucide-react';
+import { useEffect, useRef, type ReactNode } from 'react';
+
 import { cn } from '@/lib/utils';
 
 interface ModalProps {
@@ -55,7 +56,7 @@ export function useFocusTrap(
   open: boolean,
   panelRef: React.RefObject<HTMLElement | null>,
   onClose: () => void,
-  dialogId: symbol,
+  dialogId: symbol
 ) {
   /** Remembers the element that had focus before the dialog opened so we can restore it on close. */
   const triggerRef = useRef<Element | null>(null);
@@ -89,19 +90,27 @@ export function useFocusTrap(
       if (e.key === 'Tab') {
         const panel = panelRef.current;
         if (!panel) return;
-        const focusable = Array.from(panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTORS));
+        const focusable = Array.from(
+          panel.querySelectorAll<HTMLElement>(FOCUSABLE_SELECTORS)
+        );
         if (focusable.length === 0) return;
 
         const first = focusable[0];
         const last = focusable[focusable.length - 1];
 
         if (e.shiftKey) {
-          if (document.activeElement === first || document.activeElement === panel) {
+          if (
+            document.activeElement === first ||
+            document.activeElement === panel
+          ) {
             e.preventDefault();
             last.focus();
           }
         } else {
-          if (document.activeElement === last || document.activeElement === panel) {
+          if (
+            document.activeElement === last ||
+            document.activeElement === panel
+          ) {
             e.preventDefault();
             first.focus();
           }
@@ -148,7 +157,10 @@ export default function Modal({
   const handleBackdropClick = (e: React.MouseEvent<HTMLDivElement>) => {
     // Only close if both mousedown and click originated directly on the backdrop overlay,
     // avoiding accidental closures when dragging text selection outside the panel (#409).
-    if (e.target === e.currentTarget && mouseDownTargetRef.current === e.currentTarget) {
+    if (
+      e.target === e.currentTarget &&
+      mouseDownTargetRef.current === e.currentTarget
+    ) {
       onClose();
     }
   };
@@ -167,7 +179,10 @@ export default function Modal({
         aria-label={title}
         tabIndex={-1}
         data-testid={testId}
-        className={cn('card w-full max-w-md p-6 outline-none', contentClassName)}
+        className={cn(
+          'card w-full max-w-md p-6 outline-none',
+          contentClassName
+        )}
         onClick={(e) => e.stopPropagation()}
       >
         {title && (
@@ -189,4 +204,3 @@ export default function Modal({
     </div>
   );
 }
-

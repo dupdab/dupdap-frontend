@@ -1,8 +1,15 @@
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import React from 'react';
-import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { OfflineBanner } from '@/components/OfflineBanner';
+
 import PaymentsPage from '@/app/dashboard/payments/page';
+import { OfflineBanner } from '@/components/OfflineBanner';
 import { paymentsApi } from '@/lib/api';
 
 vi.mock('@/lib/api', () => ({
@@ -13,12 +20,21 @@ vi.mock('@/lib/api', () => ({
 }));
 
 vi.mock('@/components/Modal', () => ({
-  default: ({ open, children }: { open: boolean; children: React.ReactNode }) =>
-    open ? <div>{children}</div> : null,
+  default: ({
+    open,
+    children,
+  }: {
+    open: boolean;
+    children: React.ReactNode;
+  }) => (open ? <div>{children}</div> : null),
 }));
 
 vi.mock('@/components/FormField', () => ({
-  FormField: ({ label, hint, ...props }: React.InputHTMLAttributes<HTMLInputElement> & {
+  FormField: ({
+    label,
+    hint,
+    ...props
+  }: React.InputHTMLAttributes<HTMLInputElement> & {
     label: string;
     hint?: React.ReactNode;
   }) => (
@@ -31,7 +47,9 @@ vi.mock('@/components/FormField', () => ({
 }));
 
 vi.mock('qrcode.react', () => ({
-  QRCodeSVG: ({ value }: { value: string }) => <div data-testid="qr-svg" data-qr-value={value} />,
+  QRCodeSVG: ({ value }: { value: string }) => (
+    <div data-testid="qr-svg" data-qr-value={value} />
+  ),
 }));
 
 function setBrowserOnline(value: boolean) {

@@ -1,0 +1,193 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 84% 4.9%;
+    --font-sans:
+      ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto,
+      'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+  }
+}
+
+/* Print stylesheet (#548): hide app chrome and show only receipt/settlement data. */
+@media print {
+  /* Hide navigation, sidebar, and interactive controls. */
+  nav,
+  aside,
+  header,
+  footer,
+  button,
+  [role='navigation'],
+  .no-print {
+    display: none !important;
+  }
+
+  /* Neutralize app layout so content fills the printed page. */
+  html,
+  body {
+    background: #fff !important;
+    color: #000 !important;
+  }
+
+  main,
+  .print-area {
+    margin: 0 !important;
+    padding: 0 !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Keep cards readable on paper without heavy shadows/backgrounds. */
+  .card {
+    box-shadow: none !important;
+    border: 1px solid #d1d5db !important;
+    break-inside: avoid;
+  }
+
+  /* Avoid awkward page breaks inside data rows. */
+  .card > div,
+  .card .grid > div {
+    break-inside: avoid;
+  }
+
+  a[href]::after {
+    content: '';
+  }
+}
+
+/* Respect users who prefer reduced motion: disable CSS animations and transitions. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+@layer utilities {
+  /* Payment success celebration: lightweight CSS-only confetti + checkmark pop.
+     Plays once (no infinite loop) and is disabled for prefers-reduced-motion. */
+  .payment-success-anim {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .payment-success-check {
+    animation: payment-check-pop 600ms cubic-bezier(0.22, 1, 0.36, 1) 1 both;
+  }
+
+  .payment-success-confetti {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    overflow: visible;
+  }
+
+  .payment-success-confetti span {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 6px;
+    height: 6px;
+    border-radius: 1px;
+    opacity: 0;
+    animation: payment-confetti-burst 900ms ease-out 1 both;
+  }
+
+  .payment-success-confetti span:nth-child(1) {
+    background: #22c55e;
+    --tx: -22px;
+    --ty: -26px;
+    animation-delay: 0ms;
+  }
+
+  .payment-success-confetti span:nth-child(2) {
+    background: #3b82f6;
+    --tx: 20px;
+    --ty: -28px;
+    animation-delay: 40ms;
+  }
+
+  .payment-success-confetti span:nth-child(3) {
+    background: #f59e0b;
+    --tx: -30px;
+    --ty: 6px;
+    animation-delay: 80ms;
+  }
+
+  .payment-success-confetti span:nth-child(4) {
+    background: #ec4899;
+    --tx: 28px;
+    --ty: 4px;
+    animation-delay: 60ms;
+  }
+
+  .payment-success-confetti span:nth-child(5) {
+    background: #8b5cf6;
+    --tx: -12px;
+    --ty: 26px;
+    animation-delay: 100ms;
+  }
+
+  .payment-success-confetti span:nth-child(6) {
+    background: #14b8a6;
+    --tx: 14px;
+    --ty: 28px;
+    animation-delay: 120ms;
+  }
+
+  @keyframes payment-check-pop {
+    0% {
+      transform: scale(0.4);
+      opacity: 0;
+    }
+    60% {
+      transform: scale(1.12);
+      opacity: 1;
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+
+  @keyframes payment-confetti-burst {
+    0% {
+      transform: translate(-50%, -50%) scale(0.6);
+      opacity: 0;
+    }
+    20% {
+      opacity: 1;
+    }
+    100% {
+      transform: translate(calc(-50% + var(--tx)), calc(-50% + var(--ty)))
+        scale(1);
+      opacity: 0;
+    }
+  }
+
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family: var(--font-sans);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .payment-success-check,
+    .payment-success-confetti span {
+      animation: none;
+    }
+
+    .payment-success-confetti {
+      display: none;
+    }
+  }
+}

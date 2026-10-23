@@ -15,11 +15,20 @@ export interface Merchant {
   businessName: string;
   status: string;
   role?: MerchantRole;
+  avatarUrl?: string;
   country?: string;
   bankAccountNumber?: string;
   bankCode?: string;
   bankName?: string;
   apiKeyScopes?: string[];
+}
+
+export interface TopMerchant {
+  merchantId: string;
+  merchantName: string;
+  totalVolume: number;
+  paymentCount: number;
+  avgOrderValue: number;
 }
 
 export interface AuthResponse {
@@ -55,6 +64,8 @@ export interface Payment {
   updatedAt?: string;
   expiresAt?: string;
   expiryMinutes?: number;
+  merchantName?: string;
+  merchantEmail?: string;
 }
 
 export interface PaymentStats {

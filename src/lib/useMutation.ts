@@ -1,8 +1,9 @@
 'use client';
 
 import { useCallback, useState } from 'react';
-import toast from '@/lib/toast';
+
 import { getErrorMessage } from '@/lib/errors';
+import toast from '@/lib/toast';
 
 interface UseMutationOptions<TData> {
   /** Toast shown on success. Pass a function to derive it from the result. Omit to stay silent. */
@@ -20,7 +21,7 @@ interface UseMutationOptions<TData> {
  */
 export function useMutation<TArgs extends unknown[], TData>(
   fn: (...args: TArgs) => Promise<TData>,
-  options: UseMutationOptions<TData> = {},
+  options: UseMutationOptions<TData> = {}
 ) {
   const [pending, setPending] = useState(false);
   const { successMessage, errorMessage, onSuccess, onError } = options;
@@ -31,19 +32,25 @@ export function useMutation<TArgs extends unknown[], TData>(
       try {
         const data = await fn(...args);
         if (successMessage) {
-          toast.success(typeof successMessage === 'function' ? successMessage(data) : successMessage);
+          toast.success(
+            typeof successMessage === 'function'
+              ? successMessage(data)
+              : successMessage
+          );
         }
         onSuccess?.(data);
         return data;
       } catch (err) {
-        toast.error(getErrorMessage(err) ?? errorMessage ?? 'Something went wrong');
+        toast.error(
+          getErrorMessage(err) ?? errorMessage ?? 'Something went wrong'
+        );
         onError?.(err);
         return undefined;
       } finally {
         setPending(false);
       }
     },
-    [fn, successMessage, errorMessage, onSuccess, onError],
+    [fn, successMessage, errorMessage, onSuccess, onError]
   );
 
   return { mutate, pending };

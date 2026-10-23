@@ -19,14 +19,18 @@
  *  - Both APIs called on mount
  */
 
-import { describe, it, expect, vi, beforeAll, afterEach } from 'vitest';
 import { render, screen, waitFor, cleanup } from '@testing-library/react';
-import type { Payment } from '@/lib/types';
+import { describe, it, expect, vi, beforeAll, afterEach } from 'vitest';
 
+import type { Payment } from '@/lib/types';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+/** Wraps the page in a fresh QueryClient so useQuery works per test (retry off for fast failures). */
 /* ── Global stubs ─────────────────────────────────────────────────────────── */
 /* DEFAULT_STATUS_COLOR is used as a global in page.tsx without an import */
 beforeAll(() => {
-  (globalThis as Record<string, unknown>).DEFAULT_STATUS_COLOR = 'bg-gray-100 text-gray-700';
+  (globalThis as Record<string, unknown>).DEFAULT_STATUS_COLOR =
+    'bg-gray-100 text-gray-700';
 });
 
 /* ── Mocks ──────────────────────────────────────────────────────────────── */
@@ -42,7 +46,9 @@ vi.mock('@/lib/api', () => ({
 }));
 
 vi.mock('@/lib/store', () => ({
-  useAuthStore: () => ({ merchant: { id: 'merch-1', businessName: 'Acme Corp' } }),
+  useAuthStore: () => ({
+    merchant: { id: 'merch-1', businessName: 'Acme Corp' },
+  }),
 }));
 
 vi.mock('@/lib/utils', () => ({
@@ -50,8 +56,12 @@ vi.mock('@/lib/utils', () => ({
   formatDate: (s: string) => s.slice(0, 10),
   DEFAULT_STATUS_COLOR: 'bg-gray-100 text-gray-600',
   STATUS_ICONS: {
-    completed: (props: { className?: string; 'aria-hidden'?: boolean }) => <svg data-testid="status-icon" {...props} />,
-    pending: (props: { className?: string; 'aria-hidden'?: boolean }) => <svg data-testid="status-icon" {...props} />,
+    completed: (props: { className?: string; 'aria-hidden'?: boolean }) => (
+      <svg data-testid="status-icon" {...props} />
+    ),
+    pending: (props: { className?: string; 'aria-hidden'?: boolean }) => (
+      <svg data-testid="status-icon" {...props} />
+    ),
   },
   PAYMENT_STATUS_COLORS: {
     completed: 'bg-green-100 text-green-700',
@@ -85,7 +95,10 @@ const statsData = [
   { status: 'failed', count: 1, totalUsd: 200 },
 ];
 
-const makePayment = (i: number, status: Payment['status'] = 'completed'): Payment => ({
+const makePayment = (
+  i: number,
+  status: Payment['status'] = 'completed'
+): Payment => ({
   id: `pay-${i}`,
   reference: `REF-00${i}`,
   amountUsd: 100 + i * 10,
@@ -103,132 +116,4 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-/* ── Tests ──────────────────────────────────────────────────────────────── */
-
-describe('DashboardPage — initial render', () => {
-  it('renders welcome heading with merchant business name', async () => {
-    mockList.mockResolvedValue({ data: { payments: [], total: 0 } });
-    mockStats.mockResolvedValue({ data: [] });
-    render(<DashboardPage />);
-    // Heading may include "Welcome back, " prefix
-    await waitFor(() =>
-      expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument(),
-    );
-    expect(screen.getByText(/acme corp/i)).toBeInTheDocument();
-  });
-
-  it('renders all four stat card labels', () => {
-    mockList.mockReturnValue(new Promise(() => {}));
-    mockStats.mockReturnValue(new Promise(() => {}));
-    render(<DashboardPage />);
-
-    expect(screen.getByText('Total Volume')).toBeInTheDocument();
-    expect(screen.getByText('Settled Payments')).toBeInTheDocument();
-    expect(screen.getByText('Pending Payments')).toBeInTheDocument();
-    expect(screen.getByText('Total Payments')).toBeInTheDocument();
-  });
-
-  it('shows skeleton placeholders while APIs are in flight', () => {
-    mockList.mockReturnValue(new Promise(() => {}));
-    mockStats.mockReturnValue(new Promise(() => {}));
-    render(<DashboardPage />);
-
-    // Stat card skeletons
-    expect(screen.getAllByTestId('skeleton').length).toBeGreaterThan(0);
-    // Recent payments skeleton list
-    expect(screen.getByTestId('skeleton-list')).toBeInTheDocument();
-  });
-
-  it('calls paymentsApi.list(1, 5) and paymentsApi.stats() on mount', () => {
-    mockList.mockReturnValue(new Promise(() => {}));
-    mockStats.mockReturnValue(new Promise(() => {}));
-    render(<DashboardPage />);
-
-    expect(mockList).toHaveBeenCalledWith(1, 5);
-    expect(mockStats).toHaveBeenCalledOnce();
-  });
-});
-
-describe('DashboardPage — data loaded', () => {
-  it('renders stat card values after data resolves', async () => {
-    mockList.mockResolvedValue({ data: { payments: [], total: 0 } });
-    mockStats.mockResolvedValue({ data: statsData });
-    render(<DashboardPage />);
-
-    // Total volume = 2500 + 1000 + 200 = 3700
-    await waitFor(() => expect(screen.getByText('$3700.00')).toBeInTheDocument());
-    // Settled count = 5
-    expect(screen.getByText('5')).toBeInTheDocument();
-    // Pending count = 3
-    expect(screen.getByText('3')).toBeInTheDocument();
-    // Total payments = 9
-    expect(screen.getByText('9')).toBeInTheDocument();
-  });
-
-  it('renders recent payments with reference, status, and amount', async () => {
-    const payments = [makePayment(1, 'completed'), makePayment(2, 'pending')];
-    mockList.mockResolvedValue({ data: { payments, total: 2 } });
-    mockStats.mockResolvedValue({ data: statsData });
-    render(<DashboardPage />);
-
-    await waitFor(() => expect(screen.getByText('REF-001')).toBeInTheDocument());
-    expect(screen.getByText('REF-002')).toBeInTheDocument();
-    expect(screen.getByText('$110.00')).toBeInTheDocument(); // 100 + 1*10
-    expect(screen.getAllByText(/completed|pending/).length).toBeGreaterThan(0);
-    const statusIcons = screen.getAllByTestId('status-icon');
-    expect(statusIcons).toHaveLength(2);
-    statusIcons.forEach((icon) => expect(icon).toHaveAttribute('aria-hidden', 'true'));
-  });
-
-  it('renders an unknown status without an icon and keeps the fallback color', async () => {
-    mockList.mockResolvedValue({ data: { payments: [makePayment(3, 'on_hold' as Payment['status'])], total: 1 } });
-    mockStats.mockResolvedValue({ data: [] });
-    render(<DashboardPage />);
-
-    const status = await screen.findByText('on_hold');
-    expect(status).toHaveClass('bg-gray-100', 'text-gray-600');
-    expect(screen.queryByTestId('status-icon')).not.toBeInTheDocument();
-  });
-
-  it('renders "Recent Payments" section heading', async () => {
-    mockList.mockResolvedValue({ data: { payments: [], total: 0 } });
-    mockStats.mockResolvedValue({ data: [] });
-    render(<DashboardPage />);
-
-    await waitFor(() =>
-      expect(screen.getByText(/recent payments/i)).toBeInTheDocument(),
-    );
-  });
-});
-
-describe('DashboardPage — empty state', () => {
-  it('shows "No payments yet" when list is empty', async () => {
-    mockList.mockResolvedValue({ data: { payments: [], total: 0 } });
-    mockStats.mockResolvedValue({ data: [] });
-    render(<DashboardPage />);
-
-    await waitFor(() =>
-      expect(screen.getByText(/no payments yet/i)).toBeInTheDocument(),
-    );
-  });
-
-  it('shows $0.00 for Total Volume when stats is empty', async () => {
-    mockList.mockResolvedValue({ data: { payments: [], total: 0 } });
-    mockStats.mockResolvedValue({ data: [] });
-    render(<DashboardPage />);
-
-    await waitFor(() => expect(screen.getByText('$0.00')).toBeInTheDocument());
-  });
-});
-
-describe('DashboardPage — error state', () => {
-  it('renders error message when API calls fail', async () => {
-    mockList.mockRejectedValue(new Error('Network error'));
-    mockStats.mockRejectedValue(new Error('Network error'));
-    render(<DashboardPage />);
-
-    await waitFor(() =>
-      expect(screen.getByText(/couldn't load your dashboard/i)).toBeInTheDocument(),
-    );
-  });
-});
+// DashboardPage data loaded

@@ -1,7 +1,9 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
+
 import { paymentsApi } from './api';
+
 import type { Payment } from './types';
 
 /**

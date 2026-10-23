@@ -1,7 +1,15 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { useAuthStore } from '@/lib/store';
+
 import AdminSettlementsPage from './page';
 
 const mockListSettlements = vi.fn();
@@ -51,11 +59,16 @@ const pendingApprovalSettlement = {
   requiresApproval: true,
 };
 
-type SettlementFixture = Omit<typeof failedSettlement, 'status'> & { status: string };
+type SettlementFixture = Omit<typeof failedSettlement, 'status'> & {
+  status: string;
+};
 
 function mockListResponse(
-  settlements: SettlementFixture[] = [failedSettlement, pendingApprovalSettlement],
-  total = settlements.length,
+  settlements: SettlementFixture[] = [
+    failedSettlement,
+    pendingApprovalSettlement,
+  ],
+  total = settlements.length
 ) {
   return {
     data: {
@@ -98,7 +111,9 @@ describe('AdminSettlementsPage', () => {
     await user.selectOptions(screen.getAllByRole('combobox')[0], 'failed');
 
     await waitFor(() => {
-      expect(mockListSettlements).toHaveBeenCalledWith('page=1&limit=20&status=failed');
+      expect(mockListSettlements).toHaveBeenCalledWith(
+        'page=1&limit=20&status=failed'
+      );
     });
     expect(mockListSettlements.mock.calls.length).toBeGreaterThanOrEqual(2);
   });
@@ -117,15 +132,24 @@ describe('AdminSettlementsPage', () => {
   it('renders a fallback icon instead of crashing on an unknown status (#353)', async () => {
     mockListSettlements.mockResolvedValue(
       mockListResponse([
-        { ...failedSettlement, id: 'settlement-unknown-1', status: 'on_hold', failureReason: '' },
-      ]),
+        {
+          ...failedSettlement,
+          id: 'settlement-unknown-1',
+          status: 'on_hold',
+          failureReason: '',
+        },
+      ])
     );
 
     const { container } = render(<AdminSettlementsPage />);
 
-    await waitFor(() => expect(screen.getAllByText('on hold').length).toBeGreaterThan(0));
+    await waitFor(() =>
+      expect(screen.getAllByText('on hold').length).toBeGreaterThan(0)
+    );
     // Both render paths (mobile card + desktop table) fall back to HelpCircle.
-    expect(container.querySelectorAll('svg.lucide-circle-help').length).toBeGreaterThan(0);
+    expect(
+      container.querySelectorAll('svg.lucide-circle-help').length
+    ).toBeGreaterThan(0);
   });
 
   it('calls retrySettlement with the correct id and shows loading state', async () => {
@@ -134,13 +158,17 @@ describe('AdminSettlementsPage', () => {
       () =>
         new Promise<void>((resolve) => {
           resolveRetry = resolve;
-        }),
+        })
     );
 
     const user = userEvent.setup();
     render(<AdminSettlementsPage />);
 
-    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Retry' }).length).toBeGreaterThan(0));
+    await waitFor(() =>
+      expect(
+        screen.getAllByRole('button', { name: 'Retry' }).length
+      ).toBeGreaterThan(0)
+    );
 
     const retryButtons = screen.getAllByRole('button', { name: 'Retry' });
     await user.click(retryButtons[0]);
@@ -149,13 +177,21 @@ describe('AdminSettlementsPage', () => {
     expect(mockRetrySettlement).not.toHaveBeenCalled();
     expect(screen.getByText('Retry settlement')).toBeInTheDocument();
 
-    await user.click(within(confirmDialog()).getByRole('button', { name: 'Retry' }));
+    await user.click(
+      within(confirmDialog()).getByRole('button', { name: 'Retry' })
+    );
 
     expect(mockRetrySettlement).toHaveBeenCalledWith('settlement-failed-1');
-    expect(screen.getAllByRole('button', { name: 'Retrying...' })[0]).toBeDisabled();
+    expect(
+      screen.getAllByRole('button', { name: 'Retrying...' })[0]
+    ).toBeDisabled();
 
     resolveRetry();
-    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Retry' })[0]).not.toBeDisabled());
+    await waitFor(() =>
+      expect(
+        screen.getAllByRole('button', { name: 'Retry' })[0]
+      ).not.toBeDisabled()
+    );
   });
 
   it('calls approveSettlement with the correct id and shows loading state', async () => {
@@ -164,14 +200,16 @@ describe('AdminSettlementsPage', () => {
       () =>
         new Promise<void>((resolve) => {
           resolveApprove = resolve;
-        }),
+        })
     );
 
     const user = userEvent.setup();
     render(<AdminSettlementsPage />);
 
     await waitFor(() =>
-      expect(screen.getAllByRole('button', { name: 'Approve' }).length).toBeGreaterThan(0),
+      expect(
+        screen.getAllByRole('button', { name: 'Approve' }).length
+      ).toBeGreaterThan(0)
     );
 
     const approveButtons = screen.getAllByRole('button', { name: 'Approve' });
@@ -180,13 +218,21 @@ describe('AdminSettlementsPage', () => {
     expect(mockApproveSettlement).not.toHaveBeenCalled();
     expect(screen.getByText('Approve settlement')).toBeInTheDocument();
 
-    await user.click(within(confirmDialog()).getByRole('button', { name: 'Approve' }));
+    await user.click(
+      within(confirmDialog()).getByRole('button', { name: 'Approve' })
+    );
 
     expect(mockApproveSettlement).toHaveBeenCalledWith('settlement-pending-1');
-    expect(screen.getAllByRole('button', { name: 'Approving...' })[0]).toBeDisabled();
+    expect(
+      screen.getAllByRole('button', { name: 'Approving...' })[0]
+    ).toBeDisabled();
 
     resolveApprove();
-    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Approve' })[0]).not.toBeDisabled());
+    await waitFor(() =>
+      expect(
+        screen.getAllByRole('button', { name: 'Approve' })[0]
+      ).not.toBeDisabled()
+    );
   });
 
   it('calls rejectSettlement with the correct id and reason', async () => {
@@ -194,7 +240,9 @@ describe('AdminSettlementsPage', () => {
     render(<AdminSettlementsPage />);
 
     await waitFor(() =>
-      expect(screen.getAllByRole('button', { name: 'Reject' }).length).toBeGreaterThan(0),
+      expect(
+        screen.getAllByRole('button', { name: 'Reject' }).length
+      ).toBeGreaterThan(0)
     );
 
     await user.click(screen.getAllByRole('button', { name: 'Reject' })[0]);
@@ -202,32 +250,50 @@ describe('AdminSettlementsPage', () => {
     expect(mockRejectSettlement).not.toHaveBeenCalled();
     expect(screen.getByText('Reject settlement')).toBeInTheDocument();
 
-    const reasonInput = within(confirmDialog()).getByLabelText('Rejection reason');
+    const reasonInput =
+      within(confirmDialog()).getByLabelText('Rejection reason');
     await user.type(reasonInput, 'Suspicious activity');
-    await user.click(within(confirmDialog()).getByRole('button', { name: 'Reject' }));
+    await user.click(
+      within(confirmDialog()).getByRole('button', { name: 'Reject' })
+    );
 
-    expect(mockRejectSettlement).toHaveBeenCalledWith('settlement-pending-1', 'Suspicious activity');
+    expect(mockRejectSettlement).toHaveBeenCalledWith(
+      'settlement-pending-1',
+      'Suspicious activity'
+    );
   });
 
   it('does not run a settlement action when the confirmation dialog is cancelled', async () => {
     const user = userEvent.setup();
     render(<AdminSettlementsPage />);
 
-    await waitFor(() => expect(screen.getAllByRole('button', { name: 'Retry' }).length).toBeGreaterThan(0));
+    await waitFor(() =>
+      expect(
+        screen.getAllByRole('button', { name: 'Retry' }).length
+      ).toBeGreaterThan(0)
+    );
 
     await user.click(screen.getAllByRole('button', { name: 'Retry' })[0]);
-    await user.click(within(confirmDialog()).getByRole('button', { name: 'Cancel' }));
+    await user.click(
+      within(confirmDialog()).getByRole('button', { name: 'Cancel' })
+    );
 
-    expect(screen.queryByTestId('settlement-confirm-dialog')).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId('settlement-confirm-dialog')
+    ).not.toBeInTheDocument();
     expect(mockRetrySettlement).not.toHaveBeenCalled();
   });
 
   it('never requests a page below 1 when Previous is clicked (#355)', async () => {
-    mockListSettlements.mockResolvedValue(mockListResponse([failedSettlement], 25));
+    mockListSettlements.mockResolvedValue(
+      mockListResponse([failedSettlement], 25)
+    );
 
     render(<AdminSettlementsPage />);
 
-    await waitFor(() => expect(mockListSettlements).toHaveBeenCalledWith('page=1&limit=20'));
+    await waitFor(() =>
+      expect(mockListSettlements).toHaveBeenCalledWith('page=1&limit=20')
+    );
 
     const previous = screen.getByRole('button', { name: 'Previous' });
     expect(previous).toBeDisabled();
@@ -235,12 +301,18 @@ describe('AdminSettlementsPage', () => {
     // Even if the disabled guard is bypassed, the decrement stays clamped at 1.
     fireEvent.click(previous);
     await waitFor(() => expect(mockListSettlements).toHaveBeenCalledTimes(1));
-    expect(mockListSettlements.mock.calls.map((call) => call[0])).toEqual(['page=1&limit=20']);
+    expect(mockListSettlements.mock.calls.map((call) => call[0])).toEqual([
+      'page=1&limit=20',
+    ]);
 
     fireEvent.click(screen.getByRole('button', { name: 'Next' }));
-    await waitFor(() => expect(mockListSettlements).toHaveBeenCalledWith('page=2&limit=20'));
+    await waitFor(() =>
+      expect(mockListSettlements).toHaveBeenCalledWith('page=2&limit=20')
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Previous' }));
-    await waitFor(() => expect(mockListSettlements).toHaveBeenCalledWith('page=1&limit=20'));
+    await waitFor(() =>
+      expect(mockListSettlements).toHaveBeenCalledWith('page=1&limit=20')
+    );
   });
 });

@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import { maskAccountNumber } from './bank-accounts-api';
 
 describe('maskAccountNumber', () => {

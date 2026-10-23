@@ -1,6 +1,5 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
 import {
   HelpCircle,
   X,
@@ -13,8 +12,10 @@ import {
   KeyRound,
   Banknote,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { useEffect, useRef, useState } from 'react';
+
 import { useFocusTrap } from '@/lib/useFocusTrap';
+import { cn } from '@/lib/utils';
 
 // ─── FAQ data ──────────────────────────────────────────────────────────────
 

@@ -1,9 +1,14 @@
 'use client';
 
 import { Sun, Moon, Monitor } from 'lucide-react';
+
 import { useThemeStore, type Theme } from '@/lib/themeStore';
 
-const THEMES: { value: Theme; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
+const THEMES: {
+  value: Theme;
+  label: string;
+  icon: React.ComponentType<{ className?: string }>;
+}[] = [
   { value: 'light', label: 'Light', icon: Sun },
   { value: 'dark', label: 'Dark', icon: Moon },
   { value: 'system', label: 'System', icon: Monitor },

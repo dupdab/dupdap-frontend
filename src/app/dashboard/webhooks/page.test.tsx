@@ -12,9 +12,16 @@
  *  - Delete flow via ConfirmDialog: cancellation leaves webhook intact, confirmation calls webhooksApi.remove and refreshes list
  */
 
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  cleanup,
+} from '@testing-library/react';
 import toast from 'react-hot-toast';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
 import WebhooksPage from './page';
 
 /* ── Mocks ──────────────────────────────────────────────────────────────── */
@@ -45,7 +52,8 @@ vi.mock('@/lib/utils', () => ({
   WEBHOOK_EVENTS: ['payment.created', 'payment.completed', 'payment.failed'],
   formatDate: (s: string) => s.slice(0, 10),
   cn: (...classes: unknown[]) => classes.filter(Boolean).join(' '),
-  maskSecret: (value: string) => `${value.slice(0, 2)}${'•'.repeat(8)}${value.slice(-2)}`,
+  maskSecret: (value: string) =>
+    `${value.slice(0, 2)}${'•'.repeat(8)}${value.slice(-2)}`,
 }));
 
 /* navigator.clipboard mock */
@@ -87,7 +95,9 @@ afterEach(() => {
 describe('WebhooksPage — rendering & list state', () => {
   it('renders heading and Add Webhook button', async () => {
     render(<WebhooksPage />);
-    expect(screen.getByRole('heading', { name: /webhooks/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: /webhooks/i })
+    ).toBeInTheDocument();
     expect(screen.getByTestId('new-webhook-button')).toBeInTheDocument();
     await waitFor(() => expect(mockList).toHaveBeenCalledOnce());
   });
@@ -95,8 +105,12 @@ describe('WebhooksPage — rendering & list state', () => {
   it('renders list of webhooks with URLs and event badges', async () => {
     render(<WebhooksPage />);
     await waitFor(() => {
-      expect(screen.getByText('https://example.com/webhook-1')).toBeInTheDocument();
-      expect(screen.getByText('https://example.com/webhook-2')).toBeInTheDocument();
+      expect(
+        screen.getByText('https://example.com/webhook-1')
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText('https://example.com/webhook-2')
+      ).toBeInTheDocument();
     });
 
     expect(screen.getByText('payment.created')).toBeInTheDocument();
@@ -136,7 +150,10 @@ describe('WebhooksPage — webhook creation flow', () => {
     fireEvent.click(screen.getByTestId('webhook-submit-button'));
 
     expect(mockCreate).not.toHaveBeenCalled();
-    expect(toast.error).toHaveBeenCalledWith('Select at least one event', expect.anything());
+    expect(toast.error).toHaveBeenCalledWith(
+      'Select at least one event',
+      expect.anything()
+    );
   });
 
   it('successfully creates a webhook when endpoint and events are provided', async () => {
@@ -175,7 +192,10 @@ describe('WebhooksPage — webhook creation flow', () => {
         events: ['payment.created'],
         secret: 'mycustomsecret',
       });
-      expect(toast.success).toHaveBeenCalledWith('Webhook created', expect.anything());
+      expect(toast.success).toHaveBeenCalledWith(
+        'Webhook created',
+        expect.anything()
+      );
       expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
     });
   });
@@ -184,7 +204,11 @@ describe('WebhooksPage — webhook creation flow', () => {
 describe('WebhooksPage — WebhookSecretRow interactions', () => {
   it('masks secret by default and toggles reveal on eye button click', async () => {
     render(<WebhooksPage />);
-    await waitFor(() => expect(screen.getByText('https://example.com/webhook-1')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(
+        screen.getByText('https://example.com/webhook-1')
+      ).toBeInTheDocument()
+    );
 
     const rawSecret = 'whsec_secret1234567890abcdef';
     // Raw secret should NOT be shown initially (masked)
@@ -204,13 +228,19 @@ describe('WebhooksPage — WebhookSecretRow interactions', () => {
 
   it('copies signing secret to clipboard on click', async () => {
     render(<WebhooksPage />);
-    await waitFor(() => expect(screen.getByText('https://example.com/webhook-1')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(
+        screen.getByText('https://example.com/webhook-1')
+      ).toBeInTheDocument()
+    );
 
     const copyBtn = screen.getByTestId('copy-secret-wh-1');
     fireEvent.click(copyBtn);
 
     await waitFor(() => {
-      expect(navigator.clipboard.writeText).toHaveBeenCalledWith('whsec_secret1234567890abcdef');
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
+        'whsec_secret1234567890abcdef'
+      );
     });
   });
 
@@ -219,14 +249,21 @@ describe('WebhooksPage — WebhookSecretRow interactions', () => {
     mockRotateSecret.mockResolvedValueOnce({ data: { secret: rotatedSecret } });
 
     render(<WebhooksPage />);
-    await waitFor(() => expect(screen.getByText('https://example.com/webhook-1')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(
+        screen.getByText('https://example.com/webhook-1')
+      ).toBeInTheDocument()
+    );
 
     const rotateBtn = screen.getByTestId('rotate-secret-wh-1');
     fireEvent.click(rotateBtn);
 
     await waitFor(() => {
       expect(mockRotateSecret).toHaveBeenCalledWith('wh-1');
-      expect(toast.success).toHaveBeenCalledWith('Signing secret rotated', expect.anything());
+      expect(toast.success).toHaveBeenCalledWith(
+        'Signing secret rotated',
+        expect.anything()
+      );
       expect(screen.getByText(rotatedSecret)).toBeInTheDocument();
     });
   });
@@ -235,7 +272,11 @@ describe('WebhooksPage — WebhookSecretRow interactions', () => {
 describe('WebhooksPage — delete confirmation flow', () => {
   it('cancels deletion when user clicks cancel in confirmation dialog', async () => {
     render(<WebhooksPage />);
-    await waitFor(() => expect(screen.getByText('https://example.com/webhook-1')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(
+        screen.getByText('https://example.com/webhook-1')
+      ).toBeInTheDocument()
+    );
 
     // Click trash button on wh-1
     fireEvent.click(screen.getByTestId('delete-webhook-wh-1'));
@@ -254,7 +295,11 @@ describe('WebhooksPage — delete confirmation flow', () => {
     mockRemove.mockResolvedValueOnce({});
 
     render(<WebhooksPage />);
-    await waitFor(() => expect(screen.getByText('https://example.com/webhook-1')).toBeInTheDocument());
+    await waitFor(() =>
+      expect(
+        screen.getByText('https://example.com/webhook-1')
+      ).toBeInTheDocument()
+    );
 
     // Click trash button on wh-1
     fireEvent.click(screen.getByTestId('delete-webhook-wh-1'));
@@ -267,7 +312,10 @@ describe('WebhooksPage — delete confirmation flow', () => {
 
     await waitFor(() => {
       expect(mockRemove).toHaveBeenCalledWith('wh-1');
-      expect(toast.success).toHaveBeenCalledWith('Webhook removed', expect.anything());
+      expect(toast.success).toHaveBeenCalledWith(
+        'Webhook removed',
+        expect.anything()
+      );
       // Verify reload is triggered
       expect(mockList).toHaveBeenCalledTimes(2);
     });

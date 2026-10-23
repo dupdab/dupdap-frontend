@@ -1,8 +1,8 @@
-import React from 'react';
 import { render, screen, waitFor, cleanup } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { AxiosError } from 'axios';
+import React from 'react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 
@@ -59,7 +59,13 @@ function makeAxiosError(status: number, message: string) {
     'ERR_BAD_REQUEST',
     undefined,
     undefined,
-    { data: { message }, status, statusText: 'Error', headers: {}, config: {} as never },
+    {
+      data: { message },
+      status,
+      statusText: 'Error',
+      headers: {},
+      config: {} as never,
+    }
   );
 }
 
@@ -85,20 +91,38 @@ describe('LoginPage', () => {
 
   it('calls authApi.login with form values on submit', async () => {
     mockLogin.mockResolvedValueOnce({
-      data: { accessToken: 'tok', merchant: { id: '1', email: 'merchant@test.com', businessName: 'Acme', status: 'active' } },
+      data: {
+        accessToken: 'tok',
+        merchant: {
+          id: '1',
+          email: 'merchant@test.com',
+          businessName: 'Acme',
+          status: 'active',
+        },
+      },
     });
 
     render(React.createElement(LoginPage));
     await fillAndSubmit('merchant@test.com', 'secret');
 
     await waitFor(() => {
-      expect(mockLogin).toHaveBeenCalledWith({ email: 'merchant@test.com', password: 'secret' });
+      expect(mockLogin).toHaveBeenCalledWith({
+        email: 'merchant@test.com',
+        password: 'secret',
+      });
     });
   });
 
   it('calls setAuth with the token and merchant on success', async () => {
-    const merchant = { id: '1', email: 'merchant@test.com', businessName: 'Acme', status: 'active' };
-    mockLogin.mockResolvedValueOnce({ data: { accessToken: 'tok123', merchant } });
+    const merchant = {
+      id: '1',
+      email: 'merchant@test.com',
+      businessName: 'Acme',
+      status: 'active',
+    };
+    mockLogin.mockResolvedValueOnce({
+      data: { accessToken: 'tok123', merchant },
+    });
 
     render(React.createElement(LoginPage));
     await fillAndSubmit();
@@ -109,7 +133,12 @@ describe('LoginPage', () => {
   });
 
   it('navigates to /dashboard after a successful login', async () => {
-    const merchant = { id: '1', email: 'merchant@test.com', businessName: 'Acme', status: 'active' };
+    const merchant = {
+      id: '1',
+      email: 'merchant@test.com',
+      businessName: 'Acme',
+      status: 'active',
+    };
     mockLogin.mockResolvedValueOnce({ data: { accessToken: 'tok', merchant } });
 
     render(React.createElement(LoginPage));
@@ -135,7 +164,12 @@ describe('LoginPage', () => {
   });
 
   it('re-enables the submit button after a successful login', async () => {
-    const merchant = { id: '1', email: 'm@b.com', businessName: 'B', status: 'active' };
+    const merchant = {
+      id: '1',
+      email: 'm@b.com',
+      businessName: 'B',
+      status: 'active',
+    };
     mockLogin.mockResolvedValueOnce({ data: { accessToken: 'tok', merchant } });
 
     render(React.createElement(LoginPage));
@@ -155,7 +189,10 @@ describe('LoginPage', () => {
     await fillAndSubmit();
 
     await waitFor(() => {
-      expect(mockToastError).toHaveBeenCalledWith(expect.stringMatching(/invalid credentials/i), expect.anything());
+      expect(mockToastError).toHaveBeenCalledWith(
+        expect.stringMatching(/invalid credentials/i),
+        expect.anything()
+      );
     });
   });
 
@@ -166,7 +203,10 @@ describe('LoginPage', () => {
     await fillAndSubmit();
 
     await waitFor(() => {
-      expect(mockToastError).toHaveBeenCalledWith('Login failed', expect.anything());
+      expect(mockToastError).toHaveBeenCalledWith(
+        'Login failed',
+        expect.anything()
+      );
     });
   });
 
@@ -195,14 +235,16 @@ describe('LoginPage', () => {
   // ── Rate limit / CAPTCHA ──────────────────────────────────────────────────
 
   it('renders a persistent inline banner with the rate-limit message on 429', async () => {
-    mockLogin.mockRejectedValueOnce(makeAxiosError(429, 'Too many attempts. Try again later.'));
+    mockLogin.mockRejectedValueOnce(
+      makeAxiosError(429, 'Too many attempts. Try again later.')
+    );
 
     render(React.createElement(LoginPage));
     await fillAndSubmit();
 
     await waitFor(() => {
       expect(screen.getByTestId('login-rate-limit-banner')).toHaveTextContent(
-        /too many attempts/i,
+        /too many attempts/i
       );
     });
   });
@@ -231,7 +273,12 @@ describe('LoginPage', () => {
   // ── ?next= redirect ───────────────────────────────────────────────────────
 
   it('navigates to /dashboard when no ?next param is present', async () => {
-    const merchant = { id: '1', email: 'm@b.com', businessName: 'B', status: 'active' };
+    const merchant = {
+      id: '1',
+      email: 'm@b.com',
+      businessName: 'B',
+      status: 'active',
+    };
     mockLogin.mockResolvedValueOnce({ data: { accessToken: 'tok', merchant } });
 
     render(React.createElement(LoginPage));

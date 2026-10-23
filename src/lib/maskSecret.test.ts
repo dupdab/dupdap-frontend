@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import { maskSecret } from './utils';
 
 describe('maskSecret() (#337)', () => {

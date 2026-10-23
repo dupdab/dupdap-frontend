@@ -1,7 +1,9 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
-import { ThemeToggle } from './ThemeToggle';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
 import { useThemeStore } from '@/lib/themeStore';
+
+import { ThemeToggle } from './ThemeToggle';
 
 afterEach(() => {
   cleanup();
@@ -21,9 +23,18 @@ describe('ThemeToggle', () => {
   it('marks the active theme button as pressed', () => {
     useThemeStore.setState({ theme: 'dark' });
     render(<ThemeToggle />);
-    expect(screen.getByTestId('theme-dark')).toHaveAttribute('aria-pressed', 'true');
-    expect(screen.getByTestId('theme-light')).toHaveAttribute('aria-pressed', 'false');
-    expect(screen.getByTestId('theme-system')).toHaveAttribute('aria-pressed', 'false');
+    expect(screen.getByTestId('theme-dark')).toHaveAttribute(
+      'aria-pressed',
+      'true'
+    );
+    expect(screen.getByTestId('theme-light')).toHaveAttribute(
+      'aria-pressed',
+      'false'
+    );
+    expect(screen.getByTestId('theme-system')).toHaveAttribute(
+      'aria-pressed',
+      'false'
+    );
   });
 
   it('calls setTheme when a button is clicked', () => {
@@ -41,8 +52,14 @@ describe('ThemeToggle', () => {
 
   it('all buttons have accessible labels', () => {
     render(<ThemeToggle />);
-    expect(screen.getByRole('button', { name: 'Light theme' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Dark theme' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'System theme' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Light theme' })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Dark theme' })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'System theme' })
+    ).toBeInTheDocument();
   });
 });

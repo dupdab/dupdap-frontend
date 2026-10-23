@@ -15,17 +15,28 @@
  *  - "Back to sign in" link present
  */
 
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  cleanup,
+} from '@testing-library/react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
+
 import ForgotPasswordPage from './page';
 
 /* jsdom matchMedia stub for react-hot-toast */
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
   value: vi.fn().mockImplementation((query: string) => ({
-    matches: false, media: query, onchange: null,
-    addListener: vi.fn(), removeListener: vi.fn(),
-    addEventListener: vi.fn(), removeEventListener: vi.fn(),
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
     dispatchEvent: vi.fn(),
   })),
 });
@@ -41,9 +52,13 @@ vi.mock('@/lib/api', () => ({
 }));
 
 vi.mock('next/link', () => ({
-  default: ({ href, children }: { href: string; children: React.ReactNode }) => (
-    <a href={href}>{children}</a>
-  ),
+  default: ({
+    href,
+    children,
+  }: {
+    href: string;
+    children: React.ReactNode;
+  }) => <a href={href}>{children}</a>,
 }));
 
 vi.mock('lucide-react', () => ({
@@ -62,7 +77,9 @@ describe('ForgotPasswordPage — form', () => {
     render(<ForgotPasswordPage />);
     // The source label has no htmlFor attribute — query input by type
     expect(screen.getByRole('textbox')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /send reset link/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: /send reset link/i })
+    ).toBeInTheDocument();
   });
 
   it('renders "Back to sign in" link', () => {
@@ -82,7 +99,9 @@ describe('ForgotPasswordPage — form', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: /send reset link/i }));
 
-    expect(await screen.findByRole('button', { name: /sending/i })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('button', { name: /sending/i })
+    ).toBeInTheDocument();
   });
 });
 
@@ -98,7 +117,7 @@ describe('ForgotPasswordPage — success flow', () => {
     fireEvent.click(screen.getByRole('button', { name: /send reset link/i }));
 
     await waitFor(() =>
-      expect(screen.getByText(/check your email/i)).toBeInTheDocument(),
+      expect(screen.getByText(/check your email/i)).toBeInTheDocument()
     );
     expect(screen.getByTestId('icon-mailcheck')).toBeInTheDocument();
     // The typed email should appear in the confirmation message
@@ -118,7 +137,7 @@ describe('ForgotPasswordPage — success flow', () => {
     fireEvent.click(screen.getByRole('button', { name: /send reset link/i }));
 
     await waitFor(() =>
-      expect(screen.getByText(/check your email/i)).toBeInTheDocument(),
+      expect(screen.getByText(/check your email/i)).toBeInTheDocument()
     );
   });
 });
@@ -136,9 +155,7 @@ describe('ForgotPasswordPage — error flow', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: /send reset link/i }));
 
-    await waitFor(() =>
-      expect(mockForgotPassword).toHaveBeenCalled(),
-    );
+    await waitFor(() => expect(mockForgotPassword).toHaveBeenCalled());
     // Confirmation screen must NOT appear
     expect(screen.queryByText(/check your email/i)).not.toBeInTheDocument();
     // Form is still present (label has no htmlFor — query by textbox role)

@@ -1,54 +1,55 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
-import { Skeleton, SkeletonList, SkeletonTableRows } from "./Skeleton";
+import { render, screen } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
 
-describe("Skeleton", () => {
-  it("sets aria-hidden to true", () => {
+import { Skeleton, SkeletonList, SkeletonTableRows } from './Skeleton';
+
+describe('Skeleton', () => {
+  it('sets aria-hidden to true', () => {
     render(<Skeleton />);
 
     const skeleton = document.querySelector("[aria-hidden='true']");
     expect(skeleton).not.toBeNull();
-    expect(skeleton).toHaveAttribute("aria-hidden", "true");
+    expect(skeleton).toHaveAttribute('aria-hidden', 'true');
   });
 
-  it("applies the provided className", () => {
+  it('applies the provided className', () => {
     render(<Skeleton className="custom-skeleton" />);
 
-    expect(document.querySelector(".custom-skeleton")).not.toBeNull();
+    expect(document.querySelector('.custom-skeleton')).not.toBeNull();
   });
 });
 
-describe("SkeletonList", () => {
+describe('SkeletonList', () => {
   // Each row renders a fixed set of placeholder bars (two in the leading
   // column, one trailing), so the skeleton count scales with the row count.
   const SKELETONS_PER_ROW = 3;
   const DEFAULT_ROWS = 5;
 
-  it("renders the requested number of rows", () => {
+  it('renders the requested number of rows', () => {
     const { container } = render(<SkeletonList rows={4} />);
 
     expect(container.querySelectorAll("[aria-hidden='true']")).toHaveLength(
-      4 * SKELETONS_PER_ROW,
+      4 * SKELETONS_PER_ROW
     );
   });
 
-  it("defaults to five rows", () => {
+  it('defaults to five rows', () => {
     const { container } = render(<SkeletonList />);
 
     expect(container.querySelectorAll("[aria-hidden='true']")).toHaveLength(
-      DEFAULT_ROWS * SKELETONS_PER_ROW,
+      DEFAULT_ROWS * SKELETONS_PER_ROW
     );
   });
 });
 
-describe("SkeletonTableRows", () => {
-  it("renders rows * cols cells for the given props", () => {
+describe('SkeletonTableRows', () => {
+  it('renders rows * cols cells for the given props', () => {
     const { container } = render(<SkeletonTableRows rows={3} cols={5} />);
 
     expect(container.querySelectorAll("[aria-hidden='true']")).toHaveLength(15);
   });
 
-  it("renders the expected number of cells for a different shape", () => {
+  it('renders the expected number of cells for a different shape', () => {
     const { container } = render(<SkeletonTableRows rows={2} cols={4} />);
 
     expect(container.querySelectorAll("[aria-hidden='true']")).toHaveLength(8);

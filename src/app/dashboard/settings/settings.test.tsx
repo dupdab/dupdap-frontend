@@ -16,8 +16,15 @@
  *  - Confirmation dialog gates key generation
  */
 
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  cleanup,
+} from '@testing-library/react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
+
 import SettingsPage from './page';
 
 /* jsdom does not implement matchMedia — stub it so react-hot-toast doesn't crash */
@@ -103,21 +110,29 @@ describe('SettingsPage — profile form', () => {
 
   it('renders the Settings heading', async () => {
     renderPage();
-    expect(screen.getByRole('heading', { name: /settings/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: /settings/i })
+    ).toBeInTheDocument();
   });
 
   it('pre-populates form fields from profile API', async () => {
     renderPage();
-    await waitFor(() => expect(screen.getByLabelText(/business name/i)).toHaveValue('Acme Corp'));
+    await waitFor(() =>
+      expect(screen.getByLabelText(/business name/i)).toHaveValue('Acme Corp')
+    );
     expect(screen.getByLabelText(/country/i)).toHaveValue('US');
     expect(screen.getByLabelText(/bank name/i)).toHaveValue('Chase');
     expect(screen.getByLabelText(/bank code/i)).toHaveValue('1234');
-    expect(screen.getByLabelText(/bank account number/i)).toHaveValue('9876543210');
+    expect(screen.getByLabelText(/bank account number/i)).toHaveValue(
+      '9876543210'
+    );
   });
 
   it('submits updated profile and shows success toast', async () => {
     renderPage();
-    await waitFor(() => expect(screen.getByLabelText(/business name/i)).toHaveValue('Acme Corp'));
+    await waitFor(() =>
+      expect(screen.getByLabelText(/business name/i)).toHaveValue('Acme Corp')
+    );
 
     fireEvent.change(screen.getByLabelText(/business name/i), {
       target: { value: 'New Corp' },
@@ -127,8 +142,8 @@ describe('SettingsPage — profile form', () => {
 
     await waitFor(() =>
       expect(mockUpdate).toHaveBeenCalledWith(
-        expect.objectContaining({ businessName: 'New Corp' }),
-      ),
+        expect.objectContaining({ businessName: 'New Corp' })
+      )
     );
   });
 
@@ -142,12 +157,14 @@ describe('SettingsPage — profile form', () => {
     });
 
     renderPage();
-    await waitFor(() => expect(screen.getByLabelText(/business name/i)).toHaveValue('Acme Corp'));
+    await waitFor(() =>
+      expect(screen.getByLabelText(/business name/i)).toHaveValue('Acme Corp')
+    );
 
     fireEvent.click(screen.getByRole('button', { name: /save changes/i }));
 
     await waitFor(() =>
-      expect(screen.getByText('Must be 3-6 digits')).toBeInTheDocument(),
+      expect(screen.getByText('Must be 3-6 digits')).toBeInTheDocument()
     );
   });
 
@@ -157,21 +174,27 @@ describe('SettingsPage — profile form', () => {
     });
 
     renderPage();
-    await waitFor(() => expect(screen.getByLabelText(/business name/i)).toHaveValue('Acme Corp'));
+    await waitFor(() =>
+      expect(screen.getByLabelText(/business name/i)).toHaveValue('Acme Corp')
+    );
 
     fireEvent.click(screen.getByRole('button', { name: /save changes/i }));
 
-    await waitFor(() =>
-      expect(mockUpdate).toHaveBeenCalled(),
-    );
+    await waitFor(() => expect(mockUpdate).toHaveBeenCalled());
   });
 
   it('disables Save button while request is in flight', async () => {
     let resolve!: (v: unknown) => void;
-    mockUpdate.mockReturnValueOnce(new Promise((r) => { resolve = r; }));
+    mockUpdate.mockReturnValueOnce(
+      new Promise((r) => {
+        resolve = r;
+      })
+    );
 
     renderPage();
-    await waitFor(() => expect(screen.getByLabelText(/business name/i)).toHaveValue('Acme Corp'));
+    await waitFor(() =>
+      expect(screen.getByLabelText(/business name/i)).toHaveValue('Acme Corp')
+    );
 
     const btn = screen.getByRole('button', { name: /save changes/i });
     fireEvent.click(btn);
@@ -189,16 +212,20 @@ describe('SettingsPage — API key scopes', () => {
   it('renders current scope list from profile', async () => {
     renderPage();
     await waitFor(() =>
-      expect(screen.getByText('payments:read')).toBeInTheDocument(),
+      expect(screen.getByText('payments:read')).toBeInTheDocument()
     );
     expect(screen.getByText('settlements:read')).toBeInTheDocument();
   });
 
   it('shows "No API key scopes" when profile returns empty scopes', async () => {
-    mockProfile.mockResolvedValue({ data: { ...profileData, apiKeyScopes: [] } });
+    mockProfile.mockResolvedValue({
+      data: { ...profileData, apiKeyScopes: [] },
+    });
     renderPage();
     await waitFor(() =>
-      expect(screen.getByText(/no api key scopes assigned yet/i)).toBeInTheDocument(),
+      expect(
+        screen.getByText(/no api key scopes assigned yet/i)
+      ).toBeInTheDocument()
     );
   });
 
@@ -222,8 +249,12 @@ describe('SettingsPage — API key generation', () => {
 
   /** Clicks "Generate new API key" then confirms in the shared ConfirmDialog (#335). */
   async function confirmGenerate() {
-    fireEvent.click(screen.getByRole('button', { name: /generate new api key/i }));
-    fireEvent.click(await screen.findByRole('button', { name: /^generate key$/i }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /generate new api key/i })
+    );
+    fireEvent.click(
+      await screen.findByRole('button', { name: /^generate key$/i })
+    );
   }
 
   beforeEach(() => {
@@ -236,7 +267,9 @@ describe('SettingsPage — API key generation', () => {
     renderPage();
     await waitFor(() => expect(mockProfile).toHaveBeenCalled());
 
-    fireEvent.click(screen.getByRole('button', { name: /generate new api key/i }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /generate new api key/i })
+    );
 
     // The app's own dialog is used — no native confirm, nothing generated yet.
     expect(screen.getByRole('alertdialog')).toBeInTheDocument();
@@ -246,7 +279,9 @@ describe('SettingsPage — API key generation', () => {
     fireEvent.click(screen.getByRole('button', { name: /^generate key$/i }));
 
     await waitFor(() => expect(mockGenerateApiKey).toHaveBeenCalled());
-    await waitFor(() => expect(screen.getByText(/save this key now/i)).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText(/save this key now/i)).toBeInTheDocument()
+    );
   });
 
   it('generates API key on confirmation and shows masked value', async () => {
@@ -256,7 +291,9 @@ describe('SettingsPage — API key generation', () => {
     await confirmGenerate();
 
     // Key should be masked by default — dots visible, not the raw key
-    await waitFor(() => expect(screen.getByText(/save this key now/i)).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText(/save this key now/i)).toBeInTheDocument()
+    );
     expect(screen.queryByText(generatedKey)).not.toBeInTheDocument();
   });
 
@@ -264,7 +301,9 @@ describe('SettingsPage — API key generation', () => {
     renderPage();
     await waitFor(() => expect(mockProfile).toHaveBeenCalled());
 
-    fireEvent.click(screen.getByRole('button', { name: /generate new api key/i }));
+    fireEvent.click(
+      screen.getByRole('button', { name: /generate new api key/i })
+    );
     fireEvent.click(await screen.findByRole('button', { name: /^cancel$/i }));
 
     await new Promise((r) => setTimeout(r, 50));
@@ -279,7 +318,9 @@ describe('SettingsPage — API key generation', () => {
 
     await confirmGenerate();
 
-    await waitFor(() => expect(screen.getByText(/save this key now/i)).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText(/save this key now/i)).toBeInTheDocument()
+    );
     // An 8-character key reveals at most 2 + 2 characters (#337).
     expect(screen.getByText('ab••••••••xy')).toBeInTheDocument();
     expect(screen.queryByText('abc123xy')).not.toBeInTheDocument();
@@ -290,7 +331,9 @@ describe('SettingsPage — API key generation', () => {
     await waitFor(() => expect(mockProfile).toHaveBeenCalled());
 
     await confirmGenerate();
-    await waitFor(() => expect(screen.getByText(/save this key now/i)).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText(/save this key now/i)).toBeInTheDocument()
+    );
 
     const revealBtn = screen.getByRole('button', { name: /reveal api key/i });
     fireEvent.click(revealBtn);
@@ -306,12 +349,14 @@ describe('SettingsPage — API key generation', () => {
     await waitFor(() => expect(mockProfile).toHaveBeenCalled());
 
     await confirmGenerate();
-    await waitFor(() => expect(screen.getByText(/save this key now/i)).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText(/save this key now/i)).toBeInTheDocument()
+    );
 
     fireEvent.click(screen.getByRole('button', { name: /copy api key/i }));
 
     await waitFor(() =>
-      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(generatedKey),
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(generatedKey)
     );
   });
 
@@ -320,85 +365,102 @@ describe('SettingsPage — API key generation', () => {
     await waitFor(() => expect(mockProfile).toHaveBeenCalled());
 
     await confirmGenerate();
-    await waitFor(() => expect(screen.getByText(/save this key now/i)).toBeInTheDocument());
+    await waitFor(() =>
+      expect(screen.getByText(/save this key now/i)).toBeInTheDocument()
+    );
 
     fireEvent.click(screen.getByRole('button', { name: /i've saved it/i }));
 
+    describe('SettingsPage — undismissed API key navigation guard (#336)', () => {
+      const generatedKey = 'sk_live_abcdefghijklmnop';
 
-describe('SettingsPage — undismissed API key navigation guard (#336)', () => {
-  const generatedKey = 'sk_live_abcdefghijklmnop';
+      beforeEach(() => {
+        mockProfile.mockResolvedValue({ data: profileData });
+        mockGenerateApiKey.mockResolvedValue({
+          data: { apiKey: generatedKey },
+        });
+        mockConfirm.mockReturnValue(true);
+      });
 
-  beforeEach(() => {
-    mockProfile.mockResolvedValue({ data: profileData });
-    mockGenerateApiKey.mockResolvedValue({ data: { apiKey: generatedKey } });
-    mockConfirm.mockReturnValue(true);
-  });
+      /** Renders the page alongside an in-app nav link, as the sidebar provides. */
+      async function renderWithNavLink() {
+        renderPage();
+        await waitFor(() => expect(mockProfile).toHaveBeenCalled());
 
-  /** Renders the page alongside an in-app nav link, as the sidebar provides. */
-  async function renderWithNavLink() {
-    renderPage();
-    await waitFor(() => expect(mockProfile).toHaveBeenCalled());
+        const link = document.createElement('a');
+        link.href = '/dashboard/payments';
+        link.textContent = 'Payments';
+        document.body.appendChild(link);
+        return link;
+      }
 
-    const link = document.createElement('a');
-    link.href = '/dashboard/payments';
-    link.textContent = 'Payments';
-    document.body.appendChild(link);
-    return link;
-  }
+      async function generateKey() {
+        fireEvent.click(
+          screen.getByRole('button', { name: /generate new api key/i })
+        );
+        fireEvent.click(
+          await screen.findByRole('button', { name: /^generate key$/i })
+        );
+        await waitFor(() =>
+          expect(screen.getByText(/save this key now/i)).toBeInTheDocument()
+        );
+      }
 
-  async function generateKey() {
-    fireEvent.click(screen.getByRole('button', { name: /generate new api key/i }));
-    fireEvent.click(await screen.findByRole('button', { name: /^generate key$/i }));
-    await waitFor(() => expect(screen.getByText(/save this key now/i)).toBeInTheDocument());
-  }
+      function clickLink(link: HTMLAnchorElement) {
+        const event = new MouseEvent('click', {
+          bubbles: true,
+          cancelable: true,
+          button: 0,
+        });
+        link.dispatchEvent(event);
+        return event;
+      }
 
-  function clickLink(link: HTMLAnchorElement) {
-    const event = new MouseEvent('click', { bubbles: true, cancelable: true, button: 0 });
-    link.dispatchEvent(event);
-    return event;
-  }
+      it('warns before navigating away while the key is still on screen', async () => {
+        const link = await renderWithNavLink();
+        await generateKey();
 
-  it('warns before navigating away while the key is still on screen', async () => {
-    const link = await renderWithNavLink();
-    await generateKey();
+        const event = clickLink(link);
 
-    const event = clickLink(link);
+        expect(mockConfirm).toHaveBeenCalledWith(
+          expect.stringMatching(/only shown once/i)
+        );
+        expect(event.defaultPrevented).toBe(true);
+      });
 
-    expect(mockConfirm).toHaveBeenCalledWith(expect.stringMatching(/only shown once/i));
-    expect(event.defaultPrevented).toBe(true);
-  });
+      it('blocks the navigation when the merchant cancels the warning', async () => {
+        mockConfirm.mockReturnValue(false);
+        const link = await renderWithNavLink();
+        await generateKey();
 
-  it('blocks the navigation when the merchant cancels the warning', async () => {
-    mockConfirm.mockReturnValue(false);
-    const link = await renderWithNavLink();
-    await generateKey();
+        expect(clickLink(link).defaultPrevented).toBe(true);
+      });
 
-    expect(clickLink(link).defaultPrevented).toBe(true);
-  });
+      it('registers a beforeunload guard while the key is on screen', async () => {
+        await renderWithNavLink();
+        await generateKey();
 
-  it('registers a beforeunload guard while the key is on screen', async () => {
-    await renderWithNavLink();
-    await generateKey();
+        const event = new Event('beforeunload', { cancelable: true });
+        window.dispatchEvent(event);
 
-    const event = new Event('beforeunload', { cancelable: true });
-    window.dispatchEvent(event);
+        expect(event.defaultPrevented).toBe(true);
+      });
 
-    expect(event.defaultPrevented).toBe(true);
-  });
+      it('stops guarding once the merchant dismisses the key', async () => {
+        const link = await renderWithNavLink();
+        await generateKey();
 
-  it('stops guarding once the merchant dismisses the key', async () => {
-    const link = await renderWithNavLink();
-    await generateKey();
+        fireEvent.click(screen.getByRole('button', { name: /i've saved it/i }));
+        expect(
+          screen.queryByText(/save this key now/i)
+        ).not.toBeInTheDocument();
 
-    fireEvent.click(screen.getByRole('button', { name: /i've saved it/i }));
-    expect(screen.queryByText(/save this key now/i)).not.toBeInTheDocument();
-
-    mockConfirm.mockClear();
-    // No key to lose and the form is untouched, so navigation is not blocked.
-    expect(clickLink(link).defaultPrevented).toBe(false);
-    expect(mockConfirm).not.toHaveBeenCalled();
-  });
-});
+        mockConfirm.mockClear();
+        // No key to lose and the form is untouched, so navigation is not blocked.
+        expect(clickLink(link).defaultPrevented).toBe(false);
+        expect(mockConfirm).not.toHaveBeenCalled();
+      });
+    });
 
     expect(screen.queryByText(/save this key now/i)).not.toBeInTheDocument();
   });

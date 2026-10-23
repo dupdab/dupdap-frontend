@@ -1,5 +1,13 @@
-import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
 import axios from 'axios';
+import {
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  vi,
+} from 'vitest';
 
 vi.mock('axios', () => {
   const mockInstance = {
@@ -36,13 +44,15 @@ interface OfflineRetryError {
 }
 
 describe('Axios offline retry (#547)', () => {
-  let responseErrorHandler: ((err: OfflineRetryError) => Promise<unknown>) | undefined;
+  let responseErrorHandler:
+    ((err: OfflineRetryError) => Promise<unknown>) | undefined;
   let mockRequest: ReturnType<typeof vi.fn>;
 
   beforeAll(async () => {
     await import('./api');
 
-    const instance = vi.mocked(axios.create).mock.results[0]?.value as unknown as {
+    const instance = vi.mocked(axios.create).mock.results[0]
+      ?.value as unknown as {
       interceptors: { response: { use: ReturnType<typeof vi.fn> } };
       request: ReturnType<typeof vi.fn>;
     };
@@ -83,7 +93,7 @@ describe('Axios offline retry (#547)', () => {
     await expect(pending).resolves.toBe(response);
     expect(mockRequest).toHaveBeenCalledTimes(1);
     expect(mockRequest).toHaveBeenCalledWith(
-      expect.objectContaining({ url: '/payments', __offlineRetryCount: 1 }),
+      expect.objectContaining({ url: '/payments', __offlineRetryCount: 1 })
     );
   });
 

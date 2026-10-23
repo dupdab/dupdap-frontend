@@ -1,15 +1,16 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
-import { LoadingSpinner } from "./LoadingSpinner";
+import { render, screen } from '@testing-library/react';
+import { describe, expect, it } from 'vitest';
 
-describe("LoadingSpinner", () => {
-  it("exposes a status role with the default label", () => {
+import { LoadingSpinner } from './LoadingSpinner';
+
+describe('LoadingSpinner', () => {
+  it('exposes a status role with the default label', () => {
     render(<LoadingSpinner />);
-    expect(screen.getByRole("status")).toHaveTextContent("Loading…");
+    expect(screen.getByRole('status')).toHaveTextContent('Loading…');
   });
 
-  it("applies a custom className", () => {
+  it('applies a custom className', () => {
     render(<LoadingSpinner className="custom" />);
-    expect(screen.getByRole("status")).toHaveClass("custom");
+    expect(screen.getByRole('status')).toHaveClass('custom');
   });
 });

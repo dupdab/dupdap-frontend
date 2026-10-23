@@ -4,13 +4,14 @@
  * Issue #304: username availability check race condition
  * Issue #305: unrecognized username-check response shapes default to error
  */
-import React from 'react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor, act } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
+import React from 'react';
 import toast from 'react-hot-toast';
-import { waitlistApi } from '@/lib/api';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import WaitlistPage from '@/app/waitlist/page';
+import { waitlistApi } from '@/lib/api';
 
 // ─── Mocks ──────────────────────────────────────────────────────────────────
 
@@ -33,9 +34,13 @@ vi.mock('react-hot-toast', () => ({
 
 vi.mock('next/link', () => ({
   __esModule: true,
-  default: ({ children, href }: { children: React.ReactNode; href: string }) => (
-    <a href={href}>{children}</a>
-  ),
+  default: ({
+    children,
+    href,
+  }: {
+    children: React.ReactNode;
+    href: string;
+  }) => <a href={href}>{children}</a>,
 }));
 
 const mockJoin = vi.mocked(waitlistApi.join);
@@ -88,7 +93,9 @@ describe('WaitlistPage', () => {
       });
 
       // Form should no longer be visible
-      expect(screen.queryByRole('button', { name: /join waitlist/i })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: /join waitlist/i })
+      ).not.toBeInTheDocument();
     });
 
     it('calls waitlistApi.join with the submitted email', async () => {
@@ -100,7 +107,7 @@ describe('WaitlistPage', () => {
 
       await waitFor(() => {
         expect(mockJoin).toHaveBeenCalledWith(
-          expect.objectContaining({ email: 'merchant@example.com' }),
+          expect.objectContaining({ email: 'merchant@example.com' })
         );
       });
     });
@@ -119,7 +126,9 @@ describe('WaitlistPage', () => {
       });
 
       // Form should still be visible
-      expect(screen.getByRole('button', { name: /join waitlist/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: /join waitlist/i })
+      ).toBeInTheDocument();
     });
 
     it('shows the API error message in the toast', async () => {
@@ -136,7 +145,10 @@ describe('WaitlistPage', () => {
       await fillAndSubmit('taken@example.com');
 
       await waitFor(() => {
-        expect(mockToastError).toHaveBeenCalledWith('Email already registered', expect.anything());
+        expect(mockToastError).toHaveBeenCalledWith(
+          'Email already registered',
+          expect.anything()
+        );
       });
     });
 
@@ -148,7 +160,10 @@ describe('WaitlistPage', () => {
       await fillAndSubmit('user@example.com');
 
       await waitFor(() => {
-        expect(mockToastError).toHaveBeenCalledWith('Failed to join waitlist', expect.anything());
+        expect(mockToastError).toHaveBeenCalledWith(
+          'Failed to join waitlist',
+          expect.anything()
+        );
       });
     });
 
@@ -183,7 +198,9 @@ describe('WaitlistPage', () => {
 
     it('disables inputs while submission is in-flight', async () => {
       // Never resolves — keeps loading state
-      mockJoin.mockReturnValue(new Promise(() => {}) as ReturnType<typeof waitlistApi.join>);
+      mockJoin.mockReturnValue(
+        new Promise(() => {}) as ReturnType<typeof waitlistApi.join>
+      );
 
       render(<WaitlistPage />);
 
@@ -197,14 +214,18 @@ describe('WaitlistPage', () => {
     });
 
     it('shows "Joining..." text on the button while submitting', async () => {
-      mockJoin.mockReturnValue(new Promise(() => {}) as ReturnType<typeof waitlistApi.join>);
+      mockJoin.mockReturnValue(
+        new Promise(() => {}) as ReturnType<typeof waitlistApi.join>
+      );
 
       render(<WaitlistPage />);
 
       await fillAndSubmit('user@example.com');
 
       await waitFor(() => {
-        expect(screen.getByRole('button', { name: /joining/i })).toBeInTheDocument();
+        expect(
+          screen.getByRole('button', { name: /joining/i })
+        ).toBeInTheDocument();
       });
     });
   });
@@ -214,10 +235,14 @@ describe('WaitlistPage', () => {
       const user = userEvent.setup();
 
       // First check (for "alice") resolves slowly; second check (for "alice2") resolves fast.
-      let resolveFirst: (v: { data: { available: boolean } }) => void = () => {};
-      const firstPromise = new Promise<{ data: { available: boolean } }>((resolve) => {
-        resolveFirst = resolve;
-      });
+      let resolveFirst: (v: {
+        data: { available: boolean };
+      }) => void = () => {};
+      const firstPromise = new Promise<{ data: { available: boolean } }>(
+        (resolve) => {
+          resolveFirst = resolve;
+        }
+      );
 
       mockCheckUsername.mockImplementation((username: string) => {
         if (username === 'alice') {
@@ -261,7 +286,9 @@ describe('WaitlistPage', () => {
       const user = userEvent.setup();
 
       // Response with none of the anticipated boolean fields.
-      mockCheckUsername.mockResolvedValue({ data: { status: 'unknown' } } as never);
+      mockCheckUsername.mockResolvedValue({
+        data: { status: 'unknown' },
+      } as never);
 
       render(<WaitlistPage />);
 
@@ -278,7 +305,9 @@ describe('WaitlistPage', () => {
     it('treats an error payload returned with a 200 status as an error, not available', async () => {
       const user = userEvent.setup();
 
-      mockCheckUsername.mockResolvedValue({ data: { error: 'rate limited' } } as never);
+      mockCheckUsername.mockResolvedValue({
+        data: { error: 'rate limited' },
+      } as never);
 
       render(<WaitlistPage />);
 
@@ -294,7 +323,9 @@ describe('WaitlistPage', () => {
     it('still reports "available" for the recognized data.available shape', async () => {
       const user = userEvent.setup();
 
-      mockCheckUsername.mockResolvedValue({ data: { available: true } } as never);
+      mockCheckUsername.mockResolvedValue({
+        data: { available: true },
+      } as never);
 
       render(<WaitlistPage />);
 

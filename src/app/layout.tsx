@@ -1,10 +1,12 @@
-import type { Metadata } from 'next';
 import { Toaster } from 'react-hot-toast';
-import { ThemeScript } from '@/components/ThemeScript';
-import { ThemeProvider } from '@/components/ThemeProvider';
-import { LocaleProvider } from '@/lib/locale';
-import { QueryProvider } from '@/components/QueryProvider';
+
 import CookieConsent from '@/components/CookieConsent';
+import { QueryProvider } from '@/components/QueryProvider';
+import { ThemeProvider } from '@/components/ThemeProvider';
+import { ThemeScript } from '@/components/ThemeScript';
+import { LocaleProvider } from '@/lib/locale';
+
+import type { Metadata } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -17,7 +19,11 @@ export const metadata: Metadata = {
   metadataBase: new URL('https://dupdub.com'),
 };
 
-export default function RootLayout({ children }: { children: React.ReactNode }) {
+export default function RootLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   return (
     <html lang="en" suppressHydrationWarning>
       <head>

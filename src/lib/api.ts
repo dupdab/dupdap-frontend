@@ -1,7 +1,9 @@
-import axios from 'axios';
+import axios, { type AxiosRequestConfig } from 'axios';
+
+import { redirectToLogin } from './auth-redirect';
 import { getApiUrl } from './env';
 import { useAuthStore } from './store';
-import { redirectToLogin } from './auth-redirect';
+
 import type {
   AuthResponse,
   Merchant,
@@ -10,6 +12,7 @@ import type {
   PaymentStats,
   SettlementListResponse,
   Settlement,
+  TopMerchant,
   Webhook,
   ApiKey,
 } from './types';
@@ -152,10 +155,22 @@ export const paymentsApi = {
     customerEmail?: string;
     expiryMinutes?: number;
   }) => api.post<Payment>('/payments', data),
-  list: (page = 1, limit = 20) =>
-    api.get<PaymentListResponse>(`/payments?page=${page}&limit=${limit}`),
+  /**
+   * Accepts an optional axios config so callers can pass an AbortSignal for
+   * cancellable in-flight requests (React Query request deduplication).
+   */
+  list: (page = 1, limit = 20, config?: AxiosRequestConfig) =>
+    api.get<PaymentListResponse>(
+      `/payments?page=${page}&limit=${limit}`,
+      config
+    ),
   get: (id: string) => api.get<Payment>(`/payments/${id}`),
-  stats: () => api.get<PaymentStats[]>('/payments/stats'),
+  stats: (config?: AxiosRequestConfig) =>
+    api.get<PaymentStats[]>('/payments/stats', config),
+  topMerchants: (range?: string) =>
+    api.get<TopMerchant[]>(
+      `/payments/top-merchants${range ? `?range=${range}` : ''}`
+    ),
   getByReference: (ref: string) => api.get<Payment>(`/pay/${ref}`),
 };
 

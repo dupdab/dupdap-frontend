@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import { formatUsd } from './utils';
 
 describe('formatUsd()', () => {

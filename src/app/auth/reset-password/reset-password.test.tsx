@@ -23,17 +23,28 @@
  *  - "Back to sign in" link present
  */
 
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  cleanup,
+} from '@testing-library/react';
 import { describe, it, expect, vi, afterEach } from 'vitest';
-import { render, screen, fireEvent, waitFor, cleanup } from '@testing-library/react';
+
 import ResetPasswordPage from './page';
 
 /* jsdom matchMedia stub for react-hot-toast */
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
   value: vi.fn().mockImplementation((query: string) => ({
-    matches: false, media: query, onchange: null,
-    addListener: vi.fn(), removeListener: vi.fn(),
-    addEventListener: vi.fn(), removeEventListener: vi.fn(),
+    matches: false,
+    media: query,
+    onchange: null,
+    addListener: vi.fn(),
+    removeListener: vi.fn(),
+    addEventListener: vi.fn(),
+    removeEventListener: vi.fn(),
     dispatchEvent: vi.fn(),
   })),
 });
@@ -56,9 +67,13 @@ vi.mock('next/navigation', () => ({
 }));
 
 vi.mock('next/link', () => ({
-  default: ({ href, children }: { href: string; children: React.ReactNode }) => (
-    <a href={href}>{children}</a>
-  ),
+  default: ({
+    href,
+    children,
+  }: {
+    href: string;
+    children: React.ReactNode;
+  }) => <a href={href}>{children}</a>,
 }));
 
 afterEach(() => {
@@ -85,7 +100,9 @@ function renderNoToken() {
  * The source labels have no htmlFor — query by type + position.
  */
 function getPasswordInputs(container: HTMLElement) {
-  const inputs = container.querySelectorAll<HTMLInputElement>('input[type="password"]');
+  const inputs = container.querySelectorAll<HTMLInputElement>(
+    'input[type="password"]'
+  );
   return { newPw: inputs[0], confirmPw: inputs[1] };
 }
 
@@ -95,14 +112,14 @@ describe('ResetPasswordPage — no token (invalid link)', () => {
   it('renders "Invalid reset link" guard when token is absent', async () => {
     renderNoToken();
     await waitFor(() =>
-      expect(screen.getByText(/invalid reset link/i)).toBeInTheDocument(),
+      expect(screen.getByText(/invalid reset link/i)).toBeInTheDocument()
     );
   });
 
   it('does not render password inputs when token is absent', async () => {
     const { container } = renderNoToken();
     await waitFor(() =>
-      expect(screen.getByText(/invalid reset link/i)).toBeInTheDocument(),
+      expect(screen.getByText(/invalid reset link/i)).toBeInTheDocument()
     );
     expect(container.querySelectorAll('input[type="password"]').length).toBe(0);
   });
@@ -129,7 +146,9 @@ describe('ResetPasswordPage — form rendering', () => {
   it('renders the Update password submit button', async () => {
     renderWithToken();
     await waitFor(() =>
-      expect(screen.getByRole('button', { name: /update password/i })).toBeInTheDocument(),
+      expect(
+        screen.getByRole('button', { name: /update password/i })
+      ).toBeInTheDocument()
     );
   });
 
@@ -146,7 +165,7 @@ describe('ResetPasswordPage — password strength checklist', () => {
   it('shows strength rules as user types the password', async () => {
     const { container } = renderWithToken();
     await waitFor(() =>
-      expect(getPasswordInputs(container).newPw).toBeTruthy(),
+      expect(getPasswordInputs(container).newPw).toBeTruthy()
     );
 
     fireEvent.change(getPasswordInputs(container).newPw, {
@@ -164,7 +183,9 @@ describe('ResetPasswordPage — password strength checklist', () => {
 describe('ResetPasswordPage — validation', () => {
   it('shows mismatch error when confirm password differs', async () => {
     const { container } = renderWithToken();
-    await waitFor(() => expect(getPasswordInputs(container).newPw).toBeTruthy());
+    await waitFor(() =>
+      expect(getPasswordInputs(container).newPw).toBeTruthy()
+    );
 
     const { newPw, confirmPw } = getPasswordInputs(container);
     fireEvent.change(newPw, { target: { value: 'Password1' } });
@@ -175,24 +196,32 @@ describe('ResetPasswordPage — validation', () => {
 
   it('submit button is disabled when password does not meet all rules', async () => {
     const { container } = renderWithToken();
-    await waitFor(() => expect(getPasswordInputs(container).newPw).toBeTruthy());
+    await waitFor(() =>
+      expect(getPasswordInputs(container).newPw).toBeTruthy()
+    );
 
     const { newPw, confirmPw } = getPasswordInputs(container);
     fireEvent.change(newPw, { target: { value: 'weak' } });
     fireEvent.change(confirmPw, { target: { value: 'weak' } });
 
-    expect(screen.getByRole('button', { name: /update password/i })).toBeDisabled();
+    expect(
+      screen.getByRole('button', { name: /update password/i })
+    ).toBeDisabled();
   });
 
   it('submit button is enabled when all rules pass and passwords match', async () => {
     const { container } = renderWithToken();
-    await waitFor(() => expect(getPasswordInputs(container).newPw).toBeTruthy());
+    await waitFor(() =>
+      expect(getPasswordInputs(container).newPw).toBeTruthy()
+    );
 
     const { newPw, confirmPw } = getPasswordInputs(container);
     fireEvent.change(newPw, { target: { value: 'StrongPass1' } });
     fireEvent.change(confirmPw, { target: { value: 'StrongPass1' } });
 
-    expect(screen.getByRole('button', { name: /update password/i })).toBeEnabled();
+    expect(
+      screen.getByRole('button', { name: /update password/i })
+    ).toBeEnabled();
   });
 });
 
@@ -200,7 +229,9 @@ describe('ResetPasswordPage — submit flow', () => {
   it('calls authApi.resetPassword with token and new password on submit', async () => {
     mockResetPassword.mockResolvedValue({});
     const { container } = renderWithToken('test-token-123');
-    await waitFor(() => expect(getPasswordInputs(container).newPw).toBeTruthy());
+    await waitFor(() =>
+      expect(getPasswordInputs(container).newPw).toBeTruthy()
+    );
 
     const { newPw, confirmPw } = getPasswordInputs(container);
     fireEvent.change(newPw, { target: { value: 'StrongPass1' } });
@@ -211,14 +242,16 @@ describe('ResetPasswordPage — submit flow', () => {
       expect(mockResetPassword).toHaveBeenCalledWith({
         token: 'test-token-123',
         password: 'StrongPass1',
-      }),
+      })
     );
   });
 
   it('redirects to /auth/login on successful reset', async () => {
     mockResetPassword.mockResolvedValue({});
     const { container } = renderWithToken();
-    await waitFor(() => expect(getPasswordInputs(container).newPw).toBeTruthy());
+    await waitFor(() =>
+      expect(getPasswordInputs(container).newPw).toBeTruthy()
+    );
 
     const { newPw, confirmPw } = getPasswordInputs(container);
     fireEvent.change(newPw, { target: { value: 'StrongPass1' } });
@@ -226,7 +259,7 @@ describe('ResetPasswordPage — submit flow', () => {
     fireEvent.click(screen.getByRole('button', { name: /update password/i }));
 
     await waitFor(() =>
-      expect(mockRouterPush).toHaveBeenCalledWith('/auth/login'),
+      expect(mockRouterPush).toHaveBeenCalledWith('/auth/login')
     );
   });
 
@@ -235,7 +268,9 @@ describe('ResetPasswordPage — submit flow', () => {
       response: { data: { message: 'Token expired' } },
     });
     const { container } = renderWithToken();
-    await waitFor(() => expect(getPasswordInputs(container).newPw).toBeTruthy());
+    await waitFor(() =>
+      expect(getPasswordInputs(container).newPw).toBeTruthy()
+    );
 
     const { newPw, confirmPw } = getPasswordInputs(container);
     fireEvent.change(newPw, { target: { value: 'StrongPass1' } });

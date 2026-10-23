@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import { formatDate } from './utils';
 
 // formatDate uses Intl.DateTimeFormat('en-US', ...) — pin locale output by

@@ -1,7 +1,8 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
+import { useCallback, useEffect, useState } from 'react';
+
 import { formatNgn } from '@/lib/utils';
 
 interface AuditEntry {
@@ -26,9 +27,13 @@ interface Settlement {
 
 const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? '';
 
-export default function AdminSettlementDetailPage() {
+export default function AdminSettlementDetailPage({
+  params: paramsProp,
+}: {
+  params?: { settlementId: string };
+}) {
   const params = useParams<{ settlementId: string }>();
-  const settlementId = params?.settlementId;
+  const settlementId = paramsProp?.settlementId ?? params?.settlementId;
 
   const [settlement, setSettlement] = useState<Settlement | null>(null);
   const [loading, setLoading] = useState(true);

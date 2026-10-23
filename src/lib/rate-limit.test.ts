@@ -1,5 +1,10 @@
 import { describe, it, expect } from 'vitest';
-import { isNearRateLimit, parseRateLimit, rateLimitPercent } from './rate-limit';
+
+import {
+  isNearRateLimit,
+  parseRateLimit,
+  rateLimitPercent,
+} from './rate-limit';
 
 describe('rate-limit', () => {
   it('computes percent clamped to 0-100', () => {
@@ -12,8 +17,14 @@ describe('rate-limit', () => {
     expect(isNearRateLimit({ limit: 100, used: 80 })).toBe(true);
   });
   it('parses response shapes', () => {
-    expect(parseRateLimit({ limit: 60, used: 10 })).toEqual({ limit: 60, used: 10 });
-    expect(parseRateLimit({ limit: 60, remaining: 20 })).toEqual({ limit: 60, used: 40 });
+    expect(parseRateLimit({ limit: 60, used: 10 })).toEqual({
+      limit: 60,
+      used: 10,
+    });
+    expect(parseRateLimit({ limit: 60, remaining: 20 })).toEqual({
+      limit: 60,
+      used: 40,
+    });
     expect(parseRateLimit({})).toBeNull();
   });
 });

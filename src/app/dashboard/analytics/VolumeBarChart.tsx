@@ -10,6 +10,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from 'recharts';
+
 import { formatUsd } from '@/lib/utils';
 
 interface BarDataPoint {
@@ -27,14 +28,27 @@ interface Props {
 export default function VolumeBarChart({ data }: Props) {
   const [compare, setCompare] = useState(false);
   const hasPrevious = data.some(
-    (d) => d.previousAmount !== undefined || d.previousCount !== undefined,
+    (d) => d.previousAmount !== undefined || d.previousCount !== undefined
   );
 
   return (
     <div>
       {hasPrevious && (
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 8 }}>
-          <label style={{ fontSize: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+        <div
+          style={{
+            display: 'flex',
+            justifyContent: 'flex-end',
+            marginBottom: 8,
+          }}
+        >
+          <label
+            style={{
+              fontSize: 12,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 6,
+            }}
+          >
             <input
               type="checkbox"
               checked={compare}
@@ -60,7 +74,8 @@ export default function VolumeBarChart({ data }: Props) {
           />
           <Tooltip
             formatter={(value: number, name: string) =>
-              name.toLowerCase().includes('volume') || name.toLowerCase().includes('amount')
+              name.toLowerCase().includes('volume') ||
+              name.toLowerCase().includes('amount')
                 ? formatUsd(value)
                 : value
             }

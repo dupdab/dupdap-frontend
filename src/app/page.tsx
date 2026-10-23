@@ -1,14 +1,21 @@
-import type { Metadata } from 'next';
+import { ArrowRight, Zap, Shield, Globe, QrCode, Check, X } from 'lucide-react';
+import dynamic from 'next/dynamic';
 import { headers } from 'next/headers';
 import Link from 'next/link';
-import dynamic from 'next/dynamic';
-import { ArrowRight, Zap, Shield, Globe, QrCode, Check, X } from 'lucide-react';
+
 import { LandingNav } from '@/components/LandingNav';
+
+import type { Metadata } from 'next';
 
 // Lazy-load the hero illustration so it never contributes to LCP (#573).
 const PaymentFlowIllustration = dynamic(
   () => import('@/components/PaymentFlowIllustration'),
-  { ssr: false, loading: () => <div className="max-w-3xl mx-auto mt-16 h-[200px]" aria-hidden="true" /> },
+  {
+    ssr: false,
+    loading: () => (
+      <div className="max-w-3xl mx-auto mt-16 h-[200px]" aria-hidden="true" />
+    ),
+  }
 );
 
 export const metadata: Metadata = {
@@ -43,7 +50,8 @@ const jsonLd = {
   '@context': 'https://schema.org',
   '@type': 'Organization',
   name: 'DupDub',
-  description: 'Crypto-to-fiat settlement platform bridging Web3 payments with traditional banking.',
+  description:
+    'Crypto-to-fiat settlement platform bridging Web3 payments with traditional banking.',
   url: 'https://dupdub.com',
 };
 
@@ -72,16 +80,32 @@ const pricingTiers = [
 ];
 
 const comparisonRows = [
-  { feature: 'Transaction fee', dupdub: 'From 0.5%', traditional: '2.9% + $0.30' },
-  { feature: 'Settlement speed', dupdub: '~5 seconds', traditional: '1–3 business days' },
-  { feature: 'Cross-border fees', dupdub: 'None', traditional: '2–4% + FX markup' },
-  { feature: 'Chargebacks', dupdub: 'Not possible', traditional: 'Common, with fees' },
+  {
+    feature: 'Transaction fee',
+    dupdub: 'From 0.5%',
+    traditional: '2.9% + $0.30',
+  },
+  {
+    feature: 'Settlement speed',
+    dupdub: '~5 seconds',
+    traditional: '1–3 business days',
+  },
+  {
+    feature: 'Cross-border fees',
+    dupdub: 'None',
+    traditional: '2–4% + FX markup',
+  },
+  {
+    feature: 'Chargebacks',
+    dupdub: 'Not possible',
+    traditional: 'Common, with fees',
+  },
   { feature: 'Setup cost', dupdub: 'Free', traditional: 'Varies by provider' },
 ];
 
 const faqs = [
   {
-    q: 'How are the fees calculated?',
+    q: 'How are fees calculated?',
     a: 'Fees are a percentage of each settled payment. The standard rate is 1.5%, dropping to 1.0% and 0.5% as your monthly volume grows.',
   },
   {
@@ -119,14 +143,19 @@ export default function LandingPage() {
           Powered by Stellar Network
         </div>
         <h1 className="text-5xl font-bold text-gray-900 mb-6 leading-tight">
-          Accept crypto,<br />receive fiat — instantly
+          Accept crypto,
+          <br />
+          receive fiat — instantly
         </h1>
         <p className="text-xl text-gray-500 max-w-2xl mx-auto mb-10">
-          DupDub bridges Web3 payments with traditional banking. Merchants receive NGN/USD settlements
-          while customers pay with USDC on Stellar.
+          DupDub bridges Web3 payments with traditional banking. Merchants
+          receive NGN/USD settlements while customers pay with USDC on Stellar.
         </p>
         <div className="flex items-center justify-center gap-4">
-          <Link href="/auth/register" className="btn-primary flex items-center gap-2 text-base px-6 py-3">
+          <Link
+            href="/auth/register"
+            className="btn-primary flex items-center gap-2 text-base px-6 py-3"
+          >
             Start accepting payments <ArrowRight className="w-4 h-4" />
           </Link>
           <Link href="/waitlist" className="btn-secondary text-base px-6 py-3">
@@ -179,13 +208,27 @@ export default function LandingPage() {
       {/* How it works */}
       <section className="max-w-6xl mx-auto px-6 py-20">
         <h2 className="text-3xl font-bold text-center mb-4">How it works</h2>
-        <p className="text-gray-500 text-center mb-12">Three steps to your first settlement</p>
+        <p className="text-gray-500 text-center mb-12">
+          Three steps to your first settlement
+        </p>
         {/* ul/li gives screen readers "list of N items" grouping context (#155) */}
         <ul className="grid grid-cols-1 md:grid-cols-3 gap-8 list-none p-0 m-0">
           {[
-            { step: '01', title: 'Create payment', desc: 'Enter amount in USD. We generate a QR code with your Stellar deposit address.' },
-            { step: '02', title: 'Customer approves + deposits', desc: 'Customer scans QR, approves USDC allowance for escrow, then calls deposit from their Stellar wallet.' },
-            { step: '03', title: 'Receive fiat', desc: 'We detect the payment, convert to fiat, and transfer to your bank account automatically.' },
+            {
+              step: '01',
+              title: 'Create payment',
+              desc: 'Enter amount in USD. We generate a QR code with your Stellar deposit address.',
+            },
+            {
+              step: '02',
+              title: 'Customer approves + deposits',
+              desc: 'Customer scans QR, approves USDC allowance for escrow, then calls deposit from their Stellar wallet.',
+            },
+            {
+              step: '03',
+              title: 'Receive fiat',
+              desc: 'We detect the payment, convert to fiat, and transfer to your bank account automatically.',
+            },
           ].map(({ step, title, desc }) => (
             <li key={step} className="text-center">
               <div className="w-12 h-12 bg-brand-500 text-white rounded-full flex items-center justify-center font-bold mx-auto mb-4">
@@ -201,9 +244,12 @@ export default function LandingPage() {
       {/* Pricing */}
       <section id="pricing" className="bg-gray-50 border-y border-gray-100">
         <div className="max-w-6xl mx-auto px-6 py-20">
-          <h2 className="text-3xl font-bold text-center mb-4">Simple, transparent pricing</h2>
+          <h2 className="text-3xl font-bold text-center mb-4">
+            Simple, transparent pricing
+          </h2>
           <p className="text-gray-500 text-center mb-12">
-            Pay only for what you settle. Fees drop automatically as your volume grows.
+            Pay only for what you settle. Fees drop automatically as your volume
+            grows.
           </p>
           <ul className="grid grid-cols-1 md:grid-cols-3 gap-6 list-none p-0 m-0">
             {pricingTiers.map(({ name, rate, volume, desc, highlight }) => (
@@ -214,8 +260,13 @@ export default function LandingPage() {
                 <h3 className="font-semibold text-lg mb-1">{name}</h3>
                 <p className="text-sm text-gray-500 mb-4">{desc}</p>
                 <div className="mb-1">
-                  <span className="text-4xl font-bold text-gray-900">{rate}</span>
-                  <span className="text-sm text-gray-500"> per transaction</span>
+                  <span className="text-4xl font-bold text-gray-900">
+                    {rate}
+                  </span>
+                  <span className="text-sm text-gray-500">
+                    {' '}
+                    per transaction
+                  </span>
                 </div>
                 <p className="text-sm text-gray-500 mb-6">{volume}</p>
                 <Link
@@ -234,20 +285,42 @@ export default function LandingPage() {
 
           {/* Comparison table */}
           <div className="mt-16">
-            <h3 className="text-2xl font-bold text-center mb-8">DupDub vs traditional processors</h3>
+            <h3 className="text-2xl font-bold text-center mb-8">
+              DupDub vs traditional processors
+            </h3>
             <div className="overflow-x-auto">
               <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="border-b border-gray-200">
-                    <th scope="col" className="py-3 pr-4 font-semibold text-gray-900">Feature</th>
-                    <th scope="col" className="py-3 px-4 font-semibold text-brand-600">DupDub</th>
-                    <th scope="col" className="py-3 pl-4 font-semibold text-gray-900">Traditional processors</th>
+                    <th
+                      scope="col"
+                      className="py-3 pr-4 font-semibold text-gray-900"
+                    >
+                      Feature
+                    </th>
+                    <th
+                      scope="col"
+                      className="py-3 px-4 font-semibold text-brand-600"
+                    >
+                      DupDub
+                    </th>
+                    <th
+                      scope="col"
+                      className="py-3 pl-4 font-semibold text-gray-900"
+                    >
+                      Traditional payment processors
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
                   {comparisonRows.map(({ feature, dupdub, traditional }) => (
                     <tr key={feature} className="border-b border-gray-100">
-                      <th scope="row" className="py-3 pr-4 font-medium text-gray-700">{feature}</th>
+                      <th
+                        scope="row"
+                        className="py-3 pr-4 font-medium text-gray-700"
+                      >
+                        {feature}
+                      </th>
                       <td className="py-3 px-4 text-gray-900">
                         <span className="inline-flex items-center gap-1.5">
                           <Check className="w-4 h-4 text-green-600" /> {dupdub}
@@ -267,7 +340,9 @@ export default function LandingPage() {
 
           {/* FAQ accordion */}
           <div className="mt-16 max-w-3xl mx-auto">
-            <h3 className="text-2xl font-bold text-center mb-8">Frequently asked questions</h3>
+            <h2 className="text-2xl font-bold text-center mb-8">
+              Frequently asked questions
+            </h2>
             <div className="space-y-3">
               {faqs.map(({ q, a }) => (
                 <details key={q} className="card p-4 group">
@@ -283,8 +358,11 @@ export default function LandingPage() {
 
           {/* Pricing CTA */}
           <div className="mt-16 text-center">
-            <Link href="/auth/register" className="btn-primary inline-flex items-center gap-2 text-base px-6 py-3">
-              Start accepting payments <ArrowRight className="w-4 h-4" />
+            <Link
+              href="/auth/register"
+              className="btn-primary inline-flex items-center gap-2 text-base px-6 py-3"
+            >
+              Get started with DupDub <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
         </div>
@@ -293,9 +371,16 @@ export default function LandingPage() {
       {/* CTA */}
       <section className="bg-brand-500">
         <div className="max-w-6xl mx-auto px-6 py-16 text-center">
-          <h2 className="text-3xl font-bold text-white mb-4">Ready to get started?</h2>
-          <p className="text-brand-100 mb-8">Join merchants accepting crypto payments today</p>
-          <Link href="/auth/register" className="bg-white text-brand-600 font-semibold px-8 py-3 rounded-lg hover:bg-brand-50 transition-colors inline-flex items-center gap-2">
+          <h2 className="text-3xl font-bold text-white mb-4">
+            Ready to get started?
+          </h2>
+          <p className="text-brand-100 mb-8">
+            Join merchants accepting crypto payments today
+          </p>
+          <Link
+            href="/auth/register"
+            className="bg-white text-brand-600 font-semibold px-8 py-3 rounded-lg hover:bg-brand-50 transition-colors inline-flex items-center gap-2"
+          >
             Create free account <ArrowRight className="w-4 h-4" />
           </Link>
         </div>

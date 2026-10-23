@@ -1,10 +1,19 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, waitFor, within, cleanup, fireEvent } from '@testing-library/react';
+import {
+  render,
+  screen,
+  waitFor,
+  within,
+  cleanup,
+  fireEvent,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import toast from 'react-hot-toast';
-import PaymentsPage from './page';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
 import { paymentsApi } from '@/lib/api';
 import type { Payment } from '@/lib/types';
+
+import PaymentsPage from './page';
 
 vi.mock('@/lib/api', () => ({
   paymentsApi: {
@@ -123,7 +132,12 @@ describe('PaymentsPage', () => {
 
   it('submits the create-payment form with parsed numeric fields', async () => {
     const user = userEvent.setup();
-    const createdPayment = { ...basePayment, id: 'pay-new', reference: 'REF-NEW', amountUsd: 12.5 };
+    const createdPayment = {
+      ...basePayment,
+      id: 'pay-new',
+      reference: 'REF-NEW',
+      amountUsd: 12.5,
+    };
     vi.mocked(paymentsApi.create).mockResolvedValue({
       data: createdPayment,
     } as Awaited<ReturnType<typeof paymentsApi.create>>);
@@ -135,10 +149,18 @@ describe('PaymentsPage', () => {
     const modal = await screen.findByTestId('create-payment-modal');
     const fields = within(modal);
 
-    fireEvent.change(fields.getByLabelText('Amount (USD)'), { target: { value: '12.50' } });
-    fireEvent.change(fields.getByLabelText('Description (optional)'), { target: { value: 'Test invoice' } });
-    fireEvent.change(fields.getByLabelText('Customer Email (optional)'), { target: { value: 'buyer@example.com' } });
-    fireEvent.change(fields.getByLabelText('Expires in (minutes)'), { target: { value: '60' } });
+    fireEvent.change(fields.getByLabelText('Amount (USD)'), {
+      target: { value: '12.50' },
+    });
+    fireEvent.change(fields.getByLabelText('Description (optional)'), {
+      target: { value: 'Test invoice' },
+    });
+    fireEvent.change(fields.getByLabelText('Customer Email (optional)'), {
+      target: { value: 'buyer@example.com' },
+    });
+    fireEvent.change(fields.getByLabelText('Expires in (minutes)'), {
+      target: { value: '60' },
+    });
     await user.click(fields.getByTestId('create-payment-submit'));
 
     await waitFor(() => {
@@ -191,7 +213,11 @@ describe('PaymentsPage', () => {
 
   it('clears the form and shows the QR modal after a successful create', async () => {
     const user = userEvent.setup();
-    const createdPayment = { ...basePayment, id: 'pay-new', reference: 'REF-NEW' };
+    const createdPayment = {
+      ...basePayment,
+      id: 'pay-new',
+      reference: 'REF-NEW',
+    };
     vi.mocked(paymentsApi.create).mockResolvedValue({
       data: createdPayment,
     } as Awaited<ReturnType<typeof paymentsApi.create>>);
@@ -207,7 +233,9 @@ describe('PaymentsPage', () => {
     await user.click(fields.getByTestId('create-payment-submit'));
 
     await waitFor(() => {
-      expect(screen.queryByTestId('create-payment-modal')).not.toBeInTheDocument();
+      expect(
+        screen.queryByTestId('create-payment-modal')
+      ).not.toBeInTheDocument();
     });
 
     const qrModal = await screen.findByTestId('payment-qr-modal');
@@ -216,17 +244,24 @@ describe('PaymentsPage', () => {
 
     await user.click(screen.getByTestId('new-payment-button'));
     const reopenedModal = await screen.findByTestId('create-payment-modal');
-    expect((within(reopenedModal).getByLabelText('Amount (USD)') as HTMLInputElement).value).toBe('');
+    expect(
+      (within(reopenedModal).getByLabelText('Amount (USD)') as HTMLInputElement)
+        .value
+    ).toBe('');
   });
 
   it('renders an error banner when paymentsApi.list rejects', async () => {
-    vi.mocked(paymentsApi.list).mockRejectedValueOnce(new Error('Network error loading payments'));
+    vi.mocked(paymentsApi.list).mockRejectedValueOnce(
+      new Error('Network error loading payments')
+    );
 
     render(<PaymentsPage />);
 
     await waitFor(() => {
       expect(screen.getByTestId('payments-error')).toBeInTheDocument();
-      expect(screen.getByTestId('payments-error')).toHaveTextContent('Network error loading payments');
+      expect(screen.getByTestId('payments-error')).toHaveTextContent(
+        'Network error loading payments'
+      );
     });
 
     expect(screen.queryByText('No payments yet')).not.toBeInTheDocument();
@@ -239,14 +274,26 @@ describe('PaymentsPage', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('payments-error')).toBeInTheDocument();
-      expect(screen.getByTestId('payments-error')).toHaveTextContent("Couldn't load payments.");
+      expect(screen.getByTestId('payments-error')).toHaveTextContent(
+        "Couldn't load payments."
+      );
     });
     expect(screen.queryByText('No payments yet')).not.toBeInTheDocument();
   });
 
   it('resets the copy-success state when a different payment is selected', async () => {
-    const paymentA: Payment = { ...basePayment, id: 'pay-a', reference: 'REF-A', stellarMemo: 'MEMO-A' };
-    const paymentB: Payment = { ...basePayment, id: 'pay-b', reference: 'REF-B', stellarMemo: 'MEMO-B' };
+    const paymentA: Payment = {
+      ...basePayment,
+      id: 'pay-a',
+      reference: 'REF-A',
+      stellarMemo: 'MEMO-A',
+    };
+    const paymentB: Payment = {
+      ...basePayment,
+      id: 'pay-b',
+      reference: 'REF-B',
+      stellarMemo: 'MEMO-B',
+    };
     mockListResponse([paymentA, paymentB], 2);
 
     render(<PaymentsPage />);
@@ -256,7 +303,10 @@ describe('PaymentsPage', () => {
     await userEvent.click(qrButtons[0]);
     const modalA = await screen.findByTestId('payment-qr-modal');
     await userEvent.click(within(modalA).getByTestId('copy-memo-button'));
-    expect(within(modalA).getByTestId('copy-memo-button')).toHaveAttribute('data-copied', 'true');
+    expect(within(modalA).getByTestId('copy-memo-button')).toHaveAttribute(
+      'data-copied',
+      'true'
+    );
 
     await userEvent.click(within(modalA).getByTestId('payment-qr-modal-close'));
     await waitFor(() => {
@@ -265,6 +315,9 @@ describe('PaymentsPage', () => {
 
     await userEvent.click(qrButtons[1]);
     const modalB = await screen.findByTestId('payment-qr-modal');
-    expect(within(modalB).getByTestId('copy-memo-button')).toHaveAttribute('data-copied', 'false');
+    expect(within(modalB).getByTestId('copy-memo-button')).toHaveAttribute(
+      'data-copied',
+      'false'
+    );
   });
 });

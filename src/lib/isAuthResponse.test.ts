@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import { isAuthResponse } from './types';
 
 describe('isAuthResponse runtime type guard', () => {
@@ -41,27 +42,63 @@ describe('isAuthResponse runtime type guard', () => {
 
   it('returns false when accessToken is missing or invalid', () => {
     expect(isAuthResponse({ merchant: { id: 'm-1' } })).toBe(false);
-    expect(isAuthResponse({ accessToken: '', merchant: { id: 'm-1' } })).toBe(false);
-    expect(isAuthResponse({ accessToken: 12345, merchant: { id: 'm-1' } })).toBe(false);
-    expect(isAuthResponse({ accessToken: null, merchant: { id: 'm-1' } })).toBe(false);
-    expect(isAuthResponse({ accessToken: undefined, merchant: { id: 'm-1' } })).toBe(false);
-    expect(isAuthResponse({ accessToken: {}, merchant: { id: 'm-1' } })).toBe(false);
+    expect(isAuthResponse({ accessToken: '', merchant: { id: 'm-1' } })).toBe(
+      false
+    );
+    expect(
+      isAuthResponse({ accessToken: 12345, merchant: { id: 'm-1' } })
+    ).toBe(false);
+    expect(isAuthResponse({ accessToken: null, merchant: { id: 'm-1' } })).toBe(
+      false
+    );
+    expect(
+      isAuthResponse({ accessToken: undefined, merchant: { id: 'm-1' } })
+    ).toBe(false);
+    expect(isAuthResponse({ accessToken: {}, merchant: { id: 'm-1' } })).toBe(
+      false
+    );
   });
 
   it('returns false when merchant is missing, null, or not an object', () => {
     expect(isAuthResponse({ accessToken: 'valid-token' })).toBe(false);
-    expect(isAuthResponse({ accessToken: 'valid-token', merchant: null })).toBe(false);
-    expect(isAuthResponse({ accessToken: 'valid-token', merchant: undefined })).toBe(false);
-    expect(isAuthResponse({ accessToken: 'valid-token', merchant: 'string-merchant' })).toBe(false);
-    expect(isAuthResponse({ accessToken: 'valid-token', merchant: 999 })).toBe(false);
+    expect(isAuthResponse({ accessToken: 'valid-token', merchant: null })).toBe(
+      false
+    );
+    expect(
+      isAuthResponse({ accessToken: 'valid-token', merchant: undefined })
+    ).toBe(false);
+    expect(
+      isAuthResponse({
+        accessToken: 'valid-token',
+        merchant: 'string-merchant',
+      })
+    ).toBe(false);
+    expect(isAuthResponse({ accessToken: 'valid-token', merchant: 999 })).toBe(
+      false
+    );
   });
 
   it('returns false when merchant.id is missing, empty, or not a string', () => {
-    expect(isAuthResponse({ accessToken: 'valid-token', merchant: {} })).toBe(false);
-    expect(isAuthResponse({ accessToken: 'valid-token', merchant: { id: '' } })).toBe(false);
-    expect(isAuthResponse({ accessToken: 'valid-token', merchant: { id: null } })).toBe(false);
-    expect(isAuthResponse({ accessToken: 'valid-token', merchant: { id: undefined } })).toBe(false);
-    expect(isAuthResponse({ accessToken: 'valid-token', merchant: { id: 123 } })).toBe(false);
-    expect(isAuthResponse({ accessToken: 'valid-token', merchant: { id: ['m-1'] } })).toBe(false);
+    expect(isAuthResponse({ accessToken: 'valid-token', merchant: {} })).toBe(
+      false
+    );
+    expect(
+      isAuthResponse({ accessToken: 'valid-token', merchant: { id: '' } })
+    ).toBe(false);
+    expect(
+      isAuthResponse({ accessToken: 'valid-token', merchant: { id: null } })
+    ).toBe(false);
+    expect(
+      isAuthResponse({
+        accessToken: 'valid-token',
+        merchant: { id: undefined },
+      })
+    ).toBe(false);
+    expect(
+      isAuthResponse({ accessToken: 'valid-token', merchant: { id: 123 } })
+    ).toBe(false);
+    expect(
+      isAuthResponse({ accessToken: 'valid-token', merchant: { id: ['m-1'] } })
+    ).toBe(false);
   });
 });

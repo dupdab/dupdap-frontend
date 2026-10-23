@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect } from 'react';
-import Link from 'next/link';
 import { AlertTriangle } from 'lucide-react';
+import Link from 'next/link';
+import { useEffect } from 'react';
 
 interface ErrorPageProps {
   /** The error thrown by the failing route segment. */
@@ -27,9 +27,10 @@ interface ErrorPageProps {
  * - Heading is linked to the alert region via `aria-labelledby`.
  */
 export default function GlobalError({ error, reset }: ErrorPageProps) {
-  // Log to the console so developers can see the stack in DevTools even though
-  // the visual UI only shows a human-readable message.
   useEffect(() => {
+    // Log to the console so developers can see the stack in DevTools even though
+    // the visual UI only shows a human-readable message.
+    // eslint-disable-next-line no-console
     console.error('[GlobalError boundary]', error);
   }, [error]);
 
@@ -38,11 +39,7 @@ export default function GlobalError({ error, reset }: ErrorPageProps) {
       className="min-h-screen flex items-center justify-center bg-gray-50 px-4"
       aria-labelledby="error-heading"
     >
-      <div
-        role="alert"
-        aria-live="assertive"
-        className="text-center max-w-md"
-      >
+      <div role="alert" aria-live="assertive" className="text-center max-w-md">
         <div
           className="inline-flex items-center justify-center w-16 h-16 rounded-full bg-red-50 mb-5"
           aria-hidden="true"
@@ -58,8 +55,8 @@ export default function GlobalError({ error, reset }: ErrorPageProps) {
         </h1>
 
         <p className="text-gray-500 text-sm mb-2">
-          An unexpected error occurred. You can try again, or go back to a
-          safe page.
+          An unexpected error occurred. You can try again, or go back to a safe
+          page.
         </p>
 
         {/* Surface the error digest (if any) so support can trace it in

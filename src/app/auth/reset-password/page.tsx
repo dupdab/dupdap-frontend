@@ -1,21 +1,34 @@
 'use client';
 
-import { Suspense, useState } from 'react';
-import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import toast from '@/lib/toast';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useState } from 'react';
+
+import { LoadingSpinner } from '@/components/LoadingSpinner';
 import { authApi } from '@/lib/api';
 import { getErrorMessage } from '@/lib/errors';
-import { LoadingSpinner } from '@/components/LoadingSpinner';
+import toast from '@/lib/toast';
 
 /**
  * Password strength rules. Shared shape with the register page so a user
  * creating an account and a user resetting one are held to the same bar.
  */
 const PASSWORD_REQUIREMENTS = [
-  { key: 'length', label: 'At least 8 characters', test: (v: string) => v.length >= 8 },
-  { key: 'uppercase', label: 'An uppercase letter', test: (v: string) => /[A-Z]/.test(v) },
-  { key: 'lowercase', label: 'A lowercase letter', test: (v: string) => /[a-z]/.test(v) },
+  {
+    key: 'length',
+    label: 'At least 8 characters',
+    test: (v: string) => v.length >= 8,
+  },
+  {
+    key: 'uppercase',
+    label: 'An uppercase letter',
+    test: (v: string) => /[A-Z]/.test(v),
+  },
+  {
+    key: 'lowercase',
+    label: 'A lowercase letter',
+    test: (v: string) => /[a-z]/.test(v),
+  },
   { key: 'number', label: 'A number', test: (v: string) => /[0-9]/.test(v) },
 ];
 
@@ -28,10 +41,13 @@ function ResetPasswordForm() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const checks = PASSWORD_REQUIREMENTS.reduce<Record<string, boolean>>((acc, req) => {
-    acc[req.key] = req.test(password);
-    return acc;
-  }, {});
+  const checks = PASSWORD_REQUIREMENTS.reduce<Record<string, boolean>>(
+    (acc, req) => {
+      acc[req.key] = req.test(password);
+      return acc;
+    },
+    {}
+  );
   const passwordValid = PASSWORD_REQUIREMENTS.every((req) => checks[req.key]);
   const passwordsMatch = password === confirmPassword;
 
@@ -49,7 +65,9 @@ function ResetPasswordForm() {
       toast.success('Your password has been reset. Please sign in.');
       router.push('/auth/login');
     } catch (err) {
-      toast.error(getErrorMessage(err) ?? 'This reset link is invalid or has expired.');
+      toast.error(
+        getErrorMessage(err) ?? 'This reset link is invalid or has expired.'
+      );
     } finally {
       setLoading(false);
     }
@@ -63,7 +81,8 @@ function ResetPasswordForm() {
         <div className="flex flex-col gap-2 text-center">
           <h1 className="text-2xl font-semibold">Invalid reset link</h1>
           <p className="text-sm text-muted-foreground">
-            This password reset link is missing or invalid. Request a new one to continue.
+            This password reset link is missing or invalid. Request a new one to
+            continue.
           </p>
         </div>
         <p className="text-center text-sm text-muted-foreground">
@@ -105,7 +124,10 @@ function ResetPasswordForm() {
             className="mt-1 flex flex-col gap-1 text-sm text-muted-foreground"
           >
             {PASSWORD_REQUIREMENTS.map((req) => (
-              <li key={req.key} className={checks[req.key] ? 'text-green-600' : undefined}>
+              <li
+                key={req.key}
+                className={checks[req.key] ? 'text-green-600' : undefined}
+              >
                 <span aria-hidden="true">{checks[req.key] ? '✓' : '•'}</span>{' '}
                 {req.label}
               </li>
@@ -123,13 +145,19 @@ function ResetPasswordForm() {
             type="password"
             value={confirmPassword}
             onChange={(e) => setConfirmPassword(e.target.value)}
-            aria-describedby={!passwordsMatch ? 'confirm-password-error' : undefined}
+            aria-describedby={
+              !passwordsMatch ? 'confirm-password-error' : undefined
+            }
             aria-invalid={!passwordsMatch}
             required
             className="rounded-md border px-3 py-2 text-sm"
           />
           {!passwordsMatch && (
-            <p id="confirm-password-error" role="alert" className="text-xs text-red-500">
+            <p
+              id="confirm-password-error"
+              role="alert"
+              className="text-xs text-red-500"
+            >
               Passwords do not match
             </p>
           )}
@@ -159,7 +187,13 @@ function ResetPasswordForm() {
  */
 export default function ResetPasswordPage() {
   return (
-    <Suspense fallback={<div className="mx-auto w-full max-w-md py-16 text-center text-sm text-muted-foreground"><LoadingSpinner showLabel /></div>}>
+    <Suspense
+      fallback={
+        <div className="mx-auto w-full max-w-md py-16 text-center text-sm text-muted-foreground">
+          <LoadingSpinner showLabel />
+        </div>
+      }
+    >
       <ResetPasswordForm />
     </Suspense>
   );

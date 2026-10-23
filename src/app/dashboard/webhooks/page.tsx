@@ -1,6 +1,5 @@
 'use client';
 
-import { memo, useCallback, useEffect, useState } from 'react';
 import {
   Plus,
   Trash2,
@@ -10,14 +9,16 @@ import {
   EyeOff,
   RefreshCw,
 } from 'lucide-react';
-import toast from '@/lib/toast';
-import { webhooksApi } from '@/lib/api';
-import { WEBHOOK_EVENTS, formatDate, maskSecret } from '@/lib/utils';
-import { getErrorMessage } from '@/lib/errors';
-import Modal from '@/components/Modal';
+import { memo, useCallback, useEffect, useState } from 'react';
+
 import ConfirmDialog from '@/components/ConfirmDialog';
+import Modal from '@/components/Modal';
 import { SkeletonList } from '@/components/Skeleton';
+import { webhooksApi } from '@/lib/api';
+import { getErrorMessage } from '@/lib/errors';
+import toast from '@/lib/toast';
 import type { Webhook } from '@/lib/types';
+import { WEBHOOK_EVENTS, formatDate, maskSecret } from '@/lib/utils';
 
 function WebhookSecretRow({
   webhook,
@@ -317,7 +318,8 @@ export default function WebhooksPage() {
           data-testid="webhooks-empty"
           className="card p-8 text-center text-sm text-gray-500"
         >
-          No webhooks yet. Add one to start receiving event notifications.
+          No webhooks configured. Add one to start receiving event
+          notifications.
         </div>
       ) : (
         <div className="space-y-3">
@@ -339,96 +341,120 @@ export default function WebhooksPage() {
         testId="create-webhook-modal"
       >
         <form onSubmit={create} className="space-y-4" aria-busy={creating}>
-          <div>
-            <label htmlFor="webhook-url" className="label">
-              Endpoint URL
-            </label>
-            <input
-              id="webhook-url"
-              type="url"
-              required
-              value={form.url}
-              onChange={(e) => setForm((f) => ({ ...f, url: e.target.value }))}
-              placeholder="https://example.com/webhooks"
-              className="input font-mono"
-            />
-          </div>
-
-          <div>
-            <p className="label">Events</p>
-            <div className="grid grid-cols-2 gap-2">
-              {WEBHOOK_EVENTS.map((event) => (
-                <label
-                  key={event}
-                  className="flex items-center gap-2 text-sm text-gray-700"
-                >
-                  <input
-                    type="checkbox"
-                    checked={form.events.includes(event)}
-                    onChange={() => toggleEvent(event)}
-                  />
-                  <span className="font-mono text-xs">{event}</span>
-                </label>
-              ))}
-            </div>
-            {formError && (
-              <p className="text-xs text-red-600 mt-1">{formError}</p>
-            )}
-          </div>
-
-          <div>
-            <label htmlFor="webhook-secret" className="label">
-              Signing secret (optional)
-            </label>
-            <div className="relative">
+          {/* Disabling the whole fieldset prevents submits while a creation call is in flight. */}
+          <fieldset disabled={creating} className="space-y-4">
+            <div>
+              <label htmlFor="webhook-url" className="label">
+                Endpoint URL
+              </label>
               <input
-                id="webhook-secret"
-                type={secretRevealed ? 'text' : 'password'}
-                value={form.secret}
+                id="webhook-url"
+                type="url"
+                required
+                value={form.url}
                 onChange={(e) =>
-                  setForm((f) => ({ ...f, secret: e.target.value }))
+                  setForm((f) => ({ ...f, url: e.target.value }))
                 }
-                placeholder="Leave blank to auto-generate"
-                className="input font-mono pr-10"
+                placeholder="https://example.com/webhooks"
+                className="input font-mono"
               />
+            </div>
+
+            <fieldset
+              data-testid="webhook-events-fieldset"
+              aria-labelledby="webhook-events-legend"
+              className="mt-0"
+            >
+              <legend id="webhook-events-legend" className="label">
+                Events
+              </legend>
+              <div className="grid grid-cols-2 gap-2">
+                {WEBHOOK_EVENTS.map((event) => (
+                  <label
+                    key={event}
+                    className="flex items-center gap-2 text-sm text-gray-700"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={form.events.includes(event)}
+                      onChange={() => toggleEvent(event)}
+                    />
+                    <span className="font-mono text-xs">{event}</span>
+                  </label>
+                ))}
+              </div>
+              {formError && (
+                <p
+                  data-testid="webhook-events-error"
+                  className="text-xs text-red-600 mt-1"
+                >
+                  {formError}
+                </p>
+              )}
+            </fieldset>
+
+            <div>
+              <label htmlFor="webhook-secret" className="label">
+                Signing secret (optional)
+              </label>
+              <div className="relative">
+                <input
+                  id="webhook-secret"
+                  type={secretRevealed ? 'text' : 'password'}
+                  value={form.secret}
+                  onChange={(e) =>
+                    setForm((f) => ({ ...f, secret: e.target.value }))
+                  }
+                  placeholder="Leave blank to auto-generate"
+                  className="input font-mono pr-10"
+                  data-testid="webhook-secret-input"
+                />
+                <button
+                  type="button"
+                  data-testid="toggle-webhook-secret"
+                  onClick={() => setSecretRevealed((v) => !v)}
+                  aria-pressed={secretRevealed}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  aria-label={
+                    secretRevealed
+                      ? 'Hide signing secret'
+                      : 'Show signing secret'
+                  }
+                >
+                  {secretRevealed ? (
+                    <EyeOff className="w-4 h-4" />
+                  ) : (
+                    <Eye className="w-4 h-4" />
+                  )}
+                </button>
+              </div>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-2">
               <button
                 type="button"
-                onClick={() => setSecretRevealed((v) => !v)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                aria-label={secretRevealed ? 'Hide secret' : 'Show secret'}
+                onClick={closeCreateModal}
+                className="btn-secondary"
               >
-                {secretRevealed ? (
-                  <EyeOff className="w-4 h-4" />
-                ) : (
-                  <Eye className="w-4 h-4" />
-                )}
+                Cancel
+              </button>
+              <button
+                type="submit"
+                data-testid="webhook-submit-button"
+                disabled={creating}
+                className="btn-primary disabled:opacity-50"
+              >
+                {creating ? 'Creating…' : 'Create Webhook'}
               </button>
             </div>
-          </div>
-
-          <div className="flex justify-end gap-2 pt-2">
-            <button
-              type="button"
-              onClick={closeCreateModal}
-              className="btn-secondary"
-            >
-              Cancel
-            </button>
-            <button
-              type="submit"
-              disabled={creating}
-              className="btn-primary disabled:opacity-50"
-            >
-              {creating ? 'Creating…' : 'Create Webhook'}
-            </button>
-          </div>
+          </fieldset>
         </form>
       </Modal>
 
       <ConfirmDialog
         open={deletingId !== null}
         title="Delete webhook?"
-        description="This webhook will stop receiving event notifications."
+        message="This webhook will stop receiving event notifications."
         confirmLabel="Delete"
         loading={deleting}
         onConfirm={() => deletingId && remove(deletingId)}

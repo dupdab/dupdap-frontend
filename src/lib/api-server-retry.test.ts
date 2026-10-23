@@ -1,3 +1,4 @@
+import axios from 'axios';
 import {
   afterEach,
   beforeAll,
@@ -7,7 +8,6 @@ import {
   it,
   vi,
 } from 'vitest';
-import axios from 'axios';
 
 vi.mock('axios', () => {
   const mockInstance = {

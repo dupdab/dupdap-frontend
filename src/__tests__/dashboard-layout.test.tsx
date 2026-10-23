@@ -19,12 +19,13 @@
  *   - merchant only      → redirects to /auth/login (token missing)
  *   - neither            → redirects to /auth/login
  */
-import React from 'react';
 import { render, screen, act, cleanup } from '@testing-library/react';
+import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { useAuthStore } from '@/lib/store';
-import DashboardLayout from '@/app/dashboard/layout';
+
 import AdminLayout from '@/app/dashboard/admin/layout';
+import DashboardLayout from '@/app/dashboard/layout';
+import { useAuthStore } from '@/lib/store';
 
 // ─── Mocks ──────────────────────────────────────────────────────────────────
 
@@ -93,7 +94,6 @@ describe('DashboardLayout — auth guards and hydration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.useFakeTimers();
-    mockPathname.mockReturnValue('/dashboard');
   });
 
   afterEach(() => {
@@ -143,8 +143,8 @@ describe('DashboardLayout — auth guards and hydration', () => {
 
     // Children should be visible
     expect(screen.getByTestId('child-content')).toBeInTheDocument();
-    // Merchant business name should appear in sidebar
-    expect(screen.getByText('Acme Corp')).toBeInTheDocument();
+    // Merchant business name should appear in sidebar (and header).
+    expect(screen.getAllByText('Acme Corp').length).toBeGreaterThan(0);
     // Should NOT redirect
     await act(async () => {
       vi.runAllTimers();
@@ -235,8 +235,7 @@ describe('AdminLayout — admin authorization guard', () => {
     // The admin layout only ever mounts under the admin route tree, so the
     // guard must see an admin pathname for its authorization decision.
     vi.useFakeTimers();
-    // Restore default path for each test; individual tests may override.
-    mockPathname.mockReturnValue('/dashboard/admin');
+    // Individual tests may override via mockPathname assignment.
   });
 
   afterEach(() => {
@@ -265,7 +264,7 @@ describe('AdminLayout — admin authorization guard', () => {
     // Simulate a non-admin merchant navigating directly to an admin route.
     // The pathname must be an admin path so useAdminGuard marks the merchant
     // unauthorized for this route (#357).
-    mockPathname.mockReturnValue('/dashboard/admin/settlements');
+    mockPathname = '/dashboard/admin/settlements';
     stubAuth({ token: 'valid-token', merchant: MOCK_MERCHANT });
 
     const { container } = render(
