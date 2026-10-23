@@ -74,7 +74,10 @@ describe('LandingNav — mobile menu interaction', () => {
     const toggleButton = screen.getByRole('button', { name: /toggle menu/i });
     expect(toggleButton).toBeInTheDocument();
     expect(toggleButton).toHaveAttribute('aria-expanded', 'false');
-    expect(toggleButton).toHaveAttribute('aria-controls', 'landing-mobile-menu');
+    expect(toggleButton).toHaveAttribute(
+      'aria-controls',
+      'landing-mobile-menu'
+    );
 
     expect(document.getElementById('landing-mobile-menu')).toBeNull();
   });
@@ -116,7 +119,9 @@ describe('LandingNav — mobile menu interaction', () => {
 
     const mobileLinks = screen.getAllByRole('link', { name: /login/i });
     // mobile link is inside landing-mobile-menu
-    const mobileLoginLink = mobileLinks.find((link) => mobileMenu?.contains(link));
+    const mobileLoginLink = mobileLinks.find((link: HTMLElement) =>
+      mobileMenu?.contains(link)
+    );
     expect(mobileLoginLink).toBeDefined();
 
     fireEvent.click(mobileLoginLink!);
@@ -133,7 +138,9 @@ describe('LandingNav — mobile menu interaction', () => {
     expect(mobileMenu).toBeInTheDocument();
 
     const mobileLinks = screen.getAllByRole('link', { name: /get started/i });
-    const mobileGetStartedLink = mobileLinks.find((link) => mobileMenu?.contains(link));
+    const mobileGetStartedLink = mobileLinks.find((link: HTMLElement) =>
+      mobileMenu?.contains(link)
+    );
     expect(mobileGetStartedLink).toBeDefined();
 
     fireEvent.click(mobileGetStartedLink!);

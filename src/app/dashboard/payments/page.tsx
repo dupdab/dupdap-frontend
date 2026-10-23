@@ -255,6 +255,7 @@ export default function PaymentsPage() {
   const createPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     setCreating(true);
+    setMetadataError('');
     try {
       const amountUsd = parseFloat(form.amountUsd);
       if (Number.isNaN(amountUsd) || amountUsd <= 0) {
@@ -273,11 +274,35 @@ export default function PaymentsPage() {
         );
         return;
       }
+
+      // Parse optional metadata JSON — must be a plain object when provided.
+      let parsedMetadata: Record<string, unknown> | undefined;
+      if (form.metadata.trim()) {
+        try {
+          const parsed = JSON.parse(form.metadata);
+          if (
+            typeof parsed !== 'object' ||
+            Array.isArray(parsed) ||
+            parsed === null
+          ) {
+            setMetadataError(
+              'Metadata must be a JSON object, e.g. {"orderId": "123"}'
+            );
+            return;
+          }
+          parsedMetadata = parsed as Record<string, unknown>;
+        } catch {
+          setMetadataError('Invalid JSON — check for missing quotes or commas');
+          return;
+        }
+      }
+
       const { data } = await paymentsApi.create({
         amountUsd,
         description: form.description || undefined,
         customerEmail: form.customerEmail || undefined,
         expiryMinutes,
+        metadata: parsedMetadata,
       });
       setSelectedPayment(data);
       setShowCreate(false);

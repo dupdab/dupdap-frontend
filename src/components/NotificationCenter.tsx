@@ -1,7 +1,14 @@
 'use client';
 
 import { useEffect, useRef, useState } from 'react';
-import { Bell, CheckCheck, X, Banknote, AlertTriangle, Info } from 'lucide-react';
+import {
+  Bell,
+  CheckCheck,
+  X,
+  Banknote,
+  AlertTriangle,
+  Info,
+} from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useFocusTrap } from '@/lib/useFocusTrap';
 import { settlementsApi } from '@/lib/api';
@@ -9,7 +16,8 @@ import { getErrorMessage } from '@/lib/errors';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
-export type NotificationType = 'settlement_completed' | 'dispute_raised' | 'info';
+export type NotificationType =
+  'settlement_completed' | 'dispute_raised' | 'info';
 
 export interface AppNotification {
   id: string;
@@ -27,14 +35,18 @@ const STORAGE_KEY = 'dupdub-notifications';
 /** Map backend settlement statuses to in-app notification entries. */
 function settlementsToNotifications(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  settlements: any[],
+  settlements: any[]
 ): AppNotification[] {
   return settlements
     .filter((s) => s.status === 'completed' || s.status === 'failed')
     .map((s) => ({
       id: `settlement-${s.id}`,
-      type: s.status === 'completed' ? 'settlement_completed' : ('info' as NotificationType),
-      title: s.status === 'completed' ? 'Settlement Completed' : 'Settlement Failed',
+      type:
+        s.status === 'completed'
+          ? 'settlement_completed'
+          : ('info' as NotificationType),
+      title:
+        s.status === 'completed' ? 'Settlement Completed' : 'Settlement Failed',
       message:
         s.status === 'completed'
           ? `Your settlement of $${s.netAmountUsd?.toFixed(2) ?? '—'} has been processed.`
@@ -120,7 +132,9 @@ export function NotificationCenter() {
         }));
         setNotifications(mapped);
       })
-      .catch((err) => setErrorMsg(getErrorMessage(err)))
+      .catch((err) =>
+        setErrorMsg(getErrorMessage(err) ?? 'Something went wrong')
+      )
       .finally(() => setLoading(false));
     // readIds intentionally excluded — we only load it once on open
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -155,7 +169,9 @@ export function NotificationCenter() {
     newIds.add(id);
     setReadIds(newIds);
     saveReadIds(newIds);
-    setNotifications((prev) => prev.map((n) => (n.id === id ? { ...n, read: true } : n)));
+    setNotifications((prev) =>
+      prev.map((n) => (n.id === id ? { ...n, read: true } : n))
+    );
   };
 
   const handleToggle = () => {
@@ -248,7 +264,10 @@ export function NotificationCenter() {
                   <div className="w-6 h-6 rounded-full border-2 border-brand-200 border-t-brand-600 animate-spin" />
                 </div>
               ) : errorMsg ? (
-                <div role="alert" className="px-4 py-8 text-center text-red-500 text-sm">
+                <div
+                  role="alert"
+                  className="px-4 py-8 text-center text-red-500 text-sm"
+                >
                   {errorMsg}
                 </div>
               ) : notifications.length === 0 ? (
@@ -265,14 +284,14 @@ export function NotificationCenter() {
                         key={n.id}
                         className={cn(
                           'px-4 py-3 border-b border-gray-50 dark:border-gray-800 last:border-0',
-                          !n.read && 'bg-brand-50/50 dark:bg-brand-950/30',
+                          !n.read && 'bg-brand-50/50 dark:bg-brand-950/30'
                         )}
                       >
                         <div className="flex items-start gap-3">
                           <div
                             className={cn(
                               'shrink-0 w-8 h-8 rounded-full flex items-center justify-center',
-                              iconColor,
+                              iconColor
                             )}
                             aria-hidden="true"
                           >
@@ -305,7 +324,10 @@ export function NotificationCenter() {
                               className="shrink-0 text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 rounded"
                               aria-label={`Mark "${n.title}" as read`}
                             >
-                              <CheckCheck className="w-4 h-4" aria-hidden="true" />
+                              <CheckCheck
+                                className="w-4 h-4"
+                                aria-hidden="true"
+                              />
                             </button>
                           )}
                         </div>

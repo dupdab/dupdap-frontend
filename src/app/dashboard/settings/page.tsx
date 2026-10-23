@@ -31,7 +31,7 @@ const NAV_GUARD_MESSAGE =
 function cropToSquare(file: File): Promise<string> {
   return new Promise((resolve, reject) => {
     const objectUrl = URL.createObjectURL(file);
-    const image = new Image();
+    const image = new globalThis.Image();
 
     image.onload = () => {
       const side = Math.min(image.width, image.height);

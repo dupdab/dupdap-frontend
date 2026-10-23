@@ -30,6 +30,8 @@ export interface AuthResponse {
 export function isAuthResponse(data: unknown): data is AuthResponse {
   if (!data || typeof data !== 'object') return false;
   const record = data as Record<string, unknown>;
+  if (typeof record.accessToken !== 'string' || !record.accessToken)
+    return false;
   const merchant = record.merchant;
   if (!merchant || typeof merchant !== 'object') return false;
   const merchantRecord = merchant as Record<string, unknown>;
@@ -44,6 +46,8 @@ export interface Payment {
   status: PaymentStatus;
   description?: string;
   customerEmail?: string;
+  /** Arbitrary merchant-defined key/value data (e.g. order ID, product name). */
+  metadata?: Record<string, unknown>;
   stellarMemo: string;
   stellarDepositAddress?: string;
   qrCode?: string;
