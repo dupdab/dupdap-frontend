@@ -389,7 +389,7 @@ export default function SettingsPage() {
       </section>
 
       {/* ── Profile form ────────────────────────────────────────────────── */}
-      <section className="mt-10">
+      <section id="bank-account" className="mt-10 scroll-mt-24">
         <h2 className="text-lg font-medium text-gray-900 dark:text-gray-100">
           Profile
         </h2>

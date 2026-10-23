@@ -12,6 +12,16 @@ vi.mock('@/lib/api', () => ({
     list: vi.fn(),
     stats: vi.fn(),
   },
+  merchantApi: {
+    profile: vi
+      .fn()
+      .mockResolvedValue({
+        data: { businessName: 'Acme', bankAccountNumber: '1234567890' },
+      }),
+  },
+  webhooksApi: {
+    list: vi.fn().mockResolvedValue({ data: [{ id: 'webhook-1' }] }),
+  },
 }));
 
 // Recharts relies on layout measurements that jsdom does not provide; stub the
@@ -35,6 +45,17 @@ vi.mock('recharts', () => {
 
 const mockedList = vi.mocked(paymentsApi.list);
 const mockedStats = vi.mocked(paymentsApi.stats);
+
+function renderDashboard() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <DashboardPage />
+    </QueryClientProvider>
+  );
+}
 
 /** paymentsApi.stats() returns a per-status breakdown, not a single summary object. */
 const stats = [

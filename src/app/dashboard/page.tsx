@@ -97,7 +97,7 @@ export default function DashboardPage() {
   });
 
   const payments: Payment[] = paymentsQuery.data?.data.payments ?? [];
-  const stats: PaymentStats[] = statsQuery.data?.data ?? [];
+  const stats: PaymentStat[] = statsQuery.data?.data ?? [];
   const loading = paymentsQuery.isLoading || statsQuery.isLoading;
   const error =
     paymentsQuery.isError || statsQuery.isError ? t('dashboard.loadError') : '';
@@ -146,6 +146,11 @@ export default function DashboardPage() {
         </h1>
         <p className="text-gray-500 text-sm mt-1">{t('dashboard.subtitle')}</p>
       </div>
+
+      <MerchantOnboardingChecklist
+        paymentCount={paymentsQuery.data?.data.total}
+        merchantId={merchant?.id}
+      />
 
       {/* Stats */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
@@ -278,6 +283,16 @@ export default function DashboardPage() {
               className="px-6 py-8 text-center text-red-500 text-sm"
             >
               {error}
+              <button
+                type="button"
+                onClick={() => {
+                  if (paymentsQuery.isError) void paymentsQuery.refetch();
+                  if (statsQuery.isError) void statsQuery.refetch();
+                }}
+                className="ml-3 underline font-medium"
+              >
+                Retry
+              </button>
             </div>
           ) : loading ? (
             <SkeletonList rows={5} />

@@ -450,6 +450,7 @@ export default function PaymentsPage() {
           <fieldset disabled={creating} className="space-y-4">
             <FormField
               label="Amount (USD)"
+              name="amountUsd"
               type="number"
               step="0.01"
               min="0.01"
@@ -459,6 +460,7 @@ export default function PaymentsPage() {
             />
             <FormField
               label="Description (optional)"
+              name="description"
               type="text"
               required={false}
               maxLength={MAX_DESCRIPTION_LENGTH}
@@ -474,6 +476,7 @@ export default function PaymentsPage() {
             />
             <FormField
               label="Customer Email (optional)"
+              name="customerEmail"
               type="email"
               required={false}
               value={form.customerEmail}
@@ -483,6 +486,7 @@ export default function PaymentsPage() {
             />
             <FormField
               label="Expires in (minutes)"
+              name="expiryMinutes"
               type="number"
               aria-describedby="expiry-minutes-hint"
               value={form.expiryMinutes}

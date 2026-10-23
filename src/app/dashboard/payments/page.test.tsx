@@ -181,7 +181,7 @@ describe('PaymentsPage', () => {
     const modal = await screen.findByTestId('create-payment-modal');
     const fields = within(modal);
 
-    await userEvent.type(fields.getByLabelText('Amount (USD)'), '10');
+    await userEvent.type(fields.getByLabelText(/Amount \(USD\)/), '10');
     await userEvent.clear(fields.getByLabelText('Expires in (minutes)'));
     await userEvent.type(fields.getByLabelText('Expires in (minutes)'), '2');
     await userEvent.click(fields.getByTestId('create-payment-submit'));
@@ -200,7 +200,7 @@ describe('PaymentsPage', () => {
     const modal = await screen.findByTestId('create-payment-modal');
     const fields = within(modal);
 
-    await userEvent.type(fields.getByLabelText('Amount (USD)'), '10');
+    await userEvent.type(fields.getByLabelText(/Amount \(USD\)/), '10');
     await userEvent.clear(fields.getByLabelText('Expires in (minutes)'));
     await userEvent.type(fields.getByLabelText('Expires in (minutes)'), '1441');
     await userEvent.click(fields.getByTestId('create-payment-submit'));
@@ -229,7 +229,7 @@ describe('PaymentsPage', () => {
     const modal = await screen.findByTestId('create-payment-modal');
     const fields = within(modal);
 
-    await user.type(fields.getByLabelText('Amount (USD)'), '10');
+    await user.type(fields.getByLabelText(/Amount \(USD\)/), '10');
     await user.click(fields.getByTestId('create-payment-submit'));
 
     await waitFor(() => {

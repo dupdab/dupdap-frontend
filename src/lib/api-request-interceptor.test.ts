@@ -42,4 +42,24 @@ describe('Axios request configuration & interceptor', () => {
       expect(requestInterceptor).toBeUndefined();
     }
   });
+
+  it('sends the double-submit CSRF token on mutations', () => {
+    document.cookie = 'csrf_token=csrf-value';
+    const config = { method: 'post', headers: {} as Record<string, string> };
+
+    const result = requestInterceptor?.(config);
+
+    expect(result?.headers['X-CSRF-Token']).toBe('csrf-value');
+    document.cookie = 'csrf_token=; Max-Age=0';
+  });
+
+  it('does not send the CSRF header on safe requests', () => {
+    document.cookie = 'csrf_token=csrf-value';
+    const config = { method: 'get', headers: {} as Record<string, string> };
+
+    const result = requestInterceptor?.(config);
+
+    expect(result?.headers['X-CSRF-Token']).toBeUndefined();
+    document.cookie = 'csrf_token=; Max-Age=0';
+  });
 });

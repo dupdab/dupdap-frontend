@@ -43,6 +43,10 @@ vi.mock('@/lib/api', () => ({
     list: (...args: unknown[]) => mockList(...args),
     stats: (...args: unknown[]) => mockStats(...args),
   },
+  merchantApi: {
+    profile: vi.fn().mockResolvedValue({ data: { businessName: 'Acme' } }),
+  },
+  webhooksApi: { list: vi.fn().mockResolvedValue({ data: [] }) },
 }));
 
 vi.mock('@/lib/store', () => ({
@@ -85,6 +89,9 @@ vi.mock('lucide-react', () => ({
   CreditCard: () => <span>CreditCard</span>,
   Banknote: () => <span>Banknote</span>,
   Clock: () => <span>Clock</span>,
+  CheckCircle2: () => <span />,
+  Circle: () => <span />,
+  X: () => <span />,
 }));
 
 /* ── Fixtures ───────────────────────────────────────────────────────────── */
@@ -110,6 +117,17 @@ const makePayment = (
 
 /* Lazy import — after globals are set */
 import DashboardPage from './page';
+
+function renderDashboard() {
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <DashboardPage />
+    </QueryClientProvider>
+  );
+}
 
 afterEach(() => {
   cleanup();

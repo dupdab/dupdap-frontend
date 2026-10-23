@@ -24,7 +24,7 @@ function runValidator(nodeEnv: string, apiUrl?: string) {
 
 describe('validate-env script', () => {
   it.each([
-    ['HTTP localhost', 'http://localhost:3000/api/v1'],
+    ['HTTPS localhost', 'https://localhost:3000/api/v1'],
     ['HTTPS API', 'https://api.example.com/api/v1'],
   ])('accepts a valid production %s URL', (_name, apiUrl) => {
     const result = runValidator('production', apiUrl);
@@ -47,11 +47,14 @@ describe('validate-env script', () => {
     expect(result.status).not.toBe(0);
   });
 
-  it('rejects non-HTTP(S) production URLs', () => {
-    const result = runValidator('production', 'ftp://api.example.com');
+  it.each(['http://api.example.com', 'ftp://api.example.com'])(
+    'rejects non-HTTPS production URL %s',
+    (apiUrl) => {
+      const result = runValidator('production', apiUrl);
 
-    expect(result.status).not.toBe(0);
-  });
+      expect(result.status).not.toBe(0);
+    }
+  );
 
   it('allows a missing URL in non-production environments', () => {
     const result = runValidator('development');

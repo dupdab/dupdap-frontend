@@ -55,7 +55,27 @@ const withPWA = require('next-pwa')({
   ],
 });
 
-const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:3000/api/v1';
+const configuredApiUrl = process.env.NEXT_PUBLIC_API_URL;
+const isProductionBuild = process.env.NODE_ENV === 'production';
+if (isProductionBuild && !configuredApiUrl) {
+  console.warn(
+    'NEXT_PUBLIC_API_URL is required for production builds; configure it before deployment.'
+  );
+}
+const apiUrl = configuredApiUrl ?? 'http://localhost:3000/api/v1';
+let parsedApiUrl;
+try {
+  parsedApiUrl = new URL(apiUrl);
+} catch {
+  throw new Error('NEXT_PUBLIC_API_URL must be a valid HTTPS URL.');
+}
+if (
+  isProductionBuild &&
+  configuredApiUrl &&
+  parsedApiUrl.protocol !== 'https:'
+) {
+  throw new Error('NEXT_PUBLIC_API_URL must use HTTPS in production.');
+}
 
 // Known Stellar / wallet origins that the app must be able to reach from the
 // browser. Horizon (testnet + mainnet) for balance/tx submission, Soroban RPC
@@ -76,7 +96,7 @@ const nextConfig = {
     NEXT_PUBLIC_API_URL: apiUrl,
   },
   async headers() {
-    const connectSrc = ["'self'", new URL(apiUrl).origin, ...STELLAR_ORIGINS];
+    const connectSrc = ["'self'", parsedApiUrl.origin, ...STELLAR_ORIGINS];
 
     return [
       {

@@ -156,6 +156,8 @@ export function FormField({
 
       {hint && <span className="text-xs text-gray-500">{hint}</span>}
 
+      {hint}
+
       {error && (
         <p id={errorId} className="text-sm text-red-600" role="alert">
           {error}
