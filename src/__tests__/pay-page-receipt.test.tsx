@@ -13,11 +13,12 @@
  * - Print and Download buttons are present
  * - Receipt is not rendered while payment is still pending
  */
+import { render, act, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, act, screen, waitFor } from '@testing-library/react';
-import { paymentsApi } from '@/lib/api';
+
 import PayPage from '@/app/pay/[paymentId]/page';
+import { paymentsApi } from '@/lib/api';
 
 vi.mock('@/lib/api', () => ({
   paymentsApi: {
@@ -182,7 +183,9 @@ describe('PayPage — payment receipt view', () => {
     await flushMount();
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /print/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: /print/i })
+      ).toBeInTheDocument();
     });
   });
 
@@ -193,7 +196,9 @@ describe('PayPage — payment receipt view', () => {
     await flushMount();
 
     await waitFor(() => {
-      expect(screen.getByRole('button', { name: /download/i })).toBeInTheDocument();
+      expect(
+        screen.getByRole('button', { name: /download/i })
+      ).toBeInTheDocument();
     });
   });
 

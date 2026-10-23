@@ -1,5 +1,5 @@
 {
-  "extends": "next/core-web-vitals",
+  "extends": ["next/core-web-vitals", "plugin:storybook/recommended"],
   "plugins": ["import"],
   "rules": {
     "jsx-a11y/anchor-has-content": "error",
@@ -38,7 +38,12 @@
       "parser": "@typescript-eslint/parser"
     },
     {
-      "files": ["**/*.test.ts", "**/*.test.tsx", "**/*.spec.ts", "**/*.spec.tsx"],
+      "files": [
+        "**/*.test.ts",
+        "**/*.test.tsx",
+        "**/*.spec.ts",
+        "**/*.spec.tsx"
+      ],
       "rules": {
         "no-console": "off",
         "@typescript-eslint/no-explicit-any": "off"

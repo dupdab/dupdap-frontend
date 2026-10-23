@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+
 import {
   buildWalletDeepLink,
   detectMobilePlatform,
@@ -17,7 +18,11 @@ const WALLETS: { id: WalletId; label: string }[] = [
 
 const FALLBACK_DELAY_MS = 1500;
 
-export function OpenInWalletButtons({ payment }: { payment: WalletPaymentParams }) {
+export function OpenInWalletButtons({
+  payment,
+}: {
+  payment: WalletPaymentParams;
+}) {
   const [platform, setPlatform] = useState<MobilePlatform>(null);
 
   useEffect(() => {
@@ -30,7 +35,8 @@ export function OpenInWalletButtons({ payment }: { payment: WalletPaymentParams 
     const storeUrl = getStoreLink(wallet, platform);
     // If the app is installed the page is backgrounded; otherwise send the user to the store.
     const timer = setTimeout(() => {
-      if (document.visibilityState === 'visible') window.location.href = storeUrl;
+      if (document.visibilityState === 'visible')
+        window.location.href = storeUrl;
     }, FALLBACK_DELAY_MS);
     const cancel = () => {
       if (document.visibilityState === 'hidden') {
@@ -45,7 +51,12 @@ export function OpenInWalletButtons({ payment }: { payment: WalletPaymentParams 
   return (
     <div className="grid grid-cols-2 gap-2 mb-4" data-testid="open-in-wallet">
       {WALLETS.map(({ id, label }) => (
-        <button key={id} type="button" onClick={() => open(id)} className="btn-secondary">
+        <button
+          key={id}
+          type="button"
+          onClick={() => open(id)}
+          className="btn-secondary"
+        >
           {label}
         </button>
       ))}

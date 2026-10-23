@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+
 import { useAuthStore } from '@/lib/store';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
@@ -27,7 +28,7 @@ const statusStyles: Record<AmlStatus, string> = {
 };
 
 export default function AdminAmlPage() {
-  const { token } = useAuthStore();
+  const { token, merchant } = useAuthStore();
   const [flags, setFlags] = useState<AmlFlag[]>([]);
   const [statusFilter, setStatusFilter] = useState<AmlStatus | 'ALL'>('OPEN');
   const [loading, setLoading] = useState(true);
@@ -35,42 +36,46 @@ export default function AdminAmlPage() {
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   const loadFlags = useCallback(async () => {
-    if (!token) return;
+    if (!token && !merchant) return;
     setLoading(true);
     setError(null);
     try {
       const res = await fetch(`${API_URL}/admin/aml/flags`, {
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!res.ok) throw new Error('Failed to load AML flags');
       const data = await res.json();
-      setFlags(Array.isArray(data) ? data : data.flags ?? []);
+      setFlags(Array.isArray(data) ? data : (data.flags ?? []));
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load AML flags');
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, merchant]);
 
   useEffect(() => {
     loadFlags();
   }, [loadFlags]);
 
   const markReviewed = async (id: string) => {
-    if (!token) return;
+    if (!token && !merchant) return;
     setUpdatingId(id);
     try {
       const res = await fetch(`${API_URL}/admin/aml/flags/${id}/review`, {
         method: 'PATCH',
+        credentials: 'include',
         headers: {
-          Authorization: `Bearer ${token}`,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ status: 'RESOLVED' }),
       });
       if (!res.ok) throw new Error('Failed to update flag');
       setFlags((prev) =>
-        prev.map((flag) => (flag.id === id ? { ...flag, status: 'RESOLVED' } : flag)),
+        prev.map((flag) =>
+          flag.id === id ? { ...flag, status: 'RESOLVED' } : flag
+        )
       );
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to update flag');
@@ -84,7 +89,7 @@ export default function AdminAmlPage() {
       statusFilter === 'ALL'
         ? flags
         : flags.filter((flag) => flag.status === statusFilter),
-    [flags, statusFilter],
+    [flags, statusFilter]
   );
 
   return (
@@ -135,22 +140,40 @@ export default function AdminAmlPage() {
       )}
 
       {loading ? (
-        <div role="status" className="py-12 flex justify-center" aria-busy="true">
+        <div
+          role="status"
+          className="py-12 flex justify-center"
+          aria-busy="true"
+        >
           <div className="w-8 h-8 rounded-full border-4 border-brand-200 border-t-brand-600 animate-spin" />
         </div>
       ) : visibleFlags.length === 0 ? (
-        <p className="py-12 text-center text-sm text-gray-500">No AML flags found.</p>
+        <p className="py-12 text-center text-sm text-gray-500">
+          No AML flags found.
+        </p>
       ) : (
         <div className="overflow-x-auto rounded-lg border border-gray-200">
           <table className="min-w-full divide-y divide-gray-200 text-sm">
             <thead className="bg-gray-50">
               <tr>
-                <th className="px-4 py-3 text-left font-medium text-gray-600">Merchant</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-600">Payment</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-600">Reason</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-600">Raised at</th>
-                <th className="px-4 py-3 text-left font-medium text-gray-600">Status</th>
-                <th className="px-4 py-3 text-right font-medium text-gray-600">Actions</th>
+                <th className="px-4 py-3 text-left font-medium text-gray-600">
+                  Merchant
+                </th>
+                <th className="px-4 py-3 text-left font-medium text-gray-600">
+                  Payment
+                </th>
+                <th className="px-4 py-3 text-left font-medium text-gray-600">
+                  Reason
+                </th>
+                <th className="px-4 py-3 text-left font-medium text-gray-600">
+                  Raised at
+                </th>
+                <th className="px-4 py-3 text-left font-medium text-gray-600">
+                  Status
+                </th>
+                <th className="px-4 py-3 text-right font-medium text-gray-600">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100 bg-white">
@@ -159,7 +182,9 @@ export default function AdminAmlPage() {
                   <td className="px-4 py-3 text-gray-900">
                     {flag.merchantName || flag.merchantId}
                   </td>
-                  <td className="px-4 py-3 text-gray-600">{flag.paymentId || '—'}</td>
+                  <td className="px-4 py-3 text-gray-600">
+                    {flag.paymentId || '—'}
+                  </td>
                   <td className="px-4 py-3 text-gray-600">{flag.reason}</td>
                   <td className="px-4 py-3 text-gray-600">
                     {new Date(flag.raisedAt).toLocaleString()}
@@ -175,7 +200,9 @@ export default function AdminAmlPage() {
                     <button
                       type="button"
                       onClick={() => markReviewed(flag.id)}
-                      disabled={updatingId === flag.id || flag.status === 'RESOLVED'}
+                      disabled={
+                        updatingId === flag.id || flag.status === 'RESOLVED'
+                      }
                       className="px-3 py-1 text-xs rounded-md bg-brand-600 text-white hover:bg-brand-700 disabled:opacity-50"
                     >
                       {updatingId === flag.id ? 'Saving…' : 'Mark as reviewed'}

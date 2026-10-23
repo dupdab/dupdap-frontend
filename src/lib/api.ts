@@ -1,9 +1,9 @@
-import axios from 'axios';
-import type { AxiosRequestConfig } from 'axios';
+import axios, { type AxiosRequestConfig } from 'axios';
+
+import { redirectToLogin } from './auth-redirect';
 import { getApiUrl } from './env';
 import { useAuthStore } from './store';
-import { redirectToLogin } from './auth-redirect';
-import { getCsrfToken, isMutationMethod } from './csrf';
+
 import type {
   AuthResponse,
   Merchant,
@@ -12,12 +12,14 @@ import type {
   PaymentStats,
   SettlementListResponse,
   Settlement,
+  TopMerchant,
   Webhook,
   ApiKey,
 } from './types';
 
 const api = axios.create({
   baseURL: getApiUrl(),
+  withCredentials: true,
 });
 
 /** Extra config field used to bound reconnect retries for one request. */
@@ -74,15 +76,7 @@ function waitForOnline(): Promise<void> {
   });
 }
 
-api.interceptors.request.use((config) => {
-  const token = useAuthStore.getState().token;
-  if (token) config.headers.Authorization = `Bearer ${token}`;
-  if (isMutationMethod(config.method)) {
-    const csrfToken = getCsrfToken();
-    if (csrfToken) config.headers['X-CSRF-Token'] = csrfToken;
-  }
-  return config;
-});
+// Request interceptor omitted: auth token is sent automatically via httpOnly cookie (withCredentials: true).
 
 api.interceptors.response.use(
   (res) => res,
@@ -146,10 +140,12 @@ export const authApi = {
   }) => api.post<AuthResponse>('/auth/register', data),
   login: (data: { email: string; password: string }) =>
     api.post<AuthResponse>('/auth/login', data),
+  logout: () => api.post('/auth/logout'),
   forgotPassword: (data: { email: string }) =>
     api.post('/auth/forgot-password', data),
   resetPassword: (data: { token: string; password: string }) =>
     api.post('/auth/reset-password', data),
+  logout: () => api.post('/auth/logout'),
 };
 
 export const paymentsApi = {
@@ -159,17 +155,22 @@ export const paymentsApi = {
     customerEmail?: string;
     expiryMinutes?: number;
   }) => api.post<Payment>('/payments', data),
-  list: (page = 1, limit = 20, config?: AxiosRequestConfig) => {
-    const path = `/payments?page=${page}&limit=${limit}`;
-    return config
-      ? api.get<PaymentListResponse>(path, config)
-      : api.get<PaymentListResponse>(path);
-  },
+  /**
+   * Accepts an optional axios config so callers can pass an AbortSignal for
+   * cancellable in-flight requests (React Query request deduplication).
+   */
+  list: (page = 1, limit = 20, config?: AxiosRequestConfig) =>
+    api.get<PaymentListResponse>(
+      `/payments?page=${page}&limit=${limit}`,
+      config
+    ),
   get: (id: string) => api.get<Payment>(`/payments/${id}`),
   stats: (config?: AxiosRequestConfig) =>
-    config
-      ? api.get<PaymentStats[]>('/payments/stats', config)
-      : api.get<PaymentStats[]>('/payments/stats'),
+    api.get<PaymentStats[]>('/payments/stats', config),
+  topMerchants: (range?: string) =>
+    api.get<TopMerchant[]>(
+      `/payments/top-merchants${range ? `?range=${range}` : ''}`
+    ),
   getByReference: (ref: string) => api.get<Payment>(`/pay/${ref}`),
 };
 

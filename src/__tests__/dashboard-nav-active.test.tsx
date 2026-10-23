@@ -1,8 +1,9 @@
-import React from 'react';
 import { render, screen, cleanup } from '@testing-library/react';
+import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { useAuthStore } from '@/lib/store';
+
 import DashboardLayout from '@/app/dashboard/layout';
+import { useAuthStore } from '@/lib/store';
 
 /**
  * Issue #358: the dashboard layout's active-nav check used a bare
@@ -43,14 +44,22 @@ const mockUseAuthStore = vi.mocked(useAuthStore);
 function stubAuth() {
   const state = {
     token: 'valid-token',
-    merchant: { id: 'm1', email: 'a@b.c', businessName: 'Acme Corp', status: 'active' },
+    merchant: {
+      id: 'm1',
+      email: 'a@b.c',
+      businessName: 'Acme Corp',
+      status: 'active',
+    },
     hasHydrated: true,
     logout: vi.fn(),
     setAuth: vi.fn(),
     _setHasHydrated: vi.fn(),
   };
-  mockUseAuthStore.mockImplementation((selector?: (s: typeof state) => unknown) =>
-    selector ? (selector(state) as ReturnType<typeof useAuthStore>) : (state as never),
+  mockUseAuthStore.mockImplementation(
+    (selector?: (s: typeof state) => unknown) =>
+      selector
+        ? (selector(state) as ReturnType<typeof useAuthStore>)
+        : (state as never)
   );
 }
 
@@ -76,7 +85,7 @@ describe('DashboardLayout — nav active state (#358)', () => {
     render(
       <DashboardLayout>
         <div data-testid="child-content">Content</div>
-      </DashboardLayout>,
+      </DashboardLayout>
     );
   };
 

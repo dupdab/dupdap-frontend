@@ -11,6 +11,7 @@ export const useRouter = vi.fn(() => ({
 
 export const usePathname = vi.fn(() => '/dashboard');
 export const useSearchParams = vi.fn(() => new URLSearchParams());
+export const useParams = vi.fn(() => ({}));
 export const redirect = vi.fn();
 
-export default { useRouter, usePathname, useSearchParams, redirect };
+export default { useRouter, usePathname, useSearchParams, useParams, redirect };

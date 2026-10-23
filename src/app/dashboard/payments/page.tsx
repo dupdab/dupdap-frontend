@@ -1,6 +1,5 @@
 'use client';
 
-import { memo, useEffect, useState } from 'react';
 import {
   Plus,
   Copy,
@@ -13,10 +12,17 @@ import {
   X,
   Download,
 } from 'lucide-react';
-import toast from '@/lib/toast';
 import { QRCodeSVG } from 'qrcode.react';
+import { memo, useEffect, useState } from 'react';
+
 import { CopyButton } from '@/components/CopyButton';
+import { FormField } from '@/components/FormField';
+import Modal from '@/components/Modal';
+import { SkeletonList, SkeletonTableRows } from '@/components/Skeleton';
 import { paymentsApi } from '@/lib/api';
+import { getErrorMessage } from '@/lib/errors';
+import toast from '@/lib/toast';
+import type { Payment } from '@/lib/types';
 import {
   formatUsd,
   formatDate,
@@ -24,11 +30,6 @@ import {
   STATUS_ICONS,
   DEFAULT_STATUS_COLOR,
 } from '@/lib/utils';
-import { FormField } from '@/components/FormField';
-import Modal from '@/components/Modal';
-import { SkeletonList, SkeletonTableRows } from '@/components/Skeleton';
-import { getErrorMessage } from '@/lib/errors';
-import type { Payment } from '@/lib/types';
 
 const PAYMENT_TABLE_COLUMNS = 5;
 const MAX_DESCRIPTION_LENGTH = 255;
@@ -86,7 +87,7 @@ async function exportPaymentsCsv(
         csvEscape(p.customerEmail),
         csvEscape(p.stellarMemo),
         csvEscape(formatDateFn(p.createdAt)),
-        csvEscape(formatDateFn(p.updatedAt)),
+        csvEscape(p.updatedAt ? formatDateFn(p.updatedAt) : ''),
       ].join(',')
     );
 
@@ -259,6 +260,7 @@ export default function PaymentsPage() {
   const createPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     setCreating(true);
+    setMetadataError('');
     try {
       const amountUsd = parseFloat(form.amountUsd);
       if (Number.isNaN(amountUsd) || amountUsd <= 0) {
@@ -277,11 +279,35 @@ export default function PaymentsPage() {
         );
         return;
       }
+
+      // Parse optional metadata JSON — must be a plain object when provided.
+      let parsedMetadata: Record<string, unknown> | undefined;
+      if (form.metadata.trim()) {
+        try {
+          const parsed = JSON.parse(form.metadata);
+          if (
+            typeof parsed !== 'object' ||
+            Array.isArray(parsed) ||
+            parsed === null
+          ) {
+            setMetadataError(
+              'Metadata must be a JSON object, e.g. {"orderId": "123"}'
+            );
+            return;
+          }
+          parsedMetadata = parsed as Record<string, unknown>;
+        } catch {
+          setMetadataError('Invalid JSON — check for missing quotes or commas');
+          return;
+        }
+      }
+
       const { data } = await paymentsApi.create({
         amountUsd,
         description: form.description || undefined,
         customerEmail: form.customerEmail || undefined,
         expiryMinutes,
+        metadata: parsedMetadata,
       });
       setSelectedPayment(data);
       setShowCreate(false);
@@ -667,16 +693,7 @@ export default function PaymentsPage() {
             <tbody className="divide-y divide-gray-50">
               {loading ? (
                 <SkeletonTableRows rows={6} cols={PAYMENT_TABLE_COLUMNS} />
-              ) : error ? null : payments.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={PAYMENT_TABLE_COLUMNS}
-                    className="px-6 py-8 text-center text-gray-400"
-                  >
-                    No payments yet
-                  </td>
-                </tr>
-              ) : filteredPayments.length === 0 ? (
+              ) : error ? null : filteredPayments.length === 0 ? (
                 <tr>
                   <td
                     colSpan={PAYMENT_TABLE_COLUMNS}

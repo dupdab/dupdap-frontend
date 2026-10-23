@@ -1,8 +1,12 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { renderHook, act } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+
 import { useMutation } from './useMutation';
 
-const { success, error } = vi.hoisted(() => ({ success: vi.fn(), error: vi.fn() }));
+const { success, error } = vi.hoisted(() => ({
+  success: vi.fn(),
+  error: vi.fn(),
+}));
 vi.mock('@/lib/toast', () => ({ default: { success, error } }));
 
 describe('useMutation', () => {
@@ -12,7 +16,9 @@ describe('useMutation', () => {
   });
 
   it('shows a success toast and returns the result', async () => {
-    const { result } = renderHook(() => useMutation(async () => 42, { successMessage: 'Saved' }));
+    const { result } = renderHook(() =>
+      useMutation(async () => 42, { successMessage: 'Saved' })
+    );
     let out: number | undefined;
     await act(async () => {
       out = await result.current.mutate();
@@ -24,7 +30,12 @@ describe('useMutation', () => {
 
   it('shows an error toast and resolves undefined on failure', async () => {
     const { result } = renderHook(() =>
-      useMutation(async () => { throw new Error('boom'); }, { errorMessage: 'Failed' }),
+      useMutation(
+        async () => {
+          throw new Error('boom');
+        },
+        { errorMessage: 'Failed' }
+      )
     );
     let out: unknown = 'x';
     await act(async () => {

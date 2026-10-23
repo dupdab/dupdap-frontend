@@ -19,28 +19,33 @@
  *   - merchant only      → redirects to /auth/login (token missing)
  *   - neither            → redirects to /auth/login
  */
-import React from 'react';
 import { render, screen, act, cleanup } from '@testing-library/react';
+import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { useAuthStore } from '@/lib/store';
-import DashboardLayout from '@/app/dashboard/layout';
+
 import AdminLayout from '@/app/dashboard/admin/layout';
+import DashboardLayout from '@/app/dashboard/layout';
+import { useAuthStore } from '@/lib/store';
 
 // ─── Mocks ──────────────────────────────────────────────────────────────────
 
 const mockPush = vi.fn();
 const mockReplace = vi.fn();
-let mockPathname = '/dashboard';
+const mockPathname = vi.fn(() => '/dashboard');
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush, replace: mockReplace }),
-  usePathname: () => mockPathname,
+  usePathname: () => mockPathname(),
 }));
 
 vi.mock('next/link', () => ({
-  default: ({ children, href }: { children: React.ReactNode; href: string }) => (
-    <a href={href}>{children}</a>
-  ),
+  default: ({
+    children,
+    href,
+  }: {
+    children: React.ReactNode;
+    href: string;
+  }) => <a href={href}>{children}</a>,
 }));
 
 // We control useAuthStore by mocking the whole store module
@@ -75,10 +80,12 @@ function stubAuth(overrides: {
     setAuth: vi.fn(),
     _setHasHydrated: vi.fn(),
   };
-  mockUseAuthStore.mockImplementation((selector?: (s: typeof state) => unknown) => {
-    if (selector) return selector(state) as ReturnType<typeof useAuthStore>;
-    return state as unknown as ReturnType<typeof useAuthStore>;
-  });
+  mockUseAuthStore.mockImplementation(
+    (selector?: (s: typeof state) => unknown) => {
+      if (selector) return selector(state) as ReturnType<typeof useAuthStore>;
+      return state as unknown as ReturnType<typeof useAuthStore>;
+    }
+  );
 }
 
 // ─── Tests ───────────────────────────────────────────────────────────────────
@@ -86,9 +93,7 @@ function stubAuth(overrides: {
 describe('DashboardLayout — auth guards and hydration', () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    mockPathname = '/dashboard';
     vi.useFakeTimers();
-    mockPathname.mockReturnValue('/dashboard');
   });
 
   afterEach(() => {
@@ -98,12 +103,16 @@ describe('DashboardLayout — auth guards and hydration', () => {
   });
 
   it('[pre-hydration window] renders loading spinner and avoids redirect or children render when hasHydrated is false', async () => {
-    stubAuth({ token: 'valid-token', merchant: MOCK_MERCHANT, hasHydrated: false });
+    stubAuth({
+      token: 'valid-token',
+      merchant: MOCK_MERCHANT,
+      hasHydrated: false,
+    });
 
     render(
       <DashboardLayout>
         <div data-testid="child-content">Dashboard Content</div>
-      </DashboardLayout>,
+      </DashboardLayout>
     );
 
     // Pre-hydration loading spinner should be visible
@@ -120,18 +129,22 @@ describe('DashboardLayout — auth guards and hydration', () => {
   });
 
   it('[token + merchant] renders the dashboard shell and children when hydrated', async () => {
-    stubAuth({ token: 'valid-token', merchant: MOCK_MERCHANT, hasHydrated: true });
+    stubAuth({
+      token: 'valid-token',
+      merchant: MOCK_MERCHANT,
+      hasHydrated: true,
+    });
 
     render(
       <DashboardLayout>
         <div data-testid="child-content">Dashboard Content</div>
-      </DashboardLayout>,
+      </DashboardLayout>
     );
 
     // Children should be visible
     expect(screen.getByTestId('child-content')).toBeInTheDocument();
-    // Merchant business name should appear in sidebar
-    expect(screen.getByText('Acme Corp')).toBeInTheDocument();
+    // Merchant business name should appear in sidebar (and header).
+    expect(screen.getAllByText('Acme Corp').length).toBeGreaterThan(0);
     // Should NOT redirect
     await act(async () => {
       vi.runAllTimers();
@@ -145,7 +158,7 @@ describe('DashboardLayout — auth guards and hydration', () => {
     const { container } = render(
       <DashboardLayout>
         <div data-testid="child-content">Dashboard Content</div>
-      </DashboardLayout>,
+      </DashboardLayout>
     );
 
     // Issue #401: the layout must NOT render null while merchant is missing.
@@ -167,7 +180,7 @@ describe('DashboardLayout — auth guards and hydration', () => {
     render(
       <DashboardLayout>
         <div data-testid="child-content">Dashboard Content</div>
-      </DashboardLayout>,
+      </DashboardLayout>
     );
 
     // The redirect is triggered in a useEffect — flush it
@@ -184,7 +197,7 @@ describe('DashboardLayout — auth guards and hydration', () => {
     render(
       <DashboardLayout>
         <div data-testid="child-content">Dashboard Content</div>
-      </DashboardLayout>,
+      </DashboardLayout>
     );
 
     await act(async () => {
@@ -202,7 +215,7 @@ describe('DashboardLayout — auth guards and hydration', () => {
     render(
       <DashboardLayout>
         <div data-testid="child-content">Dashboard Content</div>
-      </DashboardLayout>,
+      </DashboardLayout>
     );
 
     // The merchant interface must not be rendered for unauthenticated users.
@@ -221,10 +234,8 @@ describe('AdminLayout — admin authorization guard', () => {
     vi.clearAllMocks();
     // The admin layout only ever mounts under the admin route tree, so the
     // guard must see an admin pathname for its authorization decision.
-    mockPathname = '/dashboard/admin/settlements';
     vi.useFakeTimers();
-    // Restore default path for each test; individual tests may override.
-    mockPathname.mockReturnValue('/dashboard/admin');
+    // Individual tests may override via mockPathname assignment.
   });
 
   afterEach(() => {
@@ -239,11 +250,13 @@ describe('AdminLayout — admin authorization guard', () => {
     render(
       <AdminLayout>
         <div data-testid="admin-child">Admin Content</div>
-      </AdminLayout>,
+      </AdminLayout>
     );
 
     expect(screen.getByTestId('admin-child')).toBeInTheDocument();
-    await act(async () => { vi.runAllTimers(); });
+    await act(async () => {
+      vi.runAllTimers();
+    });
     expect(mockReplace).not.toHaveBeenCalled();
   });
 
@@ -251,13 +264,13 @@ describe('AdminLayout — admin authorization guard', () => {
     // Simulate a non-admin merchant navigating directly to an admin route.
     // The pathname must be an admin path so useAdminGuard marks the merchant
     // unauthorized for this route (#357).
-    mockPathname.mockReturnValue('/dashboard/admin/settlements');
+    mockPathname = '/dashboard/admin/settlements';
     stubAuth({ token: 'valid-token', merchant: MOCK_MERCHANT });
 
     const { container } = render(
       <AdminLayout>
         <div data-testid="admin-child">Admin Content</div>
-      </AdminLayout>,
+      </AdminLayout>
     );
 
     // Issue #402: the admin layout must NOT render null while the
@@ -269,7 +282,9 @@ describe('AdminLayout — admin authorization guard', () => {
     expect(screen.queryByTestId('admin-child')).not.toBeInTheDocument();
 
     // The redirect is triggered in a useEffect — flush it
-    await act(async () => { vi.runAllTimers(); });
+    await act(async () => {
+      vi.runAllTimers();
+    });
     expect(mockReplace).toHaveBeenCalledWith('/dashboard');
   });
 });

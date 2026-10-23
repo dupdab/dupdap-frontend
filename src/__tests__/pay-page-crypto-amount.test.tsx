@@ -1,6 +1,7 @@
+import { render, screen, cleanup, waitFor } from '@testing-library/react';
 import React from 'react';
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen, cleanup, waitFor } from '@testing-library/react';
+
 import PayPage from '@/app/pay/[paymentId]/page';
 import { paymentsApi } from '@/lib/api';
 
@@ -12,7 +13,9 @@ vi.mock('@/lib/api', () => ({
 
 // Mock qrcode.react to expose the value prop for assertion
 vi.mock('qrcode.react', () => ({
-  QRCodeSVG: ({ value }: { value: string }) => <div data-testid="qr-svg" data-qr-value={value} />,
+  QRCodeSVG: ({ value }: { value: string }) => (
+    <div data-testid="qr-svg" data-qr-value={value} />
+  ),
 }));
 
 const mockBasePayment = {
@@ -21,7 +24,8 @@ const mockBasePayment = {
   amountUsd: 100,
   amountXlm: 850.5,
   status: 'pending',
-  stellarDepositAddress: 'GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5',
+  stellarDepositAddress:
+    'GBBD47IF6LWK7P7MDEVSCWR7DPUWV3NY3DTQEVFL4NAT4AQH3ZLLFLA5',
   stellarMemo: 'MEMO-XYZ',
   createdAt: '2026-09-25T10:00:00.000Z',
   expiryMinutes: 30,
@@ -71,7 +75,9 @@ describe('PayPage — crypto amount & stellarUri safety (#398)', () => {
 
     // QR code must NOT be rendered
     expect(screen.queryByTestId('qr-svg')).not.toBeInTheDocument();
-    expect(screen.getByText('Calculating crypto exchange rate…')).toBeInTheDocument();
+    expect(
+      screen.getByText('Calculating crypto exchange rate…')
+    ).toBeInTheDocument();
   });
 
   it('does NOT substitute amountUsd when amountXlm is null, showing pending placeholder', async () => {

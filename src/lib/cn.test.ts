@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+
 import { cn } from './utils';
 
 describe('cn()', () => {
@@ -27,7 +28,9 @@ describe('cn()', () => {
 
   it('excludes a class from a falsy conditional', () => {
     const active = false;
-    expect(cn('text-gray-600', active && 'text-brand-700')).toBe('text-gray-600');
+    expect(cn('text-gray-600', active && 'text-brand-700')).toBe(
+      'text-gray-600'
+    );
   });
 
   it('resolves conflicting Tailwind text-color classes — last one wins', () => {
@@ -46,18 +49,27 @@ describe('cn()', () => {
   it('merges active-nav-item pattern correctly (text-gray-600 overridden by text-brand-700)', () => {
     // Mirrors the active navigation item logic in dashboard/layout.tsx.
     function navClass(active: boolean) {
-      return cn('text-gray-600 flex items-center gap-2', active && 'text-brand-700 bg-brand-50');
+      return cn(
+        'text-gray-600 flex items-center gap-2',
+        active && 'text-brand-700 bg-brand-50'
+      );
     }
 
     expect(navClass(false)).toBe('text-gray-600 flex items-center gap-2');
-    expect(navClass(true)).toBe('flex items-center gap-2 text-brand-700 bg-brand-50');
+    expect(navClass(true)).toBe(
+      'flex items-center gap-2 text-brand-700 bg-brand-50'
+    );
   });
 
   it('handles object syntax from clsx', () => {
-    expect(cn({ 'font-bold': true, italic: false, underline: true })).toBe('font-bold underline');
+    expect(cn({ 'font-bold': true, italic: false, underline: true })).toBe(
+      'font-bold underline'
+    );
   });
 
   it('handles array syntax from clsx', () => {
-    expect(cn(['flex', 'items-center'], 'gap-4')).toBe('flex items-center gap-4');
+    expect(cn(['flex', 'items-center'], 'gap-4')).toBe(
+      'flex items-center gap-4'
+    );
   });
 });

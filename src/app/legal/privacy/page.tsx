@@ -1,12 +1,14 @@
-import type { Metadata } from "next";
-import Link from "next/link";
+import Link from 'next/link';
+
+import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
-  title: "Privacy Policy",
-  description: "Privacy Policy for our service, including GDPR compliance information.",
+  title: 'Privacy Policy',
+  description:
+    'Privacy Policy for our service, including GDPR compliance information.',
 };
 
-const LAST_UPDATED = "January 1, 2025";
+const LAST_UPDATED = 'January 1, 2025';
 
 export default function PrivacyPolicyPage() {
   return (
@@ -46,7 +48,9 @@ export default function PrivacyPolicyPage() {
         </section>
 
         <section>
-          <h2 className="text-xl font-semibold">3. How We Use Your Information</h2>
+          <h2 className="text-xl font-semibold">
+            3. How We Use Your Information
+          </h2>
           <p className="mt-2">
             We use the information we collect to provide, maintain, and improve
             the service, to communicate with you, to ensure security, and to
@@ -128,9 +132,9 @@ export default function PrivacyPolicyPage() {
         <section>
           <h2 className="text-xl font-semibold">8. Changes to This Policy</h2>
           <p className="mt-2">
-            We may update this Privacy Policy from time to time. We will post the
-            updated version on this page and update the &quot;Last updated&quot;
-            date above.
+            We may update this Privacy Policy from time to time. We will post
+            the updated version on this page and update the &quot;Last
+            updated&quot; date above.
           </p>
         </section>
 

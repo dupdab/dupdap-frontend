@@ -1,4 +1,3 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import {
   render,
   screen,
@@ -9,9 +8,12 @@ import {
 } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import toast from 'react-hot-toast';
-import PaymentsPage from './page';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
+
 import { paymentsApi } from '@/lib/api';
 import type { Payment } from '@/lib/types';
+
+import PaymentsPage from './page';
 
 vi.mock('@/lib/api', () => ({
   paymentsApi: {
@@ -147,7 +149,7 @@ describe('PaymentsPage', () => {
     const modal = await screen.findByTestId('create-payment-modal');
     const fields = within(modal);
 
-    fireEvent.change(fields.getByLabelText(/Amount \(USD\)/), {
+    fireEvent.change(fields.getByLabelText('Amount (USD)'), {
       target: { value: '12.50' },
     });
     fireEvent.change(fields.getByLabelText('Description (optional)'), {
@@ -243,11 +245,8 @@ describe('PaymentsPage', () => {
     await user.click(screen.getByTestId('new-payment-button'));
     const reopenedModal = await screen.findByTestId('create-payment-modal');
     expect(
-      (
-        within(reopenedModal).getByLabelText(
-          /Amount \(USD\)/
-        ) as HTMLInputElement
-      ).value
+      (within(reopenedModal).getByLabelText('Amount (USD)') as HTMLInputElement)
+        .value
     ).toBe('');
   });
 

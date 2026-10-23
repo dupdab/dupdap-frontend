@@ -15,6 +15,7 @@ export interface Merchant {
   businessName: string;
   status: string;
   role?: MerchantRole;
+  avatarUrl?: string;
   country?: string;
   bankAccountNumber?: string;
   bankCode?: string;
@@ -22,15 +23,24 @@ export interface Merchant {
   apiKeyScopes?: string[];
 }
 
+export interface TopMerchant {
+  merchantId: string;
+  merchantName: string;
+  totalVolume: number;
+  paymentCount: number;
+  avgOrderValue: number;
+}
+
 export interface AuthResponse {
-  accessToken: string;
+  accessToken?: string;
   merchant: Merchant;
 }
 
 export function isAuthResponse(data: unknown): data is AuthResponse {
   if (!data || typeof data !== 'object') return false;
   const record = data as Record<string, unknown>;
-  if (typeof record.accessToken !== 'string' || !record.accessToken) return false;
+  if (typeof record.accessToken !== 'string' || !record.accessToken)
+    return false;
   const merchant = record.merchant;
   if (!merchant || typeof merchant !== 'object') return false;
   const merchantRecord = merchant as Record<string, unknown>;
@@ -45,6 +55,8 @@ export interface Payment {
   status: PaymentStatus;
   description?: string;
   customerEmail?: string;
+  /** Arbitrary merchant-defined key/value data (e.g. order ID, product name). */
+  metadata?: Record<string, unknown>;
   stellarMemo: string;
   stellarDepositAddress?: string;
   qrCode?: string;
@@ -52,6 +64,8 @@ export interface Payment {
   updatedAt?: string;
   expiresAt?: string;
   expiryMinutes?: number;
+  merchantName?: string;
+  merchantEmail?: string;
 }
 
 export interface PaymentStats {

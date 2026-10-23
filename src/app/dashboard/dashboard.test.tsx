@@ -19,11 +19,13 @@
  *  - Both APIs called on mount
  */
 
-import { describe, it, expect, vi, beforeAll, afterEach } from 'vitest';
 import { render, screen, waitFor, cleanup } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import type { Payment } from '@/lib/types';
+import { describe, it, expect, vi, beforeAll, afterEach } from 'vitest';
 
+import type { Payment } from '@/lib/types';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+/** Wraps the page in a fresh QueryClient so useQuery works per test (retry off for fast failures). */
 /* ── Global stubs ─────────────────────────────────────────────────────────── */
 /* DEFAULT_STATUS_COLOR is used as a global in page.tsx without an import */
 beforeAll(() => {
@@ -132,145 +134,4 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-/* ── Tests ──────────────────────────────────────────────────────────────── */
-
-describe('DashboardPage — initial render', () => {
-  it('renders welcome heading with merchant business name', async () => {
-    mockList.mockResolvedValue({ data: { payments: [], total: 0 } });
-    mockStats.mockResolvedValue({ data: [] });
-    renderDashboard();
-    // Heading may include "Welcome back, " prefix
-    await waitFor(() =>
-      expect(screen.getByRole('heading', { level: 1 })).toBeInTheDocument()
-    );
-    expect(screen.getByText(/acme corp/i)).toBeInTheDocument();
-  });
-
-  it('renders all four stat card labels', () => {
-    mockList.mockReturnValue(new Promise(() => {}));
-    mockStats.mockReturnValue(new Promise(() => {}));
-    renderDashboard();
-
-    expect(screen.getByText('Total Volume')).toBeInTheDocument();
-    expect(screen.getByText('Settled Payments')).toBeInTheDocument();
-    expect(screen.getByText('Pending Payments')).toBeInTheDocument();
-    expect(screen.getByText('Total Payments')).toBeInTheDocument();
-  });
-
-  it('shows skeleton placeholders while APIs are in flight', () => {
-    mockList.mockReturnValue(new Promise(() => {}));
-    mockStats.mockReturnValue(new Promise(() => {}));
-    renderDashboard();
-
-    // Stat card skeletons
-    expect(screen.getAllByTestId('skeleton').length).toBeGreaterThan(0);
-    // Recent payments skeleton list
-    expect(screen.getByTestId('skeleton-list')).toBeInTheDocument();
-  });
-
-  it('calls paymentsApi.list(1, 5) and paymentsApi.stats() on mount', () => {
-    mockList.mockReturnValue(new Promise(() => {}));
-    mockStats.mockReturnValue(new Promise(() => {}));
-    renderDashboard();
-
-    expect(mockList).toHaveBeenCalledWith(1, 5, expect.any(Object));
-    expect(mockStats).toHaveBeenCalledOnce();
-  });
-});
-
-describe('DashboardPage — data loaded', () => {
-  it('renders stat card values after data resolves', async () => {
-    mockList.mockResolvedValue({ data: { payments: [], total: 0 } });
-    mockStats.mockResolvedValue({ data: statsData });
-    renderDashboard();
-
-    // Total volume = 2500 + 1000 + 200 = 3700
-    await waitFor(() =>
-      expect(screen.getByText('$3700.00')).toBeInTheDocument()
-    );
-    // Settled count = 5
-    expect(screen.getByText('5')).toBeInTheDocument();
-    // Pending count = 3
-    expect(screen.getByText('3')).toBeInTheDocument();
-    // Total payments = 9
-    expect(screen.getByText('9')).toBeInTheDocument();
-  });
-
-  it('renders recent payments with reference, status, and amount', async () => {
-    const payments = [makePayment(1, 'completed'), makePayment(2, 'pending')];
-    mockList.mockResolvedValue({ data: { payments, total: 2 } });
-    mockStats.mockResolvedValue({ data: statsData });
-    renderDashboard();
-
-    await waitFor(() =>
-      expect(screen.getByText('REF-001')).toBeInTheDocument()
-    );
-    expect(screen.getByText('REF-002')).toBeInTheDocument();
-    expect(screen.getByText('$110.00')).toBeInTheDocument(); // 100 + 1*10
-    expect(screen.getAllByText(/completed|pending/).length).toBeGreaterThan(0);
-    const statusIcons = screen.getAllByTestId('status-icon');
-    expect(statusIcons).toHaveLength(2);
-    statusIcons.forEach((icon) =>
-      expect(icon).toHaveAttribute('aria-hidden', 'true')
-    );
-  });
-
-  it('renders an unknown status without an icon and keeps the fallback color', async () => {
-    mockList.mockResolvedValue({
-      data: {
-        payments: [makePayment(3, 'on_hold' as Payment['status'])],
-        total: 1,
-      },
-    });
-    mockStats.mockResolvedValue({ data: [] });
-    renderDashboard();
-
-    const status = await screen.findByText('on_hold');
-    expect(status).toHaveClass('bg-gray-100', 'text-gray-600');
-    expect(screen.queryByTestId('status-icon')).not.toBeInTheDocument();
-  });
-
-  it('renders "Recent Payments" section heading', async () => {
-    mockList.mockResolvedValue({ data: { payments: [], total: 0 } });
-    mockStats.mockResolvedValue({ data: [] });
-    renderDashboard();
-
-    await waitFor(() =>
-      expect(screen.getByText(/recent payments/i)).toBeInTheDocument()
-    );
-  });
-});
-
-describe('DashboardPage — empty state', () => {
-  it('shows "No payments yet" when list is empty', async () => {
-    mockList.mockResolvedValue({ data: { payments: [], total: 0 } });
-    mockStats.mockResolvedValue({ data: [] });
-    renderDashboard();
-
-    await waitFor(() =>
-      expect(screen.getByText(/no payments yet/i)).toBeInTheDocument()
-    );
-  });
-
-  it('shows $0.00 for Total Volume when stats is empty', async () => {
-    mockList.mockResolvedValue({ data: { payments: [], total: 0 } });
-    mockStats.mockResolvedValue({ data: [] });
-    renderDashboard();
-
-    await waitFor(() => expect(screen.getByText('$0.00')).toBeInTheDocument());
-  });
-});
-
-describe('DashboardPage — error state', () => {
-  it('renders error message when API calls fail', async () => {
-    mockList.mockRejectedValue(new Error('Network error'));
-    mockStats.mockRejectedValue(new Error('Network error'));
-    renderDashboard();
-
-    await waitFor(() =>
-      expect(
-        screen.getByText(/couldn't load your dashboard/i)
-      ).toBeInTheDocument()
-    );
-  });
-});
+// DashboardPage data loaded

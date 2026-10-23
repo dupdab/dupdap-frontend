@@ -9,25 +9,30 @@
  * - Page includes a link to the Settlements admin tool
  * - Page does not expose a link to non-admin routes
  */
+import { render, screen } from '@testing-library/react';
 import React from 'react';
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+
 import AdminDashboardPage from '@/app/dashboard/admin/page';
 
 // next/link is mocked globally in src/__mocks__/next/link.tsx but we need it
 // to work here — the global mock renders a plain <a> which is fine.
 vi.mock('next/link', () => ({
   __esModule: true,
-  default: ({ children, href }: { children: React.ReactNode; href: string }) => (
-    <a href={href}>{children}</a>
-  ),
+  default: ({
+    children,
+    href,
+  }: {
+    children: React.ReactNode;
+    href: string;
+  }) => <a href={href}>{children}</a>,
 }));
 
 describe('AdminDashboardPage', () => {
   it('renders an "Admin Dashboard" heading', () => {
     render(<AdminDashboardPage />);
     expect(
-      screen.getByRole('heading', { name: /admin dashboard/i }),
+      screen.getByRole('heading', { name: /admin dashboard/i })
     ).toBeInTheDocument();
   });
 

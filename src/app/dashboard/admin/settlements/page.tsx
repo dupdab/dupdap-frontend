@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+
 import { useAuthStore } from '@/lib/store';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
@@ -29,11 +30,14 @@ interface Settlement {
 
 function formatAmount(value: number | undefined) {
   if (typeof value !== 'number' || Number.isNaN(value)) return '—';
-  return value.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 7 });
+  return value.toLocaleString(undefined, {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 7,
+  });
 }
 
 export default function AdminSettlementsPage() {
-  const { token } = useAuthStore();
+  const { token, merchant } = useAuthStore();
   const [settlements, setSettlements] = useState<Settlement[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -42,47 +46,53 @@ export default function AdminSettlementsPage() {
   const [submittingId, setSubmittingId] = useState<string | null>(null);
 
   const loadSettlements = useCallback(async () => {
-    if (!token) return;
+    if (!token && !merchant) return;
     setLoading(true);
     setError(null);
     try {
       const res = await fetch(`${API_URL}/admin/settlements?status=pending`, {
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!res.ok) throw new Error('Failed to load settlements');
       const data = await res.json();
-      setSettlements(Array.isArray(data) ? data : data.settlements ?? []);
+      setSettlements(Array.isArray(data) ? data : (data.settlements ?? []));
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to load settlements');
+      setError(
+        err instanceof Error ? err.message : 'Failed to load settlements'
+      );
     } finally {
       setLoading(false);
     }
-  }, [token]);
+  }, [token, merchant]);
 
   useEffect(() => {
     loadSettlements();
   }, [loadSettlements]);
 
   const approve = async (id: string) => {
-    if (!token) return;
+    if (!token && !merchant) return;
     setSubmittingId(id);
     setError(null);
     try {
       const res = await fetch(`${API_URL}/admin/settlements/${id}/approve`, {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}` },
+        credentials: 'include',
+        headers: token ? { Authorization: `Bearer ${token}` } : {},
       });
       if (!res.ok) throw new Error('Failed to approve settlement');
       await loadSettlements();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to approve settlement');
+      setError(
+        err instanceof Error ? err.message : 'Failed to approve settlement'
+      );
     } finally {
       setSubmittingId(null);
     }
   };
 
   const reject = async (id: string) => {
-    if (!token) return;
+    if (!token && !merchant) return;
     if (!rejectReason.trim()) {
       setError('A rejection reason is required');
       return;
@@ -92,8 +102,9 @@ export default function AdminSettlementsPage() {
     try {
       const res = await fetch(`${API_URL}/admin/settlements/${id}/reject`, {
         method: 'POST',
+        credentials: 'include',
         headers: {
-          Authorization: `Bearer ${token}`,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({ reason: rejectReason.trim() }),
@@ -103,7 +114,9 @@ export default function AdminSettlementsPage() {
       setRejectReason('');
       await loadSettlements();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to reject settlement');
+      setError(
+        err instanceof Error ? err.message : 'Failed to reject settlement'
+      );
     } finally {
       setSubmittingId(null);
     }
@@ -111,10 +124,15 @@ export default function AdminSettlementsPage() {
 
   return (
     <div className="p-6 max-w-5xl mx-auto">
-      <h1 className="text-2xl font-semibold text-gray-900 mb-6">Settlement Approvals</h1>
+      <h1 className="text-2xl font-semibold text-gray-900 mb-6">
+        Settlement Approvals
+      </h1>
 
       {error && (
-        <div role="alert" className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700">
+        <div
+          role="alert"
+          className="mb-4 rounded-md bg-red-50 p-3 text-sm text-red-700"
+        >
           {error}
         </div>
       )}
@@ -124,11 +142,16 @@ export default function AdminSettlementsPage() {
           Loading settlements…
         </div>
       ) : settlements.length === 0 ? (
-        <p className="text-sm text-gray-500">No settlements pending approval.</p>
+        <p className="text-sm text-gray-500">
+          No settlements pending approval.
+        </p>
       ) : (
         <ul className="space-y-4">
           {settlements.map((s) => (
-            <li key={s.id} className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm">
+            <li
+              key={s.id}
+              className="rounded-lg border border-gray-200 bg-white p-4 shadow-sm"
+            >
               <div className="flex flex-wrap items-start justify-between gap-4">
                 <div className="space-y-1 text-sm text-gray-700">
                   <p className="font-medium text-gray-900">
@@ -169,7 +192,10 @@ export default function AdminSettlementsPage() {
 
               {rejectingId === s.id && (
                 <div className="mt-3 space-y-2">
-                  <label htmlFor={`reason-${s.id}`} className="block text-sm font-medium text-gray-700">
+                  <label
+                    htmlFor={`reason-${s.id}`}
+                    className="block text-sm font-medium text-gray-700"
+                  >
                     Rejection reason
                   </label>
                   <textarea
@@ -202,12 +228,16 @@ export default function AdminSettlementsPage() {
                         <span className="font-medium">{entry.action}</span>
                         {entry.actor ? ` by ${entry.actor}` : ''}
                         {entry.reason ? ` — ${entry.reason}` : ''}
-                        {entry.createdAt ? ` (${new Date(entry.createdAt).toLocaleString()})` : ''}
+                        {entry.createdAt
+                          ? ` (${new Date(entry.createdAt).toLocaleString()})`
+                          : ''}
                       </li>
                     ))}
                   </ul>
                 ) : (
-                  <p className="mt-2 text-xs text-gray-400">No audit entries yet.</p>
+                  <p className="mt-2 text-xs text-gray-400">
+                    No audit entries yet.
+                  </p>
                 )}
               </div>
             </li>

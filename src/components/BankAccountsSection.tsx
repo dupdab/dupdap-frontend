@@ -10,6 +10,14 @@ import {
 } from '@/lib/bank-accounts-api';
 import { FormField } from '@/components/FormField';
 import ConfirmDialog from '@/components/ConfirmDialog';
+import { FormField } from '@/components/FormField';
+import {
+  bankAccountsApi,
+  maskAccountNumber,
+  type BankAccount,
+} from '@/lib/bank-accounts-api';
+import { getErrorMessage } from '@/lib/errors';
+import toast from '@/lib/toast';
 
 const EMPTY = {
   bankName: '',
@@ -55,7 +63,7 @@ export default function BankAccountsSection() {
       setForm(EMPTY);
       toast.success('Bank account added');
     } catch (err) {
-      toast.error(getErrorMessage(err));
+      toast.error(getErrorMessage(err) ?? 'Failed to add bank account');
     } finally {
       setAdding(false);
     }
@@ -69,7 +77,7 @@ export default function BankAccountsSection() {
       );
       toast.success('Default account updated');
     } catch (err) {
-      toast.error(getErrorMessage(err));
+      toast.error(getErrorMessage(err) ?? 'Failed to update default account');
     }
   };
 
@@ -81,7 +89,7 @@ export default function BankAccountsSection() {
       setAccounts((a) => a.filter((acc) => acc.id !== removeTarget.id));
       toast.success('Bank account removed');
     } catch (err) {
-      toast.error(getErrorMessage(err));
+      toast.error(getErrorMessage(err) ?? 'Failed to remove bank account');
     } finally {
       setRemoving(false);
       setRemoveTarget(null);

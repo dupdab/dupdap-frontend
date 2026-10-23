@@ -13,8 +13,13 @@
  *  - Renders the animated payment flow illustration (Issue #573)
  */
 
-import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach, beforeEach } from 'vitest';
+
+// Imported before the landing page so the next/dynamic mock factory (which is
+// evaluated when the page module imports next/dynamic) can reference it.
+import { PaymentFlowIllustration } from '@/components/PaymentFlowIllustration';
+
 import LandingPage from './page';
 
 vi.mock('next/link', () => ({
@@ -43,11 +48,8 @@ vi.mock('next/headers', () => ({
 // does not contribute to LCP (#573). In tests we render it eagerly so its
 // accessible content is queryable.
 vi.mock('next/dynamic', () => ({
-  default: () => {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const mod = require('@/components/PaymentFlowIllustration');
-    return mod.PaymentFlowIllustration;
-  },
+  // Render the illustration eagerly so its accessible content is queryable.
+  default: () => PaymentFlowIllustration,
 }));
 
 beforeEach(() => {
@@ -85,7 +87,8 @@ describe('LandingPage — smoke test & rendering', () => {
       '@context': 'https://schema.org',
       '@type': 'Organization',
       name: 'DupDub',
-      description: 'Crypto-to-fiat settlement platform bridging Web3 payments with traditional banking.',
+      description:
+        'Crypto-to-fiat settlement platform bridging Web3 payments with traditional banking.',
       url: 'https://dupdub.com',
     });
   });
@@ -101,11 +104,13 @@ describe('LandingPage — smoke test & rendering', () => {
       screen.getByRole('heading', {
         level: 1,
         name: /accept crypto,\s*receive fiat — instantly/i,
-      }),
+      })
     ).toBeInTheDocument();
 
     // CTA links
-    const registerLinks = screen.getAllByRole('link', { name: /start accepting payments/i });
+    const registerLinks = screen.getAllByRole('link', {
+      name: /start accepting payments/i,
+    });
     expect(registerLinks.length).toBeGreaterThan(0);
     expect(registerLinks[0]).toHaveAttribute('href', '/auth/register');
 
@@ -124,7 +129,9 @@ describe('LandingPage — smoke test & rendering', () => {
 
   it('renders the "Why DupDub?" features section with 4 feature items', () => {
     render(<LandingPage />);
-    expect(screen.getByRole('heading', { level: 2, name: /why dupdub\?/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { level: 2, name: /why dupdub\?/i })
+    ).toBeInTheDocument();
 
     expect(screen.getByText('QR Code Payments')).toBeInTheDocument();
     expect(screen.getByText('Instant Settlement')).toBeInTheDocument();
@@ -134,16 +141,22 @@ describe('LandingPage — smoke test & rendering', () => {
 
   it('renders the "How it works" three-step guide', () => {
     render(<LandingPage />);
-    expect(screen.getByRole('heading', { level: 2, name: /how it works/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { level: 2, name: /how it works/i })
+    ).toBeInTheDocument();
 
     expect(screen.getByText('Create payment')).toBeInTheDocument();
-    expect(screen.getByText('Customer approves + deposits')).toBeInTheDocument();
+    expect(
+      screen.getByText('Customer approves + deposits')
+    ).toBeInTheDocument();
     expect(screen.getByText('Receive fiat')).toBeInTheDocument();
   });
 
   it('renders the pricing section with fee tiers', () => {
     render(<LandingPage />);
-    expect(screen.getByRole('heading', { level: 2, name: /pricing/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { level: 2, name: /pricing/i })
+    ).toBeInTheDocument();
 
     // Standard tier fee
     expect(screen.getByText('1.5%')).toBeInTheDocument();
@@ -155,26 +168,46 @@ describe('LandingPage — smoke test & rendering', () => {
   it('renders the pricing comparison table vs traditional processors', () => {
     render(<LandingPage />);
     expect(screen.getByRole('table')).toBeInTheDocument();
-    expect(screen.getByText(/traditional payment processors/i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/traditional payment processors/i)
+    ).toBeInTheDocument();
   });
 
   it('renders the pricing FAQ accordion', () => {
     render(<LandingPage />);
-    expect(screen.getByRole('heading', { level: 2, name: /frequently asked questions/i })).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', {
+        level: 2,
+        name: /frequently asked questions/i,
+      })
+    ).toBeInTheDocument();
     expect(screen.getByText(/how are fees calculated/i)).toBeInTheDocument();
   });
 
   it('renders a CTA within the pricing section', () => {
     render(<LandingPage />);
-    const pricingCta = screen.getByRole('link', { name: /get started with dupdub/i });
+    const pricingCta = screen.getByRole('link', {
+      name: /get started with dupdub/i,
+    });
     expect(pricingCta).toHaveAttribute('href', '/auth/register');
   });
 
   it('renders the bottom CTA section and footer', () => {
     render(<LandingPage />);
-    expect(screen.getByRole('heading', { level: 2, name: /ready to get started\?/i })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /create free account/i })).toHaveAttribute('href', '/auth/register');
+    expect(
+      screen.getByRole('heading', { level: 2, name: /ready to get started\?/i })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('link', { name: /create free account/i })
+    ).toHaveAttribute('href', '/auth/register');
 
-    expect(screen.getByText(new RegExp(`© ${new Date().getFullYear()} DupDub. Built with Stellar.`, 'i'))).toBeInTheDocument();
+    expect(
+      screen.getByText(
+        new RegExp(
+          `© ${new Date().getFullYear()} DupDub. Built with Stellar.`,
+          'i'
+        )
+      )
+    ).toBeInTheDocument();
   });
 });

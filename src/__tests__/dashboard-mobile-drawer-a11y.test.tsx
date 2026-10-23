@@ -11,11 +11,12 @@
  *   - Escape closes the drawer
  *   - backdrop click closes the drawer
  */
-import React from 'react';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
+import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { useAuthStore } from '@/lib/store';
+
 import DashboardLayout from '@/app/dashboard/layout';
+import { useAuthStore } from '@/lib/store';
 
 const mockPush = vi.fn();
 
@@ -25,9 +26,13 @@ vi.mock('next/navigation', () => ({
 }));
 
 vi.mock('next/link', () => ({
-  default: ({ children, href }: { children: React.ReactNode; href: string }) => (
-    <a href={href}>{children}</a>
-  ),
+  default: ({
+    children,
+    href,
+  }: {
+    children: React.ReactNode;
+    href: string;
+  }) => <a href={href}>{children}</a>,
 }));
 
 vi.mock('@/lib/store');
@@ -36,14 +41,22 @@ const mockUseAuthStore = vi.mocked(useAuthStore);
 function stubAuth() {
   const state = {
     token: 'valid-token',
-    merchant: { id: 'm1', email: 'a@b.c', businessName: 'Acme Corp', status: 'active' },
+    merchant: {
+      id: 'm1',
+      email: 'a@b.c',
+      businessName: 'Acme Corp',
+      status: 'active',
+    },
     hasHydrated: true,
     logout: vi.fn(),
     setAuth: vi.fn(),
     _setHasHydrated: vi.fn(),
   };
-  mockUseAuthStore.mockImplementation((selector?: (s: typeof state) => unknown) =>
-    selector ? (selector(state) as ReturnType<typeof useAuthStore>) : (state as never),
+  mockUseAuthStore.mockImplementation(
+    (selector?: (s: typeof state) => unknown) =>
+      selector
+        ? (selector(state) as ReturnType<typeof useAuthStore>)
+        : (state as never)
   );
 }
 
@@ -55,7 +68,7 @@ function drawer() {
 /** Focusable elements inside the drawer, in DOM order. */
 function drawerFocusables() {
   return Array.from(
-    drawer().querySelectorAll<HTMLElement>('a[href], button:not([disabled])'),
+    drawer().querySelectorAll<HTMLElement>('a[href], button:not([disabled])')
   );
 }
 
@@ -63,7 +76,7 @@ function openDrawer() {
   render(
     <DashboardLayout>
       <div data-testid="child-content">Content</div>
-    </DashboardLayout>,
+    </DashboardLayout>
   );
   const hamburger = screen.getByLabelText('Open menu');
   hamburger.focus();
@@ -87,9 +100,11 @@ describe('DashboardLayout — mobile nav drawer focus management (#356)', () => 
     render(
       <DashboardLayout>
         <div data-testid="child-content">Content</div>
-      </DashboardLayout>,
+      </DashboardLayout>
     );
-    expect(screen.queryByRole('dialog', { name: 'Navigation menu' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('dialog', { name: 'Navigation menu' })
+    ).not.toBeInTheDocument();
   });
 
   it('exposes the drawer as a modal dialog', () => {
@@ -130,7 +145,9 @@ describe('DashboardLayout — mobile nav drawer focus management (#356)', () => 
     expect(drawer()).toBeInTheDocument();
 
     fireEvent.keyDown(document, { key: 'Escape', code: 'Escape' });
-    expect(screen.queryByRole('dialog', { name: 'Navigation menu' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('dialog', { name: 'Navigation menu' })
+    ).not.toBeInTheDocument();
   });
 
   it('restores focus to the hamburger button after the drawer closes', () => {
@@ -142,18 +159,25 @@ describe('DashboardLayout — mobile nav drawer focus management (#356)', () => 
   it('closes the drawer on backdrop click', () => {
     openDrawer();
     // The backdrop is the drawer wrapper's first child.
-    const backdrop = drawer().parentElement!.querySelector<HTMLElement>('.bg-black\\/40');
+    const backdrop =
+      drawer().parentElement!.querySelector<HTMLElement>('.bg-black\\/40');
     fireEvent.click(backdrop!);
-    expect(screen.queryByRole('dialog', { name: 'Navigation menu' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('dialog', { name: 'Navigation menu' })
+    ).not.toBeInTheDocument();
   });
 
   it('closes the drawer via its close button', () => {
     openDrawer();
     // sidebarContent is shared with the (always-rendered, CSS-hidden) desktop
     // sidebar, so scope the query to the drawer instance.
-    const closeButton = drawer().querySelector<HTMLElement>('[aria-label="Close menu"]')!;
+    const closeButton = drawer().querySelector<HTMLElement>(
+      '[aria-label="Close menu"]'
+    )!;
     fireEvent.click(closeButton);
-    expect(screen.queryByRole('dialog', { name: 'Navigation menu' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('dialog', { name: 'Navigation menu' })
+    ).not.toBeInTheDocument();
   });
 
   it('locks body scroll while the drawer is open and restores it on close', () => {
@@ -168,10 +192,12 @@ describe('DashboardLayout — mobile nav drawer focus management (#356)', () => 
     render(
       <DashboardLayout>
         <div data-testid="child-content">Content</div>
-      </DashboardLayout>,
+      </DashboardLayout>
     );
     fireEvent.keyDown(document, { key: 'Escape', code: 'Escape' });
-    expect(screen.queryByRole('dialog', { name: 'Navigation menu' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('dialog', { name: 'Navigation menu' })
+    ).not.toBeInTheDocument();
     expect(mockPush).not.toHaveBeenCalled();
   });
 });

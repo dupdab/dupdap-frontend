@@ -1,6 +1,7 @@
-import { afterEach, describe, expect, it } from 'vitest';
 import { render, screen, act } from '@testing-library/react';
 import { Toaster } from 'react-hot-toast';
+import { afterEach, describe, expect, it } from 'vitest';
+
 import toast from '@/lib/toast';
 
 /**

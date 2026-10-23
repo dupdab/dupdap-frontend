@@ -8,8 +8,6 @@
  * Issue #575: settled status shows a one-shot, reduced-motion-aware success animation
  * Issue #558: expired payment links render a dedicated expired state
  */
-import React from 'react';
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   render,
   screen,
@@ -17,6 +15,9 @@ import {
   act,
   fireEvent,
 } from '@testing-library/react';
+import React from 'react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import PayPage from '@/app/pay/[paymentId]/page';
 import { paymentsApi } from '@/lib/api';
 

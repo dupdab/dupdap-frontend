@@ -1,19 +1,25 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
-import toast from '@/lib/toast';
 import { CheckCircle, Loader2, XCircle } from 'lucide-react';
-import { waitlistApi } from '@/lib/api';
+import Link from 'next/link';
+import { useEffect, useRef, useState } from 'react';
+
 import { FormField } from '@/components/FormField';
-import { getErrorMessage } from '@/lib/errors';
 import { WaitlistConfirmation } from '@/components/WaitlistConfirmation';
+import { waitlistApi } from '@/lib/api';
+import { getErrorMessage } from '@/lib/errors';
+import toast from '@/lib/toast';
 import { buildReferralLink, parseJoinResponse } from '@/lib/waitlist-share';
 
 type UsernameStatus = 'idle' | 'checking' | 'available' | 'taken' | 'error';
 
 export default function WaitlistPage() {
-  const [form, setForm] = useState({ email: '', username: '', businessName: '', country: '' });
+  const [form, setForm] = useState({
+    email: '',
+    username: '',
+    businessName: '',
+    country: '',
+  });
   const [loading, setLoading] = useState(false);
   const [joined, setJoined] = useState(false);
   const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>('idle');
@@ -42,9 +48,12 @@ export default function WaitlistPage() {
         // Any unrecognized shape is treated as an error rather than optimistically
         // assuming availability, so we never promise a username we can't confirm (#305).
         let status: UsernameStatus;
-        if (typeof data?.available === 'boolean') status = data.available ? 'available' : 'taken';
-        else if (typeof data?.taken === 'boolean') status = data.taken ? 'taken' : 'available';
-        else if (typeof data?.exists === 'boolean') status = data.exists ? 'taken' : 'available';
+        if (typeof data?.available === 'boolean')
+          status = data.available ? 'available' : 'taken';
+        else if (typeof data?.taken === 'boolean')
+          status = data.taken ? 'taken' : 'available';
+        else if (typeof data?.exists === 'boolean')
+          status = data.exists ? 'taken' : 'available';
         else status = 'error';
         setUsernameStatus(status);
       } catch {
@@ -66,7 +75,10 @@ export default function WaitlistPage() {
     try {
       const res = await waitlistApi.join(form);
       const data = res?.data;
-      const parsed = parseJoinResponse(data, form.username.trim() || form.email.trim());
+      const parsed = parseJoinResponse(
+        data,
+        form.username.trim() || form.email.trim()
+      );
       setPosition(parsed.position);
       setReferralLink(buildReferralLink(window.location.origin, parsed.code));
       setJoined(true);
@@ -83,22 +95,36 @@ export default function WaitlistPage() {
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
       <div className="card w-full max-w-md p-8">
         <div className="text-center mb-6">
-          <Link href="/" className="font-bold text-xl text-brand-600">DupDub</Link>
+          <Link href="/" className="font-bold text-xl text-brand-600">
+            DupDub
+          </Link>
           <h2 className="text-2xl font-bold mt-4 mb-2">Join the waitlist</h2>
-          <p className="text-gray-500 text-sm">Be first to access DupDub when we launch</p>
+          <p className="text-gray-500 text-sm">
+            Be first to access DupDub when we launch
+          </p>
         </div>
 
         {joined ? (
           <div className="text-center py-6">
             <CheckCircle className="w-12 h-12 text-green-500 mx-auto mb-4" />
             <h3 className="font-semibold text-lg">You&apos;re on the list!</h3>
-            <p className="text-gray-500 text-sm mt-2">We&apos;ll reach out when your account is ready.</p>
-            <WaitlistConfirmation position={position} referralLink={referralLink} />
+            <p className="text-gray-500 text-sm mt-2">
+              We&apos;ll reach out when your account is ready.
+            </p>
+            <WaitlistConfirmation
+              position={position}
+              referralLink={referralLink}
+            />
             <div className="mt-6 space-y-3">
               <button
                 type="button"
                 onClick={() => {
-                  setForm({ email: '', username: '', businessName: '', country: '' });
+                  setForm({
+                    email: '',
+                    username: '',
+                    businessName: '',
+                    country: '',
+                  });
                   setUsernameStatus('idle');
                   setJoined(false);
                 }}
@@ -106,7 +132,10 @@ export default function WaitlistPage() {
               >
                 Add another signup
               </button>
-              <Link href="/" className="block text-sm text-brand-600 font-medium hover:underline">
+              <Link
+                href="/"
+                className="block text-sm text-brand-600 font-medium hover:underline"
+              >
                 Back to home
               </Link>
             </div>
@@ -123,43 +152,95 @@ export default function WaitlistPage() {
               </p>
             )}
             <fieldset disabled={loading} className="space-y-4">
-              <FormField label="Email" type="email" required value={form.email}
-                onChange={(e) => setForm({ ...form, email: e.target.value })} />
+              <FormField
+                label="Email"
+                type="email"
+                required
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+              />
               <div>
-                <FormField label="Username (optional)" type="text" required={false} value={form.username}
-                  onChange={(e) => setForm({ ...form, username: e.target.value })} />
-                <div className="mt-1 flex items-center gap-1.5 text-sm" aria-live="polite">
+                <FormField
+                  label="Username (optional)"
+                  type="text"
+                  required={false}
+                  value={form.username}
+                  onChange={(e) =>
+                    setForm({ ...form, username: e.target.value })
+                  }
+                />
+                <div
+                  className="mt-1 flex items-center gap-1.5 text-sm"
+                  aria-live="polite"
+                >
                   {usernameStatus === 'checking' && (
                     <>
-                      <Loader2 className="w-4 h-4 animate-spin text-gray-400" aria-hidden="true" />
-                      <span className="text-gray-500">Checking availability…</span>
+                      <Loader2
+                        className="w-4 h-4 animate-spin text-gray-400"
+                        aria-hidden="true"
+                      />
+                      <span className="text-gray-500">
+                        Checking availability…
+                      </span>
                     </>
                   )}
                   {usernameStatus === 'available' && (
                     <>
-                      <CheckCircle className="w-4 h-4 text-green-500" aria-hidden="true" />
-                      <span className="text-green-600">Username is available</span>
+                      <CheckCircle
+                        className="w-4 h-4 text-green-500"
+                        aria-hidden="true"
+                      />
+                      <span className="text-green-600">
+                        Username is available
+                      </span>
                     </>
                   )}
                   {usernameStatus === 'taken' && (
                     <>
-                      <XCircle className="w-4 h-4 text-red-500" aria-hidden="true" />
-                      <span className="text-red-600">Username is already taken</span>
+                      <XCircle
+                        className="w-4 h-4 text-red-500"
+                        aria-hidden="true"
+                      />
+                      <span className="text-red-600">
+                        Username is already taken
+                      </span>
                     </>
                   )}
                   {usernameStatus === 'error' && (
                     <>
-                      <XCircle className="w-4 h-4 text-amber-500" aria-hidden="true" />
-                      <span className="text-amber-600">Couldn&apos;t verify username availability</span>
+                      <XCircle
+                        className="w-4 h-4 text-amber-500"
+                        aria-hidden="true"
+                      />
+                      <span className="text-amber-600">
+                        Couldn&apos;t verify username availability
+                      </span>
                     </>
                   )}
                 </div>
               </div>
-              <FormField label="Business Name (optional)" type="text" required={false} value={form.businessName}
-                onChange={(e) => setForm({ ...form, businessName: e.target.value })} />
-              <FormField label="Country (optional)" type="text" required={false} value={form.country}
-                onChange={(e) => setForm({ ...form, country: e.target.value })} />
-              <button data-testid="waitlist-submit-button" type="submit" disabled={loading} className="btn-primary w-full">
+              <FormField
+                label="Business Name (optional)"
+                type="text"
+                required={false}
+                value={form.businessName}
+                onChange={(e) =>
+                  setForm({ ...form, businessName: e.target.value })
+                }
+              />
+              <FormField
+                label="Country (optional)"
+                type="text"
+                required={false}
+                value={form.country}
+                onChange={(e) => setForm({ ...form, country: e.target.value })}
+              />
+              <button
+                data-testid="waitlist-submit-button"
+                type="submit"
+                disabled={loading}
+                className="btn-primary w-full"
+              >
                 {loading ? 'Joining...' : 'Join waitlist'}
               </button>
             </fieldset>

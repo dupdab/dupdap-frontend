@@ -1,6 +1,7 @@
 'use client';
 
 import { WifiOff } from 'lucide-react';
+
 import { useOnlineStatus } from '@/lib/useOnlineStatus';
 
 /**
@@ -22,8 +23,10 @@ export function OfflineBanner() {
     >
       <WifiOff className="h-4 w-4 shrink-0" aria-hidden="true" />
       <p>
-        <span className="font-semibold">You are offline</span>{' — '}
-        check your connection. Changes can&apos;t be saved until you&apos;re back online.
+        <span className="font-semibold">You are offline</span>
+        {' — '}
+        check your connection. Changes can&apos;t be saved until you&apos;re
+        back online.
       </p>
     </div>
   );

@@ -1,7 +1,9 @@
-import { describe, it, expect, vi } from 'vitest';
 import { render, screen, fireEvent } from '@testing-library/react';
-import PaymentDetailPanel from './PaymentDetailPanel';
+import { describe, it, expect, vi } from 'vitest';
+
 import type { Payment } from '@/lib/types';
+
+import PaymentDetailPanel from './PaymentDetailPanel';
 
 const payment = {
   id: 'p1',

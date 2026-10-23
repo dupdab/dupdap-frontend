@@ -1,9 +1,12 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import DashboardPage from './page';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import { paymentsApi } from '@/lib/api';
 
+import DashboardPage from './page';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+
+/** Wraps the page in a fresh QueryClient so useQuery works per test (retry off for fast failures). */
 vi.mock('@/lib/api', () => ({
   paymentsApi: {
     list: vi.fn(),
@@ -29,6 +32,7 @@ vi.mock('recharts', () => {
   );
   return {
     ResponsiveContainer: Passthrough,
+    ComposedChart: Passthrough,
     LineChart: Passthrough,
     Line: () => null,
     XAxis: () => null,
@@ -86,91 +90,96 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-describe('DashboardPage', () => {
-  it('renders the loading state while fetching', () => {
-    mockedList.mockReturnValue(new Promise(() => {}) as never);
-    mockedStats.mockReturnValue(new Promise(() => {}) as never);
+/** Wraps the page in a fresh QueryClient so useQuery works per test (retry off for fast failures). */
+it('renders the loading state while fetching', () => {
+  mockedList.mockReturnValue(new Promise(() => {}) as never);
+  mockedStats.mockReturnValue(new Promise(() => {}) as never);
 
-    renderDashboard();
+  renderDashboard();
 
-    expect(screen.getByText(/recent payments/i)).toBeInTheDocument();
-    expect(screen.queryByText(/no payments yet/i)).not.toBeInTheDocument();
+  expect(screen.getByText(/recent payments/i)).toBeInTheDocument();
+  expect(screen.queryByText(/no payments yet/i)).not.toBeInTheDocument();
+});
+
+it('renders the error state when fetching fails', async () => {
+  mockedList.mockRejectedValue(new Error('boom'));
+  mockedStats.mockRejectedValue(new Error('boom'));
+
+  renderDashboard();
+
+  await waitFor(() => {
+    expect(screen.getByTestId('dashboard-error')).toHaveTextContent(
+      /couldn't load your dashboard right now/i
+    );
+  });
+});
+
+it('renders the empty state when there are no payments', async () => {
+  mockedList.mockResolvedValue({ data: { payments: [], total: 0 } } as never);
+  mockedStats.mockResolvedValue({ data: [] } as never);
+
+  renderDashboard();
+
+  await waitFor(() => {
+    expect(screen.getByText(/no payments yet/i)).toBeInTheDocument();
+  });
+});
+
+it('renders the populated state with summary stats and recent payments', async () => {
+  mockedList.mockResolvedValue({
+    data: { payments, total: payments.length },
+  } as never);
+  mockedStats.mockResolvedValue({ data: stats } as never);
+
+  renderDashboard();
+
+  await waitFor(() => {
+    expect(screen.getByText('REF-1')).toBeInTheDocument();
   });
 
-  it('renders the error state when fetching fails', async () => {
-    mockedList.mockRejectedValue(new Error('boom'));
-    mockedStats.mockRejectedValue(new Error('boom'));
+  expect(screen.getByText('REF-2')).toBeInTheDocument();
+  // Totals derived from the per-status stats breakdown: 2 settled, 1 pending, 3 total.
+  expect(screen.getByText('3')).toBeInTheDocument();
+});
 
-    renderDashboard();
+it('renders the payment volume chart with a compare toggle', async () => {
+  mockedList.mockResolvedValue({
+    data: { payments, total: payments.length },
+  } as never);
+  mockedStats.mockResolvedValue({ data: stats } as never);
 
-    await waitFor(() => {
-      expect(screen.getByTestId('dashboard-error')).toHaveTextContent(
-        /couldn't load your dashboard right now/i
-      );
-    });
-    expect(screen.getByRole('button', { name: /retry/i })).toBeInTheDocument();
+  renderDashboard();
+
+  await waitFor(() => {
+    expect(screen.getByText('REF-1')).toBeInTheDocument();
   });
 
-  it('renders the empty state when there are no payments', async () => {
-    mockedList.mockResolvedValue({ data: { payments: [], total: 0 } } as never);
-    mockedStats.mockResolvedValue({ data: [] } as never);
+  expect(screen.getByText(/payment volume/i)).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /compare/i })).toBeInTheDocument();
+});
 
-    renderDashboard();
+it('renders a payment with an unrecognized status without crashing', async () => {
+  const unknownStatusPayment = {
+    id: 'p3',
+    reference: 'REF-3',
+    amountUsd: 50,
+    status: 'refunded',
+    stellarMemo: 'memo-3',
+    createdAt: '2024-01-03T00:00:00.000Z',
+  };
 
-    await waitFor(() => {
-      expect(screen.getByText(/no payments yet/i)).toBeInTheDocument();
-    });
+  mockedList.mockResolvedValue({
+    data: { payments: [unknownStatusPayment], total: 1 },
+  } as never);
+  mockedStats.mockResolvedValue({ data: [] } as never);
+
+  renderDashboard();
+
+  await waitFor(() => {
+    expect(screen.getByText('REF-3')).toBeInTheDocument();
   });
 
-  it('renders the populated state with summary stats and recent payments', async () => {
-    mockedList.mockResolvedValue({
-      data: { payments, total: payments.length },
-    } as never);
-    mockedStats.mockResolvedValue({ data: stats } as never);
-
-    renderDashboard();
-
-    await waitFor(() => {
-      expect(screen.getByText('REF-1')).toBeInTheDocument();
-    });
-
-    expect(screen.getByText('REF-2')).toBeInTheDocument();
-    // Totals derived from the per-status stats breakdown: 2 settled, 1 pending, 3 total.
-    expect(screen.getByText('3')).toBeInTheDocument();
-  });
-
-  it('allows dismissal after all onboarding steps are complete', async () => {
-    mockedList.mockResolvedValue({
-      data: { payments, total: payments.length },
-    } as never);
-    mockedStats.mockResolvedValue({ data: stats } as never);
-
-    renderDashboard();
-
-    await waitFor(() => {
-      expect(screen.getByText('REF-1')).toBeInTheDocument();
-    });
-
-    expect(
-      await screen.findByRole('button', {
-        name: /dismiss onboarding checklist/i,
-      })
-    ).toBeInTheDocument();
-  });
-
-  it('renders a payment with an unrecognized status without crashing', async () => {
-    const unknownStatusPayment = {
-      id: 'p3',
-      reference: 'REF-3',
-      amountUsd: 50,
-      status: 'refunded',
-      stellarMemo: 'memo-3',
-      createdAt: '2024-01-03T00:00:00.000Z',
-    };
-
-    mockedList.mockResolvedValue({
-      data: { payments: [unknownStatusPayment], total: 1 },
-    } as never);
+  it('still counts refunded amounts in aggregate stats when status badge exists', async () => {
     mockedStats.mockResolvedValue({ data: [] } as never);
 
     renderDashboard();

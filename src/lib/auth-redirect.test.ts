@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+
 import { redirectToLogin, setAuthRedirectHandler } from './auth-redirect';
 
 describe('redirectToLogin', () => {
@@ -11,7 +12,11 @@ describe('redirectToLogin', () => {
     setAuthRedirectHandler(handler);
 
     Object.defineProperty(window, 'location', {
-      value: { pathname: '/dashboard/webhooks', search: '?tab=1', assign: vi.fn() },
+      value: {
+        pathname: '/dashboard/webhooks',
+        search: '?tab=1',
+        assign: vi.fn(),
+      },
       writable: true,
     });
 
@@ -29,7 +34,9 @@ describe('redirectToLogin', () => {
 
     redirectToLogin('/dashboard/payments');
 
-    expect(assign).toHaveBeenCalledWith('/auth/login?next=%2Fdashboard%2Fpayments');
+    expect(assign).toHaveBeenCalledWith(
+      '/auth/login?next=%2Fdashboard%2Fpayments'
+    );
   });
 
   it('falls back to window.location.assign when a previously registered handler is unregistered mid-flight', () => {
@@ -43,7 +50,11 @@ describe('redirectToLogin', () => {
     setAuthRedirectHandler(null);
 
     Object.defineProperty(window, 'location', {
-      value: { pathname: '/dashboard/settlements', search: '?status=pending', assign },
+      value: {
+        pathname: '/dashboard/settlements',
+        search: '?status=pending',
+        assign,
+      },
       writable: true,
     });
 
@@ -53,6 +64,8 @@ describe('redirectToLogin', () => {
     expect(staleHandler).not.toHaveBeenCalled();
     // Must fall back to window.location.assign with encoded return path
     expect(assign).toHaveBeenCalledTimes(1);
-    expect(assign).toHaveBeenCalledWith('/auth/login?next=%2Fdashboard%2Fsettlements%3Fstatus%3Dpending');
+    expect(assign).toHaveBeenCalledWith(
+      '/auth/login?next=%2Fdashboard%2Fsettlements%3Fstatus%3Dpending'
+    );
   });
 });

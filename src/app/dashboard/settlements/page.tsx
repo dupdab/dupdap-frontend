@@ -1,8 +1,11 @@
 'use client';
 
-import { memo, useEffect, useState } from 'react';
 import Link from 'next/link';
+import { memo, useEffect, useState } from 'react';
+
+import { SkeletonList, SkeletonTableRows } from '@/components/Skeleton';
 import { settlementsApi } from '@/lib/api';
+import type { Settlement } from '@/lib/types';
 import {
   formatNgn,
   formatDate,
@@ -10,8 +13,6 @@ import {
   STATUS_ICONS,
   DEFAULT_STATUS_COLOR,
 } from '@/lib/utils';
-import { SkeletonList, SkeletonTableRows } from '@/components/Skeleton';
-import type { Settlement } from '@/lib/types';
 
 // ---------------------------------------------------------------------------
 // Memoized row components — skips re-renders caused by parent state changes

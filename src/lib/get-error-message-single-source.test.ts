@@ -8,11 +8,13 @@
  *   - only `errors.ts` exports `getErrorMessage`
  *   - no other src file imports it from `utils.ts`
  */
-import { describe, expect, it } from 'vitest';
 import fs from 'node:fs';
 import path from 'node:path';
-import * as utils from './utils';
+
+import { describe, expect, it } from 'vitest';
+
 import * as errors from './errors';
+import * as utils from './utils';
 
 const SRC_ROOT = path.resolve(__dirname, '..');
 
@@ -44,7 +46,9 @@ describe('getErrorMessage has a single source (#359)', () => {
     const offenders = collectSourceFiles(SRC_ROOT)
       .filter((file) => file !== path.join(SRC_ROOT, 'lib', 'errors.ts'))
       .filter((file) =>
-        /getErrorMessage[^;]*from\s+['"][^'"]*utils['"]/.test(fs.readFileSync(file, 'utf8')),
+        /getErrorMessage[^;]*from\s+['"][^'"]*utils['"]/.test(
+          fs.readFileSync(file, 'utf8')
+        )
       )
       .map((file) => path.relative(SRC_ROOT, file));
 

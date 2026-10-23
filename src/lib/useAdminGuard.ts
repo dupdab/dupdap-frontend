@@ -1,9 +1,10 @@
 'use client';
 
-import { useEffect } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
-import { useAuthStore } from '@/lib/store';
+import { useEffect } from 'react';
+
 import { isAdmin } from '@/lib/auth';
+import { useAuthStore } from '@/lib/store';
 
 /** Path prefix guarded by the admin-only authorization check. */
 export const ADMIN_PATH_PREFIX = '/dashboard/admin';
@@ -11,7 +12,10 @@ export const ADMIN_PATH_PREFIX = '/dashboard/admin';
 /** Returns true when `pathname` is inside the admin-only route tree. */
 export function isAdminPath(pathname: string | null | undefined): boolean {
   if (!pathname) return false;
-  return pathname === ADMIN_PATH_PREFIX || pathname.startsWith(`${ADMIN_PATH_PREFIX}/`);
+  return (
+    pathname === ADMIN_PATH_PREFIX ||
+    pathname.startsWith(`${ADMIN_PATH_PREFIX}/`)
+  );
 }
 
 export type AdminGuardStatus = 'loading' | 'authorized' | 'unauthorized';

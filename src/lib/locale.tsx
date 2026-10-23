@@ -39,6 +39,8 @@ const EN = {
   'nav.settings': 'Settings',
   'nav.adminSettlements': 'Admin Settlements',
   'nav.signOut': 'Sign out',
+  'nav.tutorial': 'Video tutorial',
+  'nav.logout': 'Log out',
 
   // Dashboard overview
   'dashboard.welcome': 'Welcome back',
@@ -70,7 +72,8 @@ const EN = {
   'payments.form.description': 'Description (optional)',
   'payments.form.email': 'Customer Email (optional)',
   'payments.form.expiry': 'Expires in (minutes)',
-  'payments.form.expiryHint': 'Must be a whole number between {min} and {max} minutes.',
+  'payments.form.expiryHint':
+    'Must be a whole number between {min} and {max} minutes.',
   'payments.form.submit': 'Create Payment',
   'payments.form.submitting': 'Creating...',
   'payments.loadError': "Couldn't load payments.",
@@ -93,13 +96,15 @@ const EN = {
   'settings.save': 'Save changes',
   'settings.saving': 'Saving...',
   'settings.apiKey': 'API Key',
-  'settings.apiKeyDesc': 'Use your API key to authenticate server-side API requests.',
+  'settings.apiKeyDesc':
+    'Use your API key to authenticate server-side API requests.',
   'settings.generateKey': 'Generate new key',
   'settings.copyKey': 'Copy API key',
   'settings.keyWarning': "Save this key now — it won't be shown again",
 
   // Pay page (customer-facing)
-  'pay.scanInstructions': 'Scan with a Stellar wallet app, then approve USDC before deposit',
+  'pay.scanInstructions':
+    'Scan with a Stellar wallet app, then approve USDC before deposit',
   'pay.depositAddress': 'Deposit address (exact)',
   'pay.copyAddress': 'Copy deposit address',
   'pay.memo': 'Memo',
@@ -138,6 +143,8 @@ const FR: Messages = {
   'nav.settings': 'Paramètres',
   'nav.adminSettlements': 'Virements Admin',
   'nav.signOut': 'Se déconnecter',
+  'nav.tutorial': 'Vidéo tutorielle',
+  'nav.logout': 'Déconnexion',
 
   'dashboard.welcome': 'Bon retour',
   'dashboard.subtitle': 'Voici ce qui se passe avec vos paiements',
@@ -167,7 +174,8 @@ const FR: Messages = {
   'payments.form.description': 'Description (optionnel)',
   'payments.form.email': 'Email client (optionnel)',
   'payments.form.expiry': 'Expire dans (minutes)',
-  'payments.form.expiryHint': 'Doit être un nombre entier entre {min} et {max} minutes.',
+  'payments.form.expiryHint':
+    'Doit être un nombre entier entre {min} et {max} minutes.',
   'payments.form.submit': 'Créer le Paiement',
   'payments.form.submitting': 'Création...',
   'payments.loadError': 'Impossible de charger les paiements.',
@@ -188,12 +196,15 @@ const FR: Messages = {
   'settings.save': 'Enregistrer',
   'settings.saving': 'Enregistrement...',
   'settings.apiKey': 'Clé API',
-  'settings.apiKeyDesc': "Utilisez votre clé API pour authentifier les requêtes serveur.",
+  'settings.apiKeyDesc':
+    'Utilisez votre clé API pour authentifier les requêtes serveur.',
   'settings.generateKey': 'Générer une nouvelle clé',
   'settings.copyKey': 'Copier la clé API',
-  'settings.keyWarning': "Sauvegardez cette clé maintenant — elle ne sera plus affichée",
+  'settings.keyWarning':
+    'Sauvegardez cette clé maintenant — elle ne sera plus affichée',
 
-  'pay.scanInstructions': "Scannez avec une application Stellar, puis approuvez l'USDC avant le dépôt",
+  'pay.scanInstructions':
+    "Scannez avec une application Stellar, puis approuvez l'USDC avant le dépôt",
   'pay.depositAddress': 'Adresse de dépôt (exacte)',
   'pay.copyAddress': "Copier l'adresse",
   'pay.memo': 'Mémo',
@@ -202,7 +213,7 @@ const FR: Messages = {
   'pay.expiresIn': 'Expire dans {time}',
   'pay.loadError': 'Une erreur est survenue — réessayez',
   'pay.notFound': 'Paiement introuvable',
-  'pay.calculating': "Calcul du taux de change crypto…",
+  'pay.calculating': 'Calcul du taux de change crypto…',
 
   'analytics.title': 'Analytique',
   'analytics.subtitle': 'Volume de paiement et répartition par statut',
@@ -229,6 +240,8 @@ const PCM: Messages = {
   'nav.settings': 'Settings',
   'nav.adminSettlements': 'Admin Settlements',
   'nav.signOut': 'Sign out',
+  'nav.tutorial': 'Video tutorial',
+  'nav.logout': 'Log out',
 
   'dashboard.welcome': 'Welcome back',
   'dashboard.subtitle': 'See wetin dey happen wit your payments',
@@ -258,7 +271,8 @@ const PCM: Messages = {
   'payments.form.description': 'Description (optional)',
   'payments.form.email': 'Customer Email (optional)',
   'payments.form.expiry': 'Expire in (minutes)',
-  'payments.form.expiryHint': 'Make e be whole number between {min} and {max} minutes.',
+  'payments.form.expiryHint':
+    'Make e be whole number between {min} and {max} minutes.',
   'payments.form.submit': 'Create Payment',
   'payments.form.submitting': 'Creating...',
   'payments.loadError': 'E no fit load payments.',
@@ -279,12 +293,14 @@ const PCM: Messages = {
   'settings.save': 'Save changes',
   'settings.saving': 'Saving...',
   'settings.apiKey': 'API Key',
-  'settings.apiKeyDesc': 'Use your API key to authenticate server-side API requests.',
+  'settings.apiKeyDesc':
+    'Use your API key to authenticate server-side API requests.',
   'settings.generateKey': 'Generate new key',
   'settings.copyKey': 'Copy API key',
-  'settings.keyWarning': "Save this key now — dem no go show am again",
+  'settings.keyWarning': 'Save this key now — dem no go show am again',
 
-  'pay.scanInstructions': 'Scan am wit Stellar wallet app, approve USDC before you deposit',
+  'pay.scanInstructions':
+    'Scan am wit Stellar wallet app, approve USDC before you deposit',
   'pay.depositAddress': 'Deposit address (exact)',
   'pay.copyAddress': 'Copy address',
   'pay.memo': 'Memo',
@@ -320,6 +336,8 @@ const HA: Messages = {
   'nav.settings': 'Saiti',
   'nav.adminSettlements': 'Tsauri na Admin',
   'nav.signOut': 'Fita',
+  'nav.tutorial': 'Koyarwa',
+  'nav.logout': 'Fita daga asusun',
 
   'dashboard.welcome': 'Barka da dawowa',
   'dashboard.subtitle': 'Ga abin da ke faruwa da biyan kuɗinka',
@@ -349,7 +367,8 @@ const HA: Messages = {
   'payments.form.description': 'Bayanai (zaɓi)',
   'payments.form.email': 'Email na Abokin Ciniki (zaɓi)',
   'payments.form.expiry': 'Ya ƙare a (mintuna)',
-  'payments.form.expiryHint': 'Dole ya zama lamba gabaɗaya tsakanin {min} da {max} mintuna.',
+  'payments.form.expiryHint':
+    'Dole ya zama lamba gabaɗaya tsakanin {min} da {max} mintuna.',
   'payments.form.submit': 'Ƙirƙiri Biyan Kuɗi',
   'payments.form.submitting': 'Ƙirƙirawa...',
   'payments.loadError': 'Ba a iya loda biyan kuɗi.',
@@ -370,10 +389,12 @@ const HA: Messages = {
   'settings.save': 'Ajiye canje-canje',
   'settings.saving': 'Ana ajiyewa...',
   'settings.apiKey': 'Mabuɗin API',
-  'settings.apiKeyDesc': 'Yi amfani da mabuɗin API don tabbatar da buƙatun uwar garken.',
+  'settings.apiKeyDesc':
+    'Yi amfani da mabuɗin API don tabbatar da buƙatun uwar garken.',
   'settings.generateKey': 'Ƙirƙiri mabuɗi sabon',
   'settings.copyKey': 'Kwafa mabuɗin API',
-  'settings.keyWarning': "Adana wannan mabuɗin yanzu — ba za a nuna shi sake ba",
+  'settings.keyWarning':
+    'Adana wannan mabuɗin yanzu — ba za a nuna shi sake ba',
 
   'pay.scanInstructions': 'Duba da app na Stellar, amince da USDC kafin ajiya',
   'pay.depositAddress': 'Adireshin ajiya (daidai)',
@@ -390,7 +411,7 @@ const HA: Messages = {
   'analytics.subtitle': 'Yawan biyan kuɗi da rarrabuwar yanayi',
 
   'webhooks.title': 'Webhooks',
-  'webhooks.subtitle': 'Sami sanarwa idan al\'amarin biyan kuɗi ya faru',
+  'webhooks.subtitle': "Sami sanarwa idan al'amarin biyan kuɗi ya faru",
   'webhooks.add': 'Ƙara Webhook',
 
   'common.loading': 'Ana loda...',
@@ -402,7 +423,12 @@ const HA: Messages = {
   'common.language': 'Harshe',
 };
 
-const MESSAGES: Record<SupportedLocale, Messages> = { en: EN, fr: FR, pcm: PCM, ha: HA };
+const MESSAGES: Record<SupportedLocale, Messages> = {
+  en: EN,
+  fr: FR,
+  pcm: PCM,
+  ha: HA,
+};
 
 // ---------------------------------------------------------------------------
 // Context
@@ -451,7 +477,10 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const t = (key: keyof Messages, vars?: Record<string, string | number>): string => {
+  const t = (
+    key: keyof Messages,
+    vars?: Record<string, string | number>
+  ): string => {
     let msg: string = MESSAGES[locale][key] ?? EN[key] ?? key;
     if (vars) {
       for (const [k, v] of Object.entries(vars)) {
@@ -461,7 +490,11 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
     return msg;
   };
 
-  return <LocaleContext.Provider value={{ locale, setLocale, t }}>{children}</LocaleContext.Provider>;
+  return (
+    <LocaleContext.Provider value={{ locale, setLocale, t }}>
+      {children}
+    </LocaleContext.Provider>
+  );
 }
 
 export function useLocale() {

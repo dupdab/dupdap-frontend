@@ -4,11 +4,12 @@
  * Issue #310: 1s countdown timer must be isolated so it does not re-render the whole page
  * Issue #312: visibilitychange recomputes countdown and triggers immediate poll
  */
+import { render, act, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, act, waitFor } from '@testing-library/react';
-import { paymentsApi } from '@/lib/api';
+
 import PayPage from '@/app/pay/[paymentId]/page';
+import { paymentsApi } from '@/lib/api';
 
 vi.mock('@/lib/api', () => ({
   paymentsApi: {
@@ -17,7 +18,9 @@ vi.mock('@/lib/api', () => ({
 }));
 
 vi.mock('qrcode.react', () => ({
-  QRCodeSVG: ({ value }: { value: string }) => <div data-testid="qrcode" data-value={value} />,
+  QRCodeSVG: ({ value }: { value: string }) => (
+    <div data-testid="qrcode" data-value={value} />
+  ),
 }));
 
 const mockGetByReference = vi.mocked(paymentsApi.getByReference);
@@ -83,7 +86,9 @@ describe('PayPage — polling timer logic', () => {
     render(<PayPage params={defaultParams} />);
 
     // Flush initial fetch
-    await act(async () => { await Promise.resolve(); });
+    await act(async () => {
+      await Promise.resolve();
+    });
     const afterMount = mockGetByReference.mock.calls.length; // 1
 
     // Advance 5s → 1 poll tick
@@ -107,7 +112,9 @@ describe('PayPage — polling timer logic', () => {
     const { unmount } = render(<PayPage params={defaultParams} />);
 
     // Flush initial fetch
-    await act(async () => { await Promise.resolve(); });
+    await act(async () => {
+      await Promise.resolve();
+    });
     const afterMount = mockGetByReference.mock.calls.length;
 
     // Advance 5s to confirm polling is running
@@ -142,7 +149,9 @@ describe('PayPage — polling timer logic', () => {
       render(<PayPage params={defaultParams} />);
 
       // Flush initial fetch
-      await act(async () => { await Promise.resolve(); });
+      await act(async () => {
+        await Promise.resolve();
+      });
 
       // First poll tick → triggers terminal status → clears interval
       await act(async () => {
@@ -160,16 +169,20 @@ describe('PayPage — polling timer logic', () => {
       });
 
       expect(mockGetByReference.mock.calls.length).toBe(callsAfterTerminal);
-    },
+    }
   );
 
   it('triggers an immediate poll when the tab becomes visible again', async () => {
-    mockGetByReference.mockResolvedValue({ data: PENDING_PAYMENT } as Awaited<ReturnType<typeof paymentsApi.getByReference>>);
+    mockGetByReference.mockResolvedValue({ data: PENDING_PAYMENT } as Awaited<
+      ReturnType<typeof paymentsApi.getByReference>
+    >);
 
     render(<PayPage params={defaultParams} />);
 
     // Flush initial fetch
-    await act(async () => { await Promise.resolve(); });
+    await act(async () => {
+      await Promise.resolve();
+    });
 
     const afterMount = mockGetByReference.mock.calls.length; // 1
 
@@ -190,7 +203,9 @@ describe('PayPage — polling timer logic', () => {
     render(<PayPage params={defaultParams} />);
 
     // Flush initial fetch
-    await act(async () => { await Promise.resolve(); });
+    await act(async () => {
+      await Promise.resolve();
+    });
     const afterMount = mockGetByReference.mock.calls.length;
 
     await act(async () => {
@@ -199,7 +214,6 @@ describe('PayPage — polling timer logic', () => {
     });
 
     expect(mockGetByReference.mock.calls.length).toBe(afterMount);
-
   });
 });
 
@@ -209,11 +223,13 @@ describe('PayPage — stellarUri construction', () => {
 
     const { getByTestId } = render(<PayPage params={defaultParams} />);
 
-    await act(async () => { await Promise.resolve(); });
+    await act(async () => {
+      await Promise.resolve();
+    });
 
     const qr = getByTestId('qrcode');
     expect(qr.getAttribute('data-value')).toBe(
-      'web+stellar:pay?destination=GADDR&amount=25&memo=MEMO&memo_type=text',
+      'web+stellar:pay?destination=GADDR&amount=25&memo=MEMO&memo_type=text'
     );
   });
 
@@ -222,9 +238,13 @@ describe('PayPage — stellarUri construction', () => {
       data: { ...PENDING_PAYMENT, amountXlm: undefined },
     } as never);
 
-    const { queryByTestId, getByText } = render(<PayPage params={defaultParams} />);
+    const { queryByTestId, getByText } = render(
+      <PayPage params={defaultParams} />
+    );
 
-    await act(async () => { await Promise.resolve(); });
+    await act(async () => {
+      await Promise.resolve();
+    });
 
     // The QR code must not be rendered with a USD figure substituted as the crypto amount.
     expect(queryByTestId('qrcode')).toBeNull();
@@ -239,11 +259,13 @@ describe('PayPage — stellarUri construction', () => {
 
     const { getByTestId } = render(<PayPage params={defaultParams} />);
 
-    await act(async () => { await Promise.resolve(); });
+    await act(async () => {
+      await Promise.resolve();
+    });
 
     const qr = getByTestId('qrcode');
     expect(qr.getAttribute('data-value')).toBe(
-      'web+stellar:pay?destination=GADDR&amount=25&memo=a%20b%26c%3Dd%2Fe%3Ff&memo_type=text',
+      'web+stellar:pay?destination=GADDR&amount=25&memo=a%20b%26c%3Dd%2Fe%3Ff&memo_type=text'
     );
   });
 });

@@ -10,11 +10,12 @@
  * - Banner disappears again once a poll succeeds (network recovery)
  * - Initial load failure also surfaces the degraded-network message
  */
+import { render, act, screen, waitFor } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { render, act, screen, waitFor } from '@testing-library/react';
-import { paymentsApi } from '@/lib/api';
+
 import PayPage from '@/app/pay/[paymentId]/page';
+import { paymentsApi } from '@/lib/api';
 
 vi.mock('@/lib/api', () => ({
   paymentsApi: {
@@ -123,9 +124,9 @@ describe('PayPage — Stellar network degradation banner', () => {
   it('clears the banner when the network recovers', async () => {
     mockGetByReference
       .mockResolvedValueOnce({ data: PENDING_PAYMENT } as never) // initial load
-      .mockRejectedValueOnce(new Error('down'))                  // failure 1
-      .mockRejectedValueOnce(new Error('down'))                  // failure 2 → banner up
-      .mockResolvedValue({ data: PENDING_PAYMENT } as never);   // recovery
+      .mockRejectedValueOnce(new Error('down')) // failure 1
+      .mockRejectedValueOnce(new Error('down')) // failure 2 → banner up
+      .mockResolvedValue({ data: PENDING_PAYMENT } as never); // recovery
 
     render(<PayPage params={defaultParams} />);
     await flushMount();

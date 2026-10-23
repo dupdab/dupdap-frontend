@@ -1,9 +1,25 @@
 'use client';
 
-import { useMemo } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { TrendingUp, CreditCard, Banknote, Clock } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import {
+  ResponsiveContainer,
+  ComposedChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+} from 'recharts';
+
+import { Skeleton, SkeletonList } from '@/components/Skeleton';
 import { paymentsApi } from '@/lib/api';
+import { aggregatePaymentStats } from '@/lib/dashboard-stats';
+import { useLocale } from '@/lib/locale';
+import { useAuthStore } from '@/lib/store';
+import type { Payment, PaymentStats } from '@/lib/types';
 import {
   formatUsd,
   formatDate,
@@ -11,16 +27,63 @@ import {
   STATUS_ICONS,
   DEFAULT_STATUS_COLOR,
 } from '@/lib/utils';
-import { aggregatePaymentStats } from '@/lib/dashboard-stats';
-import { useAuthStore } from '@/lib/store';
-import { Skeleton, SkeletonList } from '@/components/Skeleton';
-import { useLocale } from '@/lib/locale';
-import type { Payment, PaymentStat } from '@/types/dashboard';
-import { MerchantOnboardingChecklist } from '@/components/MerchantOnboardingChecklist';
+
+const CHART_DAYS = 30;
+
+interface VolumePoint {
+  date: string;
+  label: string;
+  volume: number;
+  count: number;
+  prevVolume: number;
+  prevCount: number;
+}
+
+function buildVolumeSeries(payments: Payment[]): VolumePoint[] {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const buckets = new Map<string, { volume: number; count: number }>();
+  for (const p of payments) {
+    const d = new Date(p.createdAt);
+    if (Number.isNaN(d.getTime())) continue;
+    d.setHours(0, 0, 0, 0);
+    const key = d.toISOString().slice(0, 10);
+    const bucket = buckets.get(key) ?? { volume: 0, count: 0 };
+    bucket.volume += p.amountUsd;
+    bucket.count += 1;
+    buckets.set(key, bucket);
+  }
+
+  const series: VolumePoint[] = [];
+  for (let i = CHART_DAYS - 1; i >= 0; i -= 1) {
+    const current = new Date(today);
+    current.setDate(today.getDate() - i);
+    const previous = new Date(current);
+    previous.setDate(current.getDate() - CHART_DAYS);
+
+    const currentKey = current.toISOString().slice(0, 10);
+    const previousKey = previous.toISOString().slice(0, 10);
+    const cur = buckets.get(currentKey) ?? { volume: 0, count: 0 };
+    const prev = buckets.get(previousKey) ?? { volume: 0, count: 0 };
+
+    series.push({
+      date: currentKey,
+      label: `${current.getMonth() + 1}/${current.getDate()}`,
+      volume: Number(cur.volume.toFixed(2)),
+      count: cur.count,
+      prevVolume: Number(prev.volume.toFixed(2)),
+      prevCount: prev.count,
+    });
+  }
+
+  return series;
+}
 
 export default function DashboardPage() {
   const { merchant } = useAuthStore();
   const { t, locale } = useLocale();
+  const [compare, setCompare] = useState(false);
 
   // Deduplicated, abortable queries: React Query shares in-flight requests by key
   // and passes an AbortSignal that cancels the request on unmount/navigation.
@@ -41,6 +104,8 @@ export default function DashboardPage() {
 
   const { totalVolume, settledCount, pendingCount, totalPayments } =
     aggregatePaymentStats(stats);
+
+  const volumeSeries = useMemo(() => buildVolumeSeries(payments), [payments]);
 
   const statCards = useMemo(
     () => [
@@ -104,6 +169,103 @@ export default function DashboardPage() {
             )}
           </div>
         ))}
+      </div>
+
+      {/* Payment volume chart */}
+      <div className="card mb-8">
+        <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
+          <h2 className="font-semibold text-gray-900 dark:text-gray-100">
+            Payment Volume (Last 30 Days)
+          </h2>
+          <button
+            type="button"
+            onClick={() => setCompare((c) => !c)}
+            aria-pressed={compare}
+            className="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 cursor-pointer"
+          >
+            Compare to previous period
+          </button>
+        </div>
+        <div className="px-2 py-4">
+          {loading ? (
+            <Skeleton className="h-64 w-full" />
+          ) : (
+            <ResponsiveContainer width="100%" height={280}>
+              <ComposedChart
+                data={volumeSeries}
+                margin={{ top: 8, right: 16, left: 0, bottom: 0 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
+                <XAxis
+                  dataKey="label"
+                  tick={{ fontSize: 12 }}
+                  interval="preserveStartEnd"
+                />
+                <YAxis
+                  yAxisId="volume"
+                  tick={{ fontSize: 12 }}
+                  tickFormatter={(v: number) => formatUsd(v, locale)}
+                />
+                <YAxis
+                  yAxisId="count"
+                  orientation="right"
+                  tick={{ fontSize: 12 }}
+                  allowDecimals={false}
+                />
+                <Tooltip
+                  formatter={(value: number, name: string) =>
+                    name.toLowerCase().includes('volume')
+                      ? [formatUsd(value, locale), name]
+                      : [value, name]
+                  }
+                />
+                <Legend />
+                <Line
+                  yAxisId="volume"
+                  type="monotone"
+                  dataKey="volume"
+                  name="Volume (USD)"
+                  stroke="#2563eb"
+                  strokeWidth={2}
+                  dot={false}
+                />
+                <Line
+                  yAxisId="count"
+                  type="monotone"
+                  dataKey="count"
+                  name="Payments"
+                  stroke="#9333ea"
+                  strokeWidth={2}
+                  dot={false}
+                />
+                {compare && (
+                  <Line
+                    yAxisId="volume"
+                    type="monotone"
+                    dataKey="prevVolume"
+                    name="Prev Volume (USD)"
+                    stroke="#93c5fd"
+                    strokeDasharray="4 4"
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                )}
+                {compare && (
+                  <Line
+                    yAxisId="count"
+                    type="monotone"
+                    dataKey="prevCount"
+                    name="Prev Payments"
+                    stroke="#d8b4fe"
+                    strokeDasharray="4 4"
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                )}
+              </ComposedChart>
+            </ResponsiveContainer>
+          )}
+        </div>
       </div>
 
       {/* Recent payments */}

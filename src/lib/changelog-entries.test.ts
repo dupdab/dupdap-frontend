@@ -1,5 +1,10 @@
 import { describe, expect, it } from 'vitest';
-import { CHANGELOG_ENTRIES, buildChangelogFeed, escapeXml } from './changelog-entries';
+
+import {
+  CHANGELOG_ENTRIES,
+  buildChangelogFeed,
+  escapeXml,
+} from './changelog-entries';
 
 describe('changelog entries', () => {
   it('escapes XML special characters', () => {

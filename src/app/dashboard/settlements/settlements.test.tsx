@@ -12,7 +12,6 @@
  *  - Settlement IDs rendered as links to detail page
  */
 
-import { describe, it, expect, vi, afterEach } from 'vitest';
 import {
   render,
   screen,
@@ -20,6 +19,8 @@ import {
   waitFor,
   cleanup,
 } from '@testing-library/react';
+import { describe, it, expect, vi, afterEach } from 'vitest';
+
 import SettlementsPage from './page';
 
 /* ── Mocks ──────────────────────────────────────────────────────────────── */

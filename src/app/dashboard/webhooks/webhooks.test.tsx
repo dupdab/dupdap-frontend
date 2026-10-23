@@ -1,6 +1,13 @@
+import {
+  render,
+  screen,
+  waitFor,
+  cleanup,
+  fireEvent,
+} from '@testing-library/react';
 import React from 'react';
-import { render, screen, waitFor, cleanup, fireEvent } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import WebhooksPage from '@/app/dashboard/webhooks/page';
 import { webhooksApi } from '@/lib/api';
 import { WEBHOOK_EVENTS } from '@/lib/utils';
@@ -47,7 +54,9 @@ describe('WebhooksPage (#405)', () => {
     render(<WebhooksPage />);
 
     await waitFor(() => {
-      expect(screen.getByText('https://example.com/webhook')).toBeInTheDocument();
+      expect(
+        screen.getByText('https://example.com/webhook')
+      ).toBeInTheDocument();
       expect(screen.getByText('payment.created')).toBeInTheDocument();
     });
   });
@@ -71,16 +80,23 @@ describe('WebhooksPage (#405)', () => {
     fireEvent.click(screen.getByTestId('new-webhook-button'));
 
     const urlInput = screen.getByLabelText(/Endpoint URL/i);
-    fireEvent.change(urlInput, { target: { value: 'https://myapi.com/callback' } });
+    fireEvent.change(urlInput, {
+      target: { value: 'https://myapi.com/callback' },
+    });
 
     // Initially no error is rendered
-    expect(screen.queryByTestId('webhook-events-error')).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId('webhook-events-error')
+    ).not.toBeInTheDocument();
 
     const submitBtn = screen.getByTestId('webhook-submit-button');
     fireEvent.click(submitBtn);
 
     // Assert toast error and inline error banner are both active
-    expect(mockToastError).toHaveBeenCalledWith('Select at least one event', expect.anything());
+    expect(mockToastError).toHaveBeenCalledWith(
+      'Select at least one event',
+      expect.anything()
+    );
     const inlineError = screen.getByTestId('webhook-events-error');
     expect(inlineError).toBeInTheDocument();
     expect(inlineError).toHaveTextContent('Select at least one event');
@@ -93,7 +109,9 @@ describe('WebhooksPage (#405)', () => {
     fireEvent.click(screen.getByTestId('new-webhook-button'));
 
     const urlInput = screen.getByLabelText(/Endpoint URL/i);
-    fireEvent.change(urlInput, { target: { value: 'https://myapi.com/callback' } });
+    fireEvent.change(urlInput, {
+      target: { value: 'https://myapi.com/callback' },
+    });
 
     // Trigger validation error
     fireEvent.click(screen.getByTestId('webhook-submit-button'));
@@ -104,7 +122,9 @@ describe('WebhooksPage (#405)', () => {
     fireEvent.click(eventCheckbox);
 
     // Verify formError is cleared immediately on event check
-    expect(screen.queryByTestId('webhook-events-error')).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId('webhook-events-error')
+    ).not.toBeInTheDocument();
   });
 
   it('successfully creates webhook when URL and event are provided', async () => {
@@ -123,7 +143,9 @@ describe('WebhooksPage (#405)', () => {
     fireEvent.click(screen.getByTestId('new-webhook-button'));
 
     const urlInput = screen.getByLabelText(/Endpoint URL/i);
-    fireEvent.change(urlInput, { target: { value: 'https://myapi.com/callback' } });
+    fireEvent.change(urlInput, {
+      target: { value: 'https://myapi.com/callback' },
+    });
     fireEvent.click(screen.getByLabelText(/payment\.created/i));
 
     fireEvent.click(screen.getByTestId('webhook-submit-button'));
@@ -133,9 +155,12 @@ describe('WebhooksPage (#405)', () => {
         expect.objectContaining({
           url: 'https://myapi.com/callback',
           events: ['payment.created'],
-        }),
+        })
       );
-      expect(mockToastSuccess).toHaveBeenCalledWith('Webhook created', expect.anything());
+      expect(mockToastSuccess).toHaveBeenCalledWith(
+        'Webhook created',
+        expect.anything()
+      );
     });
   });
 
@@ -145,7 +170,9 @@ describe('WebhooksPage (#405)', () => {
     fireEvent.click(screen.getByTestId('new-webhook-button'));
 
     const urlInput = screen.getByLabelText(/Endpoint URL/i);
-    fireEvent.change(urlInput, { target: { value: 'https://myapi.com/callback' } });
+    fireEvent.change(urlInput, {
+      target: { value: 'https://myapi.com/callback' },
+    });
     fireEvent.click(screen.getByTestId('webhook-submit-button'));
     expect(screen.getByTestId('webhook-events-error')).toBeInTheDocument();
 
@@ -155,7 +182,9 @@ describe('WebhooksPage (#405)', () => {
 
     // Reopen modal and verify error is gone
     fireEvent.click(screen.getByTestId('new-webhook-button'));
-    expect(screen.queryByTestId('webhook-events-error')).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId('webhook-events-error')
+    ).not.toBeInTheDocument();
   });
 
   it('renders each webhook secret row inside the memoized WebhookRow (#345)', async () => {
@@ -168,7 +197,9 @@ describe('WebhooksPage (#405)', () => {
     // The row is the single source of markup: the signing secret block lives
     // inside it, so it is not duplicated alongside the list.
     const row = screen.getByTestId('webhook-row-wh_1');
-    expect(row.querySelector('[data-testid="reveal-secret-wh_1"]')).not.toBeNull();
+    expect(
+      row.querySelector('[data-testid="reveal-secret-wh_1"]')
+    ).not.toBeNull();
     expect(screen.getAllByTestId('reveal-secret-wh_1')).toHaveLength(1);
   });
 
@@ -201,7 +232,10 @@ describe('WebhooksPage — signing secret masking (#346)', () => {
 
   it('masks the signing secret input by default', () => {
     openCreateModal();
-    expect(screen.getByTestId('webhook-secret-input')).toHaveAttribute('type', 'password');
+    expect(screen.getByTestId('webhook-secret-input')).toHaveAttribute(
+      'type',
+      'password'
+    );
   });
 
   it('reveals and re-hides the secret via the toggle button', () => {
@@ -263,8 +297,12 @@ describe('WebhooksPage — events checkbox grouping (#347)', () => {
 
   it('nests the events fieldset inside the submission-disabling fieldset', () => {
     openCreateModal();
-    const outer = screen.getByTestId('webhook-submit-button').closest('fieldset');
+    const outer = screen
+      .getByTestId('webhook-submit-button')
+      .closest('fieldset');
     expect(outer).not.toBeNull();
-    expect(outer?.contains(screen.getByTestId('webhook-events-fieldset'))).toBe(true);
+    expect(outer?.contains(screen.getByTestId('webhook-events-fieldset'))).toBe(
+      true
+    );
   });
 });

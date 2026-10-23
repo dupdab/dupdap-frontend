@@ -1,8 +1,8 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
-import Link from 'next/link';
 import { Menu, X } from 'lucide-react';
+import Link from 'next/link';
+import { useEffect, useRef, useState } from 'react';
 
 export function LandingNav() {
   const [open, setOpen] = useState(false);
@@ -58,10 +58,16 @@ export function LandingNav() {
         <span className="font-bold text-xl text-brand-600">DupDub</span>
 
         <div className="hidden sm:flex items-center gap-4">
-          <Link href="#pricing" className="text-sm text-gray-600 hover:text-gray-900">
+          <Link
+            href="#pricing"
+            className="text-sm text-gray-600 hover:text-gray-900"
+          >
             Pricing
           </Link>
-          <Link href="/auth/login" className="text-sm text-gray-600 hover:text-gray-900">
+          <Link
+            href="/auth/login"
+            className="text-sm text-gray-600 hover:text-gray-900"
+          >
             Login
           </Link>
           <Link href="/auth/register" className="btn-primary text-sm">

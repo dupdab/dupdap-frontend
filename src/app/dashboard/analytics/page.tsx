@@ -1,13 +1,15 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
-import { paymentsApi } from '@/lib/api';
-import { formatUsd } from '@/lib/utils';
-import type { PaymentStats } from '@/lib/types';
-import RevenueByMethodCard from './RevenueByMethodCard';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+
 import { Skeleton, SkeletonTableRows } from '@/components/Skeleton';
+import { paymentsApi } from '@/lib/api';
+import type { PaymentStats } from '@/lib/types';
+import { formatUsd } from '@/lib/utils';
+
+import RevenueByMethodCard from './RevenueByMethodCard';
 
 // Recharts is a large library only used on this page. Wrapping the chart
 // components with next/dynamic (ssr: false) does two things:

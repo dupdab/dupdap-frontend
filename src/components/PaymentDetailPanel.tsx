@@ -1,11 +1,17 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
 import { X } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
+import { useEffect, useRef, useState } from 'react';
+
 import toast from '@/lib/toast';
-import { formatUsd, formatDate, PAYMENT_STATUS_COLORS, DEFAULT_STATUS_COLOR } from '@/lib/utils';
 import type { Payment } from '@/lib/types';
+import {
+  formatUsd,
+  formatDate,
+  PAYMENT_STATUS_COLORS,
+  DEFAULT_STATUS_COLOR,
+} from '@/lib/utils';
 
 interface PaymentDetailPanelProps {
   payment: Payment | null;
@@ -16,7 +22,10 @@ interface PaymentDetailPanelProps {
  * Right-hand slide-over showing full payment detail, Stellar memo, QR code and
  * actions, so merchants can inspect a payment without leaving the list.
  */
-export default function PaymentDetailPanel({ payment, onClose }: PaymentDetailPanelProps) {
+export default function PaymentDetailPanel({
+  payment,
+  onClose,
+}: PaymentDetailPanelProps) {
   const [copied, setCopied] = useState<'memo' | 'link' | null>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const open = !!payment;
@@ -45,14 +54,19 @@ export default function PaymentDetailPanel({ payment, onClose }: PaymentDetailPa
       setCopied(kind);
       setTimeout(() => setCopied(null), 2000);
     } catch {
-      toast.error(kind === 'memo' ? 'Failed to copy memo' : 'Failed to copy link');
+      toast.error(
+        kind === 'memo' ? 'Failed to copy memo' : 'Failed to copy link'
+      );
     }
   };
 
   const rows: Array<[string, string | undefined]> = [
     ['Reference', payment.reference],
     ['Amount (USD)', formatUsd(payment.amountUsd)],
-    ['Amount (XLM)', payment.amountXlm !== undefined ? String(payment.amountXlm) : undefined],
+    [
+      'Amount (XLM)',
+      payment.amountXlm !== undefined ? String(payment.amountXlm) : undefined,
+    ],
     ['Description', payment.description],
     ['Customer email', payment.customerEmail],
     ['Created', formatDate(payment.createdAt)],
@@ -62,7 +76,11 @@ export default function PaymentDetailPanel({ payment, onClose }: PaymentDetailPa
 
   return (
     <div className="fixed inset-0 z-50" data-testid="payment-detail-panel-root">
-      <div className="absolute inset-0 bg-black/40" onClick={onClose} aria-hidden="true" />
+      <div
+        className="absolute inset-0 bg-black/40"
+        onClick={onClose}
+        aria-hidden="true"
+      />
       <aside
         role="dialog"
         aria-modal="true"
@@ -71,7 +89,9 @@ export default function PaymentDetailPanel({ payment, onClose }: PaymentDetailPa
         className="absolute right-0 top-0 h-full w-full max-w-md bg-white shadow-xl overflow-y-auto p-6 space-y-6"
       >
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-gray-900">Payment details</h2>
+          <h2 className="text-lg font-semibold text-gray-900">
+            Payment details
+          </h2>
           <button
             ref={closeRef}
             type="button"
@@ -97,7 +117,7 @@ export default function PaymentDetailPanel({ payment, onClose }: PaymentDetailPa
                 <dt className="text-xs uppercase text-gray-500">{label}</dt>
                 <dd className="text-gray-900 break-all">{value}</dd>
               </div>
-            ) : null,
+            ) : null
           )}
         </dl>
 
@@ -105,7 +125,9 @@ export default function PaymentDetailPanel({ payment, onClose }: PaymentDetailPa
           <div>
             <p className="text-xs uppercase text-gray-500 mb-1">Stellar memo</p>
             <div className="flex items-center gap-2">
-              <code className="text-xs font-mono break-all">{payment.stellarMemo}</code>
+              <code className="text-xs font-mono break-all">
+                {payment.stellarMemo}
+              </code>
               <button
                 type="button"
                 data-testid="detail-copy-memo"
@@ -120,7 +142,10 @@ export default function PaymentDetailPanel({ payment, onClose }: PaymentDetailPa
 
         {(payment.qrCode || payment.stellarDepositAddress) && (
           <div className="bg-white p-4 rounded-lg border border-gray-100 inline-block">
-            <QRCodeSVG value={payment.qrCode ?? payment.stellarDepositAddress ?? ''} size={180} />
+            <QRCodeSVG
+              value={payment.qrCode ?? payment.stellarDepositAddress ?? ''}
+              size={180}
+            />
           </div>
         )}
 
@@ -133,7 +158,12 @@ export default function PaymentDetailPanel({ payment, onClose }: PaymentDetailPa
           >
             {copied === 'link' ? 'Link copied' : 'Copy payment link'}
           </button>
-          <a href={payUrl} target="_blank" rel="noopener noreferrer" className="btn-secondary text-sm px-3 py-1">
+          <a
+            href={payUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="btn-secondary text-sm px-3 py-1"
+          >
             Open pay page
           </a>
         </div>

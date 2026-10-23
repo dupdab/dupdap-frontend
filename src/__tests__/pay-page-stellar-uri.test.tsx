@@ -1,6 +1,7 @@
-import React from 'react';
 import { render, screen, cleanup, waitFor } from '@testing-library/react';
+import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import PayPage from '@/app/pay/[paymentId]/page';
 import { paymentsApi } from '@/lib/api';
 
@@ -97,7 +98,9 @@ describe('PayPage — stellarUri construction', () => {
     const qrElement = await screen.findByTestId('qrcode');
     const uri = qrElement.getAttribute('data-value');
 
-    const expectedDestination = encodeURIComponent('GADDR?special=true&mode=live');
+    const expectedDestination = encodeURIComponent(
+      'GADDR?special=true&mode=live'
+    );
     const expectedMemo = encodeURIComponent('Invoice & Note = 100% + VIP #1');
     const expectedUri = `web+stellar:pay?destination=${expectedDestination}&amount=50&memo=${expectedMemo}&memo_type=text`;
 

@@ -1,5 +1,6 @@
-import type { Metadata } from 'next';
 import { getApiUrl } from '@/lib/env';
+
+import type { Metadata } from 'next';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -20,7 +21,7 @@ async function fetchPayment(paymentId: string): Promise<OgPayment | null> {
     const res = await fetch(
       `${getApiUrl()}/pay/${encodeURIComponent(paymentId)}`,
       // Revalidate at most every 5 minutes — mirrors the OG image revalidation window.
-      { next: { revalidate: 300 } },
+      { next: { revalidate: 300 } }
     );
     if (!res.ok) return null;
     return (await res.json()) as OgPayment;

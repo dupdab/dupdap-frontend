@@ -1,6 +1,13 @@
+import {
+  render,
+  screen,
+  waitFor,
+  cleanup,
+  fireEvent,
+} from '@testing-library/react';
 import React from 'react';
-import { render, screen, waitFor, cleanup, fireEvent } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import PaymentsPage from '@/app/dashboard/payments/page';
 import { paymentsApi } from '@/lib/api';
 
@@ -12,12 +19,21 @@ vi.mock('@/lib/api', () => ({
 }));
 
 vi.mock('@/components/Modal', () => ({
-  default: ({ open, children }: { open: boolean; children: React.ReactNode }) =>
-    open ? <div>{children}</div> : null,
+  default: ({
+    open,
+    children,
+  }: {
+    open: boolean;
+    children: React.ReactNode;
+  }) => (open ? <div>{children}</div> : null),
 }));
 
 vi.mock('@/components/FormField', () => ({
-  FormField: ({ label, hint, ...props }: React.InputHTMLAttributes<HTMLInputElement> & {
+  FormField: ({
+    label,
+    hint,
+    ...props
+  }: React.InputHTMLAttributes<HTMLInputElement> & {
     label: string;
     hint?: React.ReactNode;
   }) => (
@@ -30,7 +46,9 @@ vi.mock('@/components/FormField', () => ({
 }));
 
 vi.mock('qrcode.react', () => ({
-  QRCodeSVG: ({ value }: { value: string }) => <div data-testid="qr-svg" data-qr-value={value} />,
+  QRCodeSVG: ({ value }: { value: string }) => (
+    <div data-testid="qr-svg" data-qr-value={value} />
+  ),
 }));
 
 describe('PaymentsPage — Description character limit and counter (#396)', () => {
@@ -74,13 +92,15 @@ describe('PaymentsPage — Description character limit and counter (#396)', () =
 
     vi.mocked(paymentsApi.list).mockResolvedValue({
       data: {
-        payments: [{
-          id: 'pay_unknown',
-          reference: 'PAY-UNKNOWN',
-          amountUsd: 25,
-          status: 'on_hold',
-          createdAt: '2026-09-25T10:00:00Z',
-        }],
+        payments: [
+          {
+            id: 'pay_unknown',
+            reference: 'PAY-UNKNOWN',
+            amountUsd: 25,
+            status: 'on_hold',
+            createdAt: '2026-09-25T10:00:00Z',
+          },
+        ],
         total: 1,
       },
     } as any);
@@ -88,7 +108,9 @@ describe('PaymentsPage — Description character limit and counter (#396)', () =
     const unknownRender = render(<PaymentsPage />);
 
     expect(await screen.findAllByText('on_hold')).toHaveLength(2);
-    expect(unknownRender.container.querySelectorAll('svg[aria-hidden="true"]')).toHaveLength(0);
+    expect(
+      unknownRender.container.querySelectorAll('svg[aria-hidden="true"]')
+    ).toHaveLength(0);
   });
 
   it('opens create modal with description maxLength and character counter (#396)', async () => {
@@ -115,7 +137,9 @@ describe('PaymentsPage — Description character limit and counter (#396)', () =
     fireEvent.click(screen.getByText('New Payment'));
 
     const descInput = screen.getByLabelText(/Description \(optional\)/i);
-    fireEvent.change(descInput, { target: { value: 'Invoice #1042 for consultation' } });
+    fireEvent.change(descInput, {
+      target: { value: 'Invoice #1042 for consultation' },
+    });
 
     const counter = screen.getByTestId('description-char-counter');
     expect(counter).toHaveTextContent('30/255');
@@ -275,7 +299,9 @@ describe('PaymentsPage — Amount range filter (#578)', () => {
 
     await screen.findAllByText('PAY-001');
 
-    fireEvent.change(screen.getByLabelText(/min amount/i), { target: { value: '100' } });
+    fireEvent.change(screen.getByLabelText(/min amount/i), {
+      target: { value: '100' },
+    });
 
     await waitFor(() => {
       expect(screen.queryByText('PAY-001')).not.toBeInTheDocument();
@@ -283,7 +309,9 @@ describe('PaymentsPage — Amount range filter (#578)', () => {
       expect(screen.getAllByText('PAY-003').length).toBeGreaterThanOrEqual(1);
     });
 
-    fireEvent.change(screen.getByLabelText(/max amount/i), { target: { value: '200' } });
+    fireEvent.change(screen.getByLabelText(/max amount/i), {
+      target: { value: '200' },
+    });
 
     await waitFor(() => {
       expect(screen.getAllByText('PAY-002').length).toBeGreaterThanOrEqual(1);
@@ -296,8 +324,12 @@ describe('PaymentsPage — Amount range filter (#578)', () => {
 
     await screen.findAllByText('PAY-001');
 
-    fireEvent.change(screen.getByLabelText(/min amount/i), { target: { value: '100' } });
-    fireEvent.change(screen.getByLabelText(/max amount/i), { target: { value: '200' } });
+    fireEvent.change(screen.getByLabelText(/min amount/i), {
+      target: { value: '100' },
+    });
+    fireEvent.change(screen.getByLabelText(/max amount/i), {
+      target: { value: '200' },
+    });
 
     await waitFor(() => {
       const params = new URLSearchParams(window.location.search);
@@ -311,8 +343,12 @@ describe('PaymentsPage — Amount range filter (#578)', () => {
 
     await screen.findAllByText('PAY-001');
 
-    fireEvent.change(screen.getByLabelText(/min amount/i), { target: { value: '100' } });
-    fireEvent.change(screen.getByLabelText(/max amount/i), { target: { value: '200' } });
+    fireEvent.change(screen.getByLabelText(/min amount/i), {
+      target: { value: '100' },
+    });
+    fireEvent.change(screen.getByLabelText(/max amount/i), {
+      target: { value: '200' },
+    });
 
     await waitFor(() => {
       expect(screen.queryByText('PAY-001')).not.toBeInTheDocument();

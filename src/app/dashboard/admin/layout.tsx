@@ -16,7 +16,11 @@ function LoadingState() {
   );
 }
 
-export default function AdminLayout({ children }: { children: React.ReactNode }) {
+export default function AdminLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const { token } = useAuthStore();
   // The admin authorization gate is shared with the dashboard layout so the
   // decision is made during render, not only by a redirect effect (#357).
@@ -33,7 +37,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   // effect above navigates non-admin merchants away, avoiding a flash of
   // blank content. The admin children are never returned to an unauthorized
   // merchant, so there is no flash-of-unauthorized-content window.
-  if (!token || status !== 'authorized') {
+  if (status !== 'authorized') {
     return <LoadingState />;
   }
 

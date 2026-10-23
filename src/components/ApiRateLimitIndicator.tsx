@@ -1,8 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+
 import { merchantApi } from '@/lib/api';
-import { isNearRateLimit, parseRateLimit, rateLimitPercent, type RateLimitUsage } from '@/lib/rate-limit';
+import {
+  isNearRateLimit,
+  parseRateLimit,
+  rateLimitPercent,
+  type RateLimitUsage,
+} from '@/lib/rate-limit';
 
 const DOCS_URL = 'https://docs.dupdub.com/api/rate-limiting';
 
@@ -32,10 +38,18 @@ export function ApiRateLimitIndicator() {
   const near = usage ? isNearRateLimit(usage) : false;
 
   return (
-    <div className="mb-4 rounded-lg border border-gray-200 p-4" data-testid="api-rate-limit">
+    <div
+      className="mb-4 rounded-lg border border-gray-200 p-4"
+      data-testid="api-rate-limit"
+    >
       <div className="flex items-center justify-between mb-2">
         <p className="text-sm font-medium text-gray-900">API rate limit</p>
-        <a href={DOCS_URL} target="_blank" rel="noopener noreferrer" className="text-xs text-brand-600 hover:underline">
+        <a
+          href={DOCS_URL}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs text-brand-600 hover:underline"
+        >
           Rate limiting docs
         </a>
       </div>
@@ -69,7 +83,9 @@ export function ApiRateLimitIndicator() {
           </p>
         </>
       ) : (
-        <p className="text-xs text-gray-500">Rate limit information is unavailable right now.</p>
+        <p className="text-xs text-gray-500">
+          Rate limit information is unavailable right now.
+        </p>
       )}
     </div>
   );

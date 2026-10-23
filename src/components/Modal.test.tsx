@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
 import { render, screen, cleanup, fireEvent } from '@testing-library/react';
+import React, { useState } from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
 import Modal from '@/components/Modal';
 
 function ModalTestHarness({ defaultOpen = true }: { defaultOpen?: boolean }) {
@@ -11,11 +12,24 @@ function ModalTestHarness({ defaultOpen = true }: { defaultOpen?: boolean }) {
       <button data-testid="trigger-btn" onClick={() => setOpen(true)}>
         Open Modal
       </button>
-      <Modal open={open} onClose={() => setOpen(false)} title="Test Modal" testId="modal-panel">
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        title="Test Modal"
+        testId="modal-panel"
+      >
         <div>
-          <input data-testid="input-first" type="text" placeholder="First input" />
+          <input
+            data-testid="input-first"
+            type="text"
+            placeholder="First input"
+          />
           <button data-testid="button-middle">Middle action</button>
-          <input data-testid="input-last" type="text" placeholder="Last input" />
+          <input
+            data-testid="input-last"
+            type="text"
+            placeholder="Last input"
+          />
         </div>
       </Modal>
     </div>

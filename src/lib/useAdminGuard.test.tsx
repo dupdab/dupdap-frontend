@@ -4,13 +4,20 @@
  * mounted the admin route before the redirect fired. The check is now a single
  * shared, render-time gate used by both layouts.
  */
-import { describe, expect, it, beforeEach, vi } from 'vitest';
 import { render, screen, cleanup } from '@testing-library/react';
 import React from 'react';
-import { isAdminPath, useAdminGuard, useAdminRedirect, type AdminGuardStatus } from './useAdminGuard';
-import { useAuthStore } from '@/lib/store';
-import DashboardLayout from '@/app/dashboard/layout';
+import { describe, expect, it, beforeEach, vi } from 'vitest';
+
 import AdminLayout from '@/app/dashboard/admin/layout';
+import DashboardLayout from '@/app/dashboard/layout';
+import { useAuthStore } from '@/lib/store';
+
+import {
+  isAdminPath,
+  useAdminGuard,
+  useAdminRedirect,
+  type AdminGuardStatus,
+} from './useAdminGuard';
 
 let mockPathname = '/dashboard';
 const mockPush = vi.fn();
@@ -22,9 +29,13 @@ vi.mock('next/navigation', () => ({
 }));
 
 vi.mock('next/link', () => ({
-  default: ({ children, href }: { children: React.ReactNode; href: string }) => (
-    <a href={href}>{children}</a>
-  ),
+  default: ({
+    children,
+    href,
+  }: {
+    children: React.ReactNode;
+    href: string;
+  }) => <a href={href}>{children}</a>,
 }));
 
 vi.mock('@/lib/store');
@@ -32,21 +43,31 @@ const mockUseAuthStore = vi.mocked(useAuthStore);
 
 type StoreState = {
   token: string | null;
-  merchant: { id: string; email: string; businessName: string; status: string; role?: string } | null;
+  merchant: {
+    id: string;
+    email: string;
+    businessName: string;
+    status: string;
+    role?: string;
+  } | null;
   hasHydrated: boolean;
 };
 
 function stubAuth(overrides: Partial<StoreState> = {}) {
   const state: StoreState = {
     token: 'valid-token',
-    merchant: { id: 'm1', email: 'a@b.c', businessName: 'Acme Corp', status: 'active' },
+    merchant: {
+      id: 'm1',
+      email: 'a@b.c',
+      businessName: 'Acme Corp',
+      status: 'active',
+    },
     hasHydrated: true,
     ...overrides,
   };
-  mockUseAuthStore.mockImplementation(
-    ((selector?: (s: StoreState) => unknown) =>
-      selector ? selector(state) : state) as unknown as typeof useAuthStore,
-  );
+  mockUseAuthStore.mockImplementation(((
+    selector?: (s: StoreState) => unknown
+  ) => (selector ? selector(state) : state)) as unknown as typeof useAuthStore);
 }
 
 const ADMIN_MERCHANT = {
@@ -122,7 +143,7 @@ describe('DashboardLayout — centralized admin gate (#357)', () => {
     return render(
       <DashboardLayout>
         <div data-testid="child-content">Admin Page</div>
-      </DashboardLayout>,
+      </DashboardLayout>
     );
   };
 
@@ -164,7 +185,7 @@ describe('AdminLayout — uses the shared guard (#357)', () => {
     render(
       <AdminLayout>
         <div data-testid="admin-child">Admin Content</div>
-      </AdminLayout>,
+      </AdminLayout>
     );
 
     expect(screen.getByTestId('admin-child')).toBeInTheDocument();
@@ -177,7 +198,7 @@ describe('AdminLayout — uses the shared guard (#357)', () => {
     render(
       <AdminLayout>
         <div data-testid="admin-child">Admin Content</div>
-      </AdminLayout>,
+      </AdminLayout>
     );
 
     expect(screen.queryByTestId('admin-child')).not.toBeInTheDocument();
