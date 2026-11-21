@@ -16,6 +16,7 @@ import { QRCodeSVG } from 'qrcode.react';
 import { memo, useEffect, useState } from 'react';
 
 import { CopyButton } from '@/components/CopyButton';
+import { CurrencyInput } from '@/components/CurrencyInput';
 import { FormField } from '@/components/FormField';
 import Modal from '@/components/Modal';
 import { SkeletonList, SkeletonTableRows } from '@/components/Skeleton';
@@ -448,15 +449,15 @@ export default function PaymentsPage() {
             {creating ? 'Creating payment, please wait…' : ''}
           </p>
           <fieldset disabled={creating} className="space-y-4">
-            <FormField
+            <CurrencyInput
               label="Amount (USD)"
               name="amountUsd"
-              type="number"
-              step="0.01"
-              min="0.01"
+              currencySymbol="$"
               required
               value={form.amountUsd}
-              onChange={(e) => setForm({ ...form, amountUsd: e.target.value })}
+              onValueChange={(amountUsd) =>
+                setForm((current) => ({ ...current, amountUsd }))
+              }
             />
             <FormField
               label="Description (optional)"
