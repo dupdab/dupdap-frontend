@@ -251,3 +251,113 @@ export default function AnalyticsPage() {
                 <tbody>
                   {pieData.map((row) => (
                     <tr key={row.name}>
+                      <td>{row.name}</td>
+                      <td>{formatUsd(row.amount)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <RevenueByMethodCard />
+
+          <div className="card p-6">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
+              <h2 className="font-semibold">Top Merchants</h2>
+              <div className="flex items-center gap-2">
+                <div
+                  className="inline-flex rounded-md border border-gray-200 dark:border-gray-700"
+                  role="group"
+                  aria-label="Time period"
+                >
+                  {PERIODS.map((p) => (
+                    <button
+                      key={p.value}
+                      type="button"
+                      onClick={() => setPeriod(p.value)}
+                      aria-pressed={period === p.value}
+                      className={`px-3 py-1.5 text-sm font-medium ${
+                        period === p.value
+                          ? 'bg-gray-900 text-white'
+                          : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                      }`}
+                    >
+                      {p.label}
+                    </button>
+                  ))}
+                </div>
+                <button
+                  type="button"
+                  onClick={exportCsv}
+                  disabled={rankedMerchants.length === 0}
+                  className="inline-flex items-center rounded-md border border-gray-200 dark:border-gray-700 px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50"
+                >
+                  Export CSV
+                </button>
+              </div>
+            </div>
+
+            {topLoading ? (
+              <table className="w-full text-sm" aria-busy="true">
+                <thead>
+                  <tr className="text-left text-gray-500">
+                    <th scope="col" className="py-2">Rank</th>
+                    <th scope="col" className="py-2">Merchant</th>
+                    <th scope="col" className="py-2">Total Volume</th>
+                    <th scope="col" className="py-2">Payments</th>
+                    <th scope="col" className="py-2">Avg Order Value</th>
+                  </tr>
+                </thead>
+                <SkeletonTableRows rows={5} columns={5} />
+              </table>
+            ) : topError ? (
+              <div className="text-center py-8 text-red-500">
+                <p>{topError}</p>
+                <button
+                  type="button"
+                  onClick={() => loadTopMerchants(period)}
+                  className="mt-4 inline-flex items-center rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
+                >
+                  Retry
+                </button>
+              </div>
+            ) : rankedMerchants.length === 0 ? (
+              <p className="text-sm text-gray-500 py-8 text-center">
+                No merchant activity in this period.
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-gray-500">
+                      <th scope="col" className="py-2">Rank</th>
+                      <th scope="col" className="py-2">Merchant</th>
+                      <th scope="col" className="py-2">Total Volume</th>
+                      <th scope="col" className="py-2">Payments</th>
+                      <th scope="col" className="py-2">Avg Order Value</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {rankedMerchants.map((m, i) => (
+                      <tr
+                        key={m.merchantId}
+                        className="border-t border-gray-100 dark:border-gray-800"
+                      >
+                        <td className="py-2">{i + 1}</td>
+                        <td className="py-2">{m.merchantName}</td>
+                        <td className="py-2">{formatUsd(m.totalVolume)}</td>
+                        <td className="py-2">{m.paymentCount}</td>
+                        <td className="py-2">{formatUsd(m.avgOrderValue)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}

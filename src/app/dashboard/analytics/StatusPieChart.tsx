@@ -1,39 +1,23 @@
-// This component is always loaded via next/dynamic (ssr: false) from
-// analytics/page.tsx — the client boundary and code-split chunk boundary
-// are both established there. The 'use client' directive below is required
-// because recharts uses browser APIs (ResizeObserver, SVG, etc.).
 'use client';
 
-import {
-  PieChart,
-  Pie,
-  Cell,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from 'recharts';
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 
-const COLORS = [
-  '#eab308',
-  '#22c55e',
-  '#3b82f6',
-  '#a855f7',
-  '#ef4444',
-  '#6b7280',
-];
-
-interface PieDataPoint {
+export interface StatusPieChartDatum {
   name: string;
   value: number;
+  color?: string;
 }
 
-interface Props {
-  data: PieDataPoint[];
+export interface StatusPieChartProps {
+  data: StatusPieChartDatum[];
+  height?: number;
 }
 
-export default function StatusPieChart({ data }: Props) {
+const DEFAULT_COLORS = ['#22c55e', '#f59e0b', '#ef4444', '#3b82f6', '#a855f7'];
+
+export default function StatusPieChart({ data, height = 300 }: StatusPieChartProps) {
   return (
-    <ResponsiveContainer width="100%" height={250}>
+    <ResponsiveContainer width="100%" height={height}>
       <PieChart>
         <Pie
           data={data}
@@ -41,20 +25,14 @@ export default function StatusPieChart({ data }: Props) {
           nameKey="name"
           cx="50%"
           cy="50%"
-          outerRadius={80}
-          minAngle={8}
-          label={({
-            name,
-            value,
-            percent,
-          }: {
-            name: string;
-            value: number;
-            percent?: number;
-          }) => (percent && percent > 0.08 ? `${name}: ${value}` : '')}
+          outerRadius="80%"
+          label
         >
-          {data.map((_, i) => (
-            <Cell key={i} fill={COLORS[i % COLORS.length]} />
+          {data.map((entry, index) => (
+            <Cell
+              key={entry.name}
+              fill={entry.color ?? DEFAULT_COLORS[index % DEFAULT_COLORS.length]}
+            />
           ))}
         </Pie>
         <Tooltip />

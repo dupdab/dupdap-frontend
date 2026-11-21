@@ -1,17 +1,35 @@
 'use client';
 
 import { useState } from 'react';
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from 'recharts';
+import dynamic from 'next/dynamic';
 
 import { formatUsd } from '@/lib/utils';
+
+// Lazy-load recharts so the chart library is only pulled into the analytics
+// route bundle when this chart actually renders, not on first dashboard visit.
+const LineChart = dynamic(
+  () => import('recharts').then((m) => m.LineChart),
+  { ssr: false }
+);
+const Line = dynamic(() => import('recharts').then((m) => m.Line), {
+  ssr: false,
+});
+const XAxis = dynamic(() => import('recharts').then((m) => m.XAxis), {
+  ssr: false,
+});
+const YAxis = dynamic(() => import('recharts').then((m) => m.YAxis), {
+  ssr: false,
+});
+const Tooltip = dynamic(() => import('recharts').then((m) => m.Tooltip), {
+  ssr: false,
+});
+const Legend = dynamic(() => import('recharts').then((m) => m.Legend), {
+  ssr: false,
+});
+const ResponsiveContainer = dynamic(
+  () => import('recharts').then((m) => m.ResponsiveContainer),
+  { ssr: false }
+);
 
 interface BarDataPoint {
   name: string;
