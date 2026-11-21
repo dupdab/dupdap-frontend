@@ -21,6 +21,10 @@ export interface Merchant {
   bankCode?: string;
   bankName?: string;
   apiKeyScopes?: string[];
+  /** 'sandbox' when the merchant is using test mode. */
+  mode?: string;
+  environment?: string;
+  testMode?: boolean;
 }
 
 export interface TopMerchant {

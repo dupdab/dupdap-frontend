@@ -21,6 +21,7 @@ import { isAdmin } from '@/lib/auth';
 import { isNavItemActive } from '@/lib/nav-active';
 import { cn } from '@/lib/utils';
 import { DashboardBreadcrumb } from '@/components/DashboardBreadcrumb';
+import { SandboxModeBanner } from '@/components/SandboxModeBanner';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import WhatsNewBanner from '@/components/WhatsNewBanner';
 import { useLocale } from '@/lib/locale';
@@ -317,6 +318,7 @@ export default function DashboardLayout({
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-950">
+      <SandboxModeBanner />
       <OfflineBanner />
       <WhatsNewBanner />
       <div className="flex">

@@ -312,6 +312,24 @@ export default function SettingsPage() {
         </div>
       </section>
 
+      {/* ── Environment / sandbox mode ──────────────────────────────────── */}
+      <section
+        id="environment"
+        aria-labelledby="environment-heading"
+        className="mt-8 scroll-mt-24"
+      >
+        <h2
+          id="environment-heading"
+          className="text-lg font-medium text-gray-900 dark:text-gray-100"
+        >
+          Environment
+        </h2>
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+          Sandbox mode uses test data and test payments only. Contact support
+          to move this merchant account to production.
+        </p>
+      </section>
+
       {/* ── API key banner (generated key, shown once) ──────────────────── */}
       {generatedKey && (
         <div
