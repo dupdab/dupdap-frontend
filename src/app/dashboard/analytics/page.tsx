@@ -100,19 +100,23 @@ export default function AnalyticsPage() {
     loadTopMerchants(period);
   }, [loadTopMerchants, period]);
 
-  const pieData = stats.map((s) => ({
-    name: s.status,
-    value: parseInt(String(s.count), 10),
-    amount: parseFloat(String(s.totalUsd ?? 0)),
-  }));
-
-  const totalVolume = stats.reduce(
-    (acc, s) => acc + parseFloat(String(s.totalUsd ?? 0)),
-    0
+  const pieData = useMemo(
+    () =>
+      stats.map((s) => ({
+        name: s.status,
+        value: parseInt(String(s.count), 10),
+        amount: parseFloat(String(s.totalUsd ?? 0)),
+      })),
+    [stats]
   );
-  const totalCount = stats.reduce(
-    (acc, s) => acc + parseInt(String(s.count), 10),
-    0
+
+  const totalVolume = useMemo(
+    () => stats.reduce((acc, s) => acc + parseFloat(String(s.totalUsd ?? 0)), 0),
+    [stats]
+  );
+  const totalCount = useMemo(
+    () => stats.reduce((acc, s) => acc + parseInt(String(s.count), 10), 0),
+    [stats]
   );
 
   const rankedMerchants = useMemo(

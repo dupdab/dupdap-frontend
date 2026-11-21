@@ -4,6 +4,7 @@
 // because recharts uses browser APIs (ResizeObserver, SVG, etc.).
 'use client';
 
+import React from 'react';
 import {
   PieChart,
   Pie,
@@ -31,7 +32,8 @@ interface Props {
   data: PieDataPoint[];
 }
 
-export default function StatusPieChart({ data }: Props) {
+function StatusPieChart({
+ data }: Props) {
   return (
     <ResponsiveContainer width="100%" height={250}>
       <PieChart>
@@ -63,3 +65,5 @@ export default function StatusPieChart({ data }: Props) {
     </ResponsiveContainer>
   );
 }
+
+export default React.memo(StatusPieChart);

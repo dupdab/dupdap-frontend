@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import React, { useState } from 'react';
 import {
   LineChart,
   Line,
@@ -25,7 +25,7 @@ interface Props {
   data: BarDataPoint[];
 }
 
-export default function VolumeBarChart({ data }: Props) {
+function VolumeBarChart({ data }: Props) {
   const [compare, setCompare] = useState(false);
   const hasPrevious = data.some(
     (d) => d.previousAmount !== undefined || d.previousCount !== undefined
@@ -128,3 +128,5 @@ export default function VolumeBarChart({ data }: Props) {
     </div>
   );
 }
+
+export default React.memo(VolumeBarChart);
