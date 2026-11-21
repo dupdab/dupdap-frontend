@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
@@ -27,6 +27,7 @@ function LoginForm() {
   const next = searchParams.get('next') ?? '/dashboard';
 
   const [showPassword, setShowPassword] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
   const {
     register,
     handleSubmit,
@@ -35,6 +36,19 @@ function LoginForm() {
     resolver: zodResolver(loginSchema),
     defaultValues: { email: '', password: '' },
   });
+
+  const errorMessages = [errors.email?.message, errors.password?.message].filter(
+    (message): message is string => Boolean(message),
+  );
+
+  useEffect(() => {
+    if (errorMessages.length === 0) return;
+    const firstInvalid = formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]');
+    if (firstInvalid) {
+      firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      firstInvalid.focus();
+    }
+  }, [errorMessages.length]);
 
   const onSubmit = async (values: LoginFormValues) => {
     try {
@@ -60,10 +74,31 @@ function LoginForm() {
           <p className="mt-2 text-sm text-gray-600">Welcome back to DupDub</p>
         </div>
 
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" aria-busy={loading} noValidate>
+        <form
+          ref={formRef}
+          onSubmit={handleSubmit(onSubmit)}
+          className="space-y-4"
+          aria-busy={loading}
+          noValidate
+        >
           <p className="sr-only" aria-live="polite" aria-atomic="true">
             {loading ? 'Signing in, please wait…' : ''}
           </p>
+
+          <div aria-live="polite" aria-atomic="true" data-testid="login-error-summary">
+            {errorMessages.length > 0 && (
+              <div role="alert" className="rounded-md border border-red-300 bg-red-50 p-3">
+                <p className="text-sm font-medium text-red-800">
+                  Please fix the following {errorMessages.length === 1 ? 'error' : 'errors'}:
+                </p>
+                <ul className="mt-1 list-disc list-inside text-xs text-red-600">
+                  {errorMessages.map((message) => (
+                    <li key={message}>{message}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+          </div>
 
           <fieldset disabled={loading} className="space-y-4">
             <div>
@@ -95,6 +130,7 @@ function LoginForm() {
                   type={showPassword ? 'text' : 'password'}
                   {...register('password')}
                   aria-invalid={!!errors.password}
+                  aria-describedby={errors.password ? 'password-error' : undefined}
                   className="block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm pr-16"
                 />
                 <button
