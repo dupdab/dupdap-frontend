@@ -12,6 +12,9 @@ import {
   STATUS_COLORS,
   STATUS_ICONS,
   DEFAULT_STATUS_COLOR,
+  PENDING_APPROVAL_MESSAGE,
+  PENDING_APPROVAL_ETA,
+  isPendingApprovalStatus,
 } from '@/lib/utils';
 
 // ---------------------------------------------------------------------------
@@ -52,6 +55,14 @@ const SettlementTableRow = memo(function SettlementTableRow({
           )}
           {s.status}
         </span>
+        {isPendingApprovalStatus(s.status) && (
+          <span
+            role="note"
+            className="mt-1 block max-w-xs text-xs text-orange-700"
+          >
+            {PENDING_APPROVAL_MESSAGE} {PENDING_APPROVAL_ETA}
+          </span>
+        )}
       </td>
       <td className="px-6 py-4 text-gray-500">{formatDate(s.createdAt)}</td>
     </tr>
@@ -81,6 +92,11 @@ const SettlementMobileCard = memo(function SettlementMobileCard({
           {s.status}
         </span>
       </div>
+      {isPendingApprovalStatus(s.status) && (
+        <p role="note" className="text-xs text-orange-700">
+          {PENDING_APPROVAL_MESSAGE} {PENDING_APPROVAL_ETA}
+        </p>
+      )}
       <div className="font-semibold text-green-700">
         {formatNgn(s.netAmountUsd)}
       </div>
@@ -182,6 +198,9 @@ export default function SettlementsPage() {
   // `total > 20 || (page > 1 && <controls>)` because && binds tighter than ||,
   // which short-circuits to the boolean `true` and renders no controls (#338).
   const showPagination = total > 20 || page > 1;
+  const hasPendingApproval = settlements.some((s) =>
+    isPendingApprovalStatus(s.status)
+  );
 
   return (
     <div className="p-4 md:p-8">
@@ -191,6 +210,16 @@ export default function SettlementsPage() {
         </h1>
         <p className="text-sm text-gray-500 mt-1">{total} total settlements</p>
       </div>
+
+      {hasPendingApproval && (
+        <div
+          role="status"
+          className="mb-4 rounded-lg border border-orange-200 bg-orange-50 p-4 text-sm text-orange-800"
+        >
+          <p className="font-medium">{PENDING_APPROVAL_MESSAGE}</p>
+          <p className="mt-1">{PENDING_APPROVAL_ETA}</p>
+        </div>
+      )}
 
       <div className="card">
         {error ? (

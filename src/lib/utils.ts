@@ -138,6 +138,17 @@ export const PAYMENT_STATUS_COLORS = STATUS_COLORS;
 
 export const DEFAULT_STATUS_COLOR = 'bg-gray-100 text-gray-600';
 
+/** Context shown when a settlement is awaiting manual admin approval (#881). */
+export const PENDING_APPROVAL_MESSAGE =
+  'Awaiting approval — large settlements are manually reviewed within 24h';
+export const PENDING_APPROVAL_ETA =
+  'Estimated approval time: within 24 hours';
+
+/** Status values may arrive from the API in either upper or lower case. */
+export function isPendingApprovalStatus(status: string): boolean {
+  return String(status).toLowerCase() === 'pending_approval';
+}
+
 export const WEBHOOK_EVENTS = [
   'payment.created',
   'payment.confirmed',
