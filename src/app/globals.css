@@ -48,6 +48,27 @@
   }
 }
 
+/*
+ * Pay page focus indicators (#819): Safari suppresses default focus rings on
+ * click, so interactive elements on the pay page (copy button, wallet link)
+ * need an explicit, always-visible focus indicator. We scope this to the pay
+ * page via the `.pay-page` container so default focus behavior elsewhere is
+ * unchanged. The ring uses brand-700 (#1e40af, 8.72:1 on white) which exceeds
+ * the WCAG 2.1 non-text contrast minimum of 3:1 against adjacent colors.
+ */
+@layer base {
+  .pay-page :is(a, button, [role='button'], input, select, textarea):focus-visible {
+    outline: 2px solid hsl(var(--brand-700));
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* Safari fallback: ensure the ring is not suppressed on click focus. */
+  .pay-page :is(a, button, [role='button'], input, select, textarea):focus {
+    outline-color: hsl(var(--brand-700));
+  }
+}
+
 /* Print stylesheet (#548): hide app chrome and show only receipt/settlement data. */
 @media print {
   /* Hide navigation, sidebar, and interactive controls. */
