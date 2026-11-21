@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 
 import { useAuthStore } from '@/lib/store';
+import { formatUsd } from '@/lib/utils';
 
 const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
@@ -30,10 +31,7 @@ interface Settlement {
 
 function formatAmount(value: number | undefined) {
   if (typeof value !== 'number' || Number.isNaN(value)) return '—';
-  return value.toLocaleString(undefined, {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 7,
-  });
+  return formatUsd(value);
 }
 
 export default function AdminSettlementsPage() {

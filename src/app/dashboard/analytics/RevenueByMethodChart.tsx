@@ -10,6 +10,7 @@ import {
 } from 'recharts';
 
 import type { RevenueBreakdownRow } from '@/lib/revenue-breakdown';
+import { formatUsd } from '@/lib/utils';
 
 const COLORS = [
   '#3b82f6',
@@ -41,7 +42,7 @@ export default function RevenueByMethodChart({
             <Cell key={i} fill={COLORS[i % COLORS.length]} />
           ))}
         </Pie>
-        <Tooltip formatter={(v: number) => `$${v.toFixed(2)}`} />
+        <Tooltip formatter={(v: number) => formatUsd(v)} />
         <Legend />
       </PieChart>
     </ResponsiveContainer>

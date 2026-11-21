@@ -14,10 +14,19 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/** Merchant's browser locale, with a safe fallback for server-side rendering. */
+export function getBrowserLocale(): string {
+  if (typeof navigator !== 'undefined' && navigator.language) {
+    return navigator.language;
+  }
+  return 'en-US';
+}
+
 export function formatUsd(amount: number, locale?: string): string {
   // Normalise -0 to 0 so negative zero never renders as "-$0.00".
   const normalised = amount === 0 ? 0 : amount;
-  const bcp47 = locale === 'pcm' ? 'en-NG' : (locale ?? 'en-US');
+  const bcp47 =
+    locale === 'pcm' ? 'en-NG' : (locale ?? getBrowserLocale());
   return new Intl.NumberFormat(bcp47, {
     style: 'currency',
     currency: 'USD',

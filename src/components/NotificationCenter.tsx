@@ -17,7 +17,7 @@ import {
   AlertTriangle,
   Info,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, formatUsd } from '@/lib/utils';
 import { useFocusTrap } from '@/lib/useFocusTrap';
 import { settlementsApi } from '@/lib/api';
 import { getErrorMessage } from '@/lib/errors';
@@ -59,8 +59,8 @@ function settlementsToNotifications(
         s.status === 'completed' ? 'Settlement Completed' : 'Settlement Failed',
       message:
         s.status === 'completed'
-          ? `Your settlement of $${s.netAmountUsd?.toFixed(2) ?? '—'} has been processed.`
-          : `Settlement $${s.netAmountUsd?.toFixed(2) ?? '—'} failed${s.failureReason ? `: ${s.failureReason}` : '.'}`,
+          ? `Your settlement of ${typeof s.netAmountUsd === 'number' ? formatUsd(s.netAmountUsd) : '—'} has been processed.`
+          : `Settlement ${typeof s.netAmountUsd === 'number' ? formatUsd(s.netAmountUsd) : '—'} failed${s.failureReason ? `: ${s.failureReason}` : '.'}`,
       createdAt: s.updatedAt ?? s.createdAt,
       read: false,
     }));
