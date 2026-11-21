@@ -5,10 +5,20 @@ export type PaymentStatus =
   | 'settled'
   | 'completed'
   | 'failed'
-  | 'expired';
+  | 'expired'
+  | 'partially_refunded'
+  | 'refunded'
+  | 'cancelled';
+
+export type SettlementStatus =
+  | 'pending'
+  | 'processing'
+  | 'settling'
+  | 'completed'
+  | 'failed'
+  | 'cancelled';
 
 export type MerchantRole = 'merchant' | 'admin' | 'staff';
-
 export interface Merchant {
   id: string;
   email: string;
@@ -86,7 +96,7 @@ export interface Settlement {
   totalAmountUsd: number;
   feeAmountUsd: number;
   netAmountUsd: number;
-  status: string;
+  status: SettlementStatus;
   partnerReference?: string;
   createdAt: string;
   // Detail-only fields returned by GET /settlements/:id (#341).
