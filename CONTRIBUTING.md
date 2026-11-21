@@ -91,3 +91,10 @@ Before opening a PR, confirm:
 - Address review comments with follow-up commits; resolve conversations once handled.
 - Keep PRs small and focused — large PRs are harder to review and slower to merge.
 - Be respectful and constructive; assume good intent. See the project's code of conduct if one is provided.
+
+## Design conventions and UI standards
+
+- **Colors & Styling**: Use Tailwind CSS design tokens defined in `tailwind.config.ts`. Do not use arbitrary hex codes in component class names.
+- **Icons**: Use `lucide-react` icons. Pair color with descriptive text or icons to satisfy WCAG 1.4.1 (Use of Color).
+- **Images**: Use Next.js `next/image` for all images and avatars to ensure automatic optimization.
+- **Accessibility**: Ensure keyboard accessibility and proper ARIA live regions for dynamic alerts or status changes.
