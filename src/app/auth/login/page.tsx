@@ -1,6 +1,6 @@
 'use client';
 
-import { Suspense, useState } from 'react';
+import { Suspense, useEffect, useRef, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { useForm } from 'react-hook-form';
@@ -9,7 +9,7 @@ import { z } from 'zod';
 import toast from '@/lib/toast';
 import { authApi } from '@/lib/api';
 import { useAuthStore } from '@/lib/store';
-import { getErrorMessage } from '@/lib/errors';
+import { getErrorMessage, isAxiosError } from '@/lib/errors';
 import { isAuthResponse } from '@/lib/types';
 import { LoadingSpinner } from '@/components/LoadingSpinner';
 
@@ -27,6 +27,19 @@ function LoginForm() {
   const next = searchParams.get('next') ?? '/dashboard';
 
   const [showPassword, setShowPassword] = useState(false);
+  // Brief client-side cooldown after a failed attempt. This is defence in
+  // depth only — the backend remains the authoritative rate limiter.
+  const [cooldown, setCooldown] = useState(false);
+  const [lockout, setLockout] = useState<{ message: string; rateLimit: boolean } | null>(null);
+  const cooldownTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  useEffect(
+    () => () => {
+      if (cooldownTimer.current) clearTimeout(cooldownTimer.current);
+    },
+    []
+  );
+
   const {
     register,
     handleSubmit,
@@ -37,6 +50,7 @@ function LoginForm() {
   });
 
   const onSubmit = async (values: LoginFormValues) => {
+    setLockout(null);
     try {
       const response = await authApi.login({ email: values.email, password: values.password });
       if (!isAuthResponse(response.data)) {
@@ -46,11 +60,30 @@ function LoginForm() {
       router.push(next);
     } catch (err) {
       const message = getErrorMessage(err) ?? 'Invalid credentials';
+      const status = isAxiosError(err) ? err.response?.status : undefined;
+      const rateLimit = status === 429 || /too many (attempts|requests)/i.test(message);
+      const isLockout =
+        status === 423 ||
+        rateLimit ||
+        /\block(ed|out)?\b|temporarily disabled/i.test(message);
+
+      if (isLockout) {
+        setLockout({ message, rateLimit });
+      }
+
+      // Throttle repeat submissions for 2 seconds after every failed attempt.
+      setCooldown(true);
+      if (cooldownTimer.current) clearTimeout(cooldownTimer.current);
+      cooldownTimer.current = setTimeout(() => {
+        setCooldown(false);
+        cooldownTimer.current = null;
+      }, 2000);
+
       toast.error(message);
     }
   };
 
-  const loading = isSubmitting;
+  const loading = isSubmitting || cooldown;
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
@@ -61,6 +94,15 @@ function LoginForm() {
         </div>
 
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4" aria-busy={loading} noValidate>
+          {lockout && (
+            <div
+              role="alert"
+              data-testid={lockout.rateLimit ? 'login-rate-limit-banner' : 'login-lockout-banner'}
+              className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700"
+            >
+              {lockout.message}
+            </div>
+          )}
           <p className="sr-only" aria-live="polite" aria-atomic="true">
             {loading ? 'Signing in, please wait…' : ''}
           </p>
