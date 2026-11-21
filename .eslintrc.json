@@ -1,6 +1,11 @@
 {
-  "extends": ["next/core-web-vitals", "plugin:storybook/recommended"],
-  "plugins": ["import"],
+  "extends": [
+    "next/core-web-vitals",
+    "plugin:storybook/recommended"
+  ],
+  "plugins": [
+    "import"
+  ],
   "rules": {
     "jsx-a11y/anchor-has-content": "error",
     "no-console": "warn",
@@ -12,7 +17,11 @@
           "builtin",
           "external",
           "internal",
-          ["parent", "sibling", "index"],
+          [
+            "parent",
+            "sibling",
+            "index"
+          ],
           "object",
           "type"
         ],
@@ -23,18 +32,24 @@
             "position": "before"
           }
         ],
-        "pathGroupsExcludedImportTypes": ["builtin"],
+        "pathGroupsExcludedImportTypes": [
+          "builtin"
+        ],
         "newlines-between": "always",
         "alphabetize": {
           "order": "asc",
           "caseInsensitive": true
         }
       }
-    ]
+    ],
+    "@next/next/no-img-element": "error"
   },
   "overrides": [
     {
-      "files": ["**/*.ts", "**/*.tsx"],
+      "files": [
+        "**/*.ts",
+        "**/*.tsx"
+      ],
       "parser": "@typescript-eslint/parser"
     },
     {

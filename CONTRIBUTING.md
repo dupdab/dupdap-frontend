@@ -91,3 +91,7 @@ Before opening a PR, confirm:
 - Address review comments with follow-up commits; resolve conversations once handled.
 - Keep PRs small and focused — large PRs are harder to review and slower to merge.
 - Be respectful and constructive; assume good intent. See the project's code of conduct if one is provided.
+
+## Image optimization rules
+
+All images and icons rendered as images must use Next.js `next/image` (`<Image />`) rather than raw `<img>` tags. This is strictly enforced in CI via the `@next/next/no-img-element` ESLint rule.
