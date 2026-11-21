@@ -1,6 +1,7 @@
 import { Toaster } from 'react-hot-toast';
 
 import CookieConsent from '@/components/CookieConsent';
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { QueryProvider } from '@/components/QueryProvider';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { ThemeScript } from '@/components/ThemeScript';
@@ -34,7 +35,7 @@ export default function RootLayout({
         <QueryProvider>
           <LocaleProvider>
             <ThemeProvider>
-              {children}
+              <ErrorBoundary>{children}</ErrorBoundary>
               <Toaster position="top-right" />
               <CookieConsent />
             </ThemeProvider>
