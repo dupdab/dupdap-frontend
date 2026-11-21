@@ -214,6 +214,7 @@ export default function PaymentsPage() {
     expiryMinutes: '30',
   });
   const [creating, setCreating] = useState(false);
+  const [createError, setCreateError] = useState('');
   const [copied, setCopied] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [exporting, setExporting] = useState(false);
@@ -260,7 +261,7 @@ export default function PaymentsPage() {
   const createPayment = async (e: React.FormEvent) => {
     e.preventDefault();
     setCreating(true);
-    setMetadataError('');
+    setCreateError('');
     try {
       const amountUsd = parseFloat(form.amountUsd);
       if (Number.isNaN(amountUsd) || amountUsd <= 0) {
@@ -280,34 +281,11 @@ export default function PaymentsPage() {
         return;
       }
 
-      // Parse optional metadata JSON — must be a plain object when provided.
-      let parsedMetadata: Record<string, unknown> | undefined;
-      if (form.metadata.trim()) {
-        try {
-          const parsed = JSON.parse(form.metadata);
-          if (
-            typeof parsed !== 'object' ||
-            Array.isArray(parsed) ||
-            parsed === null
-          ) {
-            setMetadataError(
-              'Metadata must be a JSON object, e.g. {"orderId": "123"}'
-            );
-            return;
-          }
-          parsedMetadata = parsed as Record<string, unknown>;
-        } catch {
-          setMetadataError('Invalid JSON — check for missing quotes or commas');
-          return;
-        }
-      }
-
       const { data } = await paymentsApi.create({
         amountUsd,
         description: form.description || undefined,
         customerEmail: form.customerEmail || undefined,
         expiryMinutes,
-        metadata: parsedMetadata,
       });
       setSelectedPayment(data);
       setShowCreate(false);
@@ -321,7 +299,11 @@ export default function PaymentsPage() {
       load(1);
       toast.success('Payment created');
     } catch (err) {
-      toast.error(getErrorMessage(err) ?? 'Failed to create payment');
+      // Keep the entered values intact so the merchant can retry without
+      // re-typing everything, and surface the API's specific error message.
+      const message = getErrorMessage(err) || 'Failed to create payment';
+      setCreateError(message);
+      toast.error(message);
     } finally {
       setCreating(false);
     }
@@ -447,6 +429,15 @@ export default function PaymentsPage() {
           <p className="sr-only" aria-live="polite" aria-atomic="true">
             {creating ? 'Creating payment, please wait…' : ''}
           </p>
+          {createError && (
+            <p
+              role="alert"
+              data-testid="create-payment-error"
+              className="rounded-md bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-300"
+            >
+              {createError}
+            </p>
+          )}
           <fieldset disabled={creating} className="space-y-4">
             <FormField
               label="Amount (USD)"

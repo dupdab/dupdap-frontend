@@ -250,6 +250,39 @@ describe('PaymentsPage', () => {
     ).toBe('');
   });
 
+  it('preserves form values and shows the specific API error after a failed submit', async () => {
+    const user = userEvent.setup();
+    vi.mocked(paymentsApi.create).mockRejectedValueOnce(
+      new Error('Insufficient merchant balance')
+    );
+
+    render(<PaymentsPage />);
+
+    await user.click(screen.getByTestId('new-payment-button'));
+    const modal = await screen.findByTestId('create-payment-modal');
+    const fields = within(modal);
+
+    const amount = fields.getByLabelText('Amount (USD)');
+    const description = fields.getByLabelText('Description (optional)');
+    const email = fields.getByLabelText('Customer Email (optional)');
+    const expiry = fields.getByLabelText('Expires in (minutes)');
+
+    fireEvent.change(amount, { target: { value: '42.50' } });
+    fireEvent.change(description, { target: { value: 'Invoice 42' } });
+    fireEvent.change(email, { target: { value: 'buyer@example.com' } });
+    fireEvent.change(expiry, { target: { value: '90' } });
+    await user.click(fields.getByTestId('create-payment-submit'));
+
+    expect(
+      await screen.findByTestId('create-payment-error')
+    ).toHaveTextContent('Insufficient merchant balance');
+    expect(toast.error).toHaveBeenCalledWith('Insufficient merchant balance');
+    expect(amount).toHaveValue(42.5);
+    expect(description).toHaveValue('Invoice 42');
+    expect(email).toHaveValue('buyer@example.com');
+    expect(expiry).toHaveValue(90);
+  });
+
   it('renders an error banner when paymentsApi.list rejects', async () => {
     vi.mocked(paymentsApi.list).mockRejectedValueOnce(
       new Error('Network error loading payments')
