@@ -319,7 +319,7 @@ export default function PaymentsPage() {
       });
       setPage(1);
       load(1);
-      toast.success('Payment created');
+      toast.success('Payment created — share the QR code with your customer');
     } catch (err) {
       toast.error(getErrorMessage(err) ?? 'Failed to create payment');
     } finally {
