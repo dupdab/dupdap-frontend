@@ -1,5 +1,8 @@
 'use client';
 
+import Link from 'next/link';
+import { usePathname, useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 import {
   LayoutDashboard,
   CreditCard,
@@ -14,19 +17,15 @@ import {
   PlayCircle,
 } from 'lucide-react';
 import { useAuthStore } from '@/lib/store';
-import { authApi } from '@/lib/api';
 import { isAdmin } from '@/lib/auth';
 import { isNavItemActive } from '@/lib/nav-active';
 import { cn } from '@/lib/utils';
+import { DashboardBreadcrumb } from '@/components/DashboardBreadcrumb';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import WhatsNewBanner from '@/components/WhatsNewBanner';
-import { isAdmin } from '@/lib/auth';
 import { useLocale } from '@/lib/locale';
-import { isNavItemActive } from '@/lib/nav-active';
-import { useAuthStore } from '@/lib/store';
 import { useAdminGuard, useAdminRedirect } from '@/lib/useAdminGuard';
 import { useFocusTrap } from '@/lib/useFocusTrap';
-import { cn } from '@/lib/utils';
 
 declare global {
   interface Window {
@@ -378,7 +377,10 @@ export default function DashboardLayout({
               <NotificationCenter />
             </div>
           </header>
-          <main className="p-4 lg:p-6">{children}</main>
+          <main className="p-4 lg:p-6">
+            <DashboardBreadcrumb />
+            {children}
+          </main>
         </div>
       </div>
 
