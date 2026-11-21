@@ -163,6 +163,12 @@ describe('PaymentsPage', () => {
     });
     await user.click(fields.getByTestId('create-payment-submit'));
 
+    const dialog = await screen.findByRole('alertdialog');
+    expect(
+      within(dialog).getByText('Create a payment for $12.50?')
+    ).toBeInTheDocument();
+    await user.click(within(dialog).getByRole('button', { name: 'Confirm' }));
+
     await waitFor(() => {
       expect(paymentsApi.create).toHaveBeenCalledWith({
         amountUsd: 12.5,
@@ -170,6 +176,42 @@ describe('PaymentsPage', () => {
         customerEmail: 'buyer@example.com',
         expiryMinutes: 60,
       });
+    });
+  });
+
+  it('requires confirmation before creating a payment and supports cancel (#863)', async () => {
+    const user = userEvent.setup();
+    vi.mocked(paymentsApi.create).mockResolvedValue({
+      data: basePayment,
+    } as Awaited<ReturnType<typeof paymentsApi.create>>);
+
+    render(<PaymentsPage />);
+    await user.click(screen.getByTestId('new-payment-button'));
+
+    const modal = await screen.findByTestId('create-payment-modal');
+    fireEvent.change(within(modal).getByLabelText('Amount (USD)'), {
+      target: { value: '25.00' },
+    });
+    await user.click(within(modal).getByTestId('create-payment-submit'));
+
+    const dialog = await screen.findByRole('alertdialog');
+    expect(
+      within(dialog).getByText('Create a payment for $25.00?')
+    ).toBeInTheDocument();
+    expect(paymentsApi.create).not.toHaveBeenCalled();
+
+    await user.click(within(dialog).getByRole('button', { name: 'Cancel' }));
+    expect(screen.queryByRole('alertdialog')).not.toBeInTheDocument();
+    expect(paymentsApi.create).not.toHaveBeenCalled();
+
+    // The form is still open and can be submitted again after cancelling.
+    await user.click(within(modal).getByTestId('create-payment-submit'));
+    const reopened = await screen.findByRole('alertdialog');
+    await user.click(within(reopened).getByRole('button', { name: 'Confirm' }));
+    await waitFor(() => {
+      expect(paymentsApi.create).toHaveBeenCalledWith(
+        expect.objectContaining({ amountUsd: 25 })
+      );
     });
   });
 
@@ -231,6 +273,9 @@ describe('PaymentsPage', () => {
 
     await user.type(fields.getByLabelText(/Amount \(USD\)/), '10');
     await user.click(fields.getByTestId('create-payment-submit'));
+
+    const dialog = await screen.findByRole('alertdialog');
+    await user.click(within(dialog).getByRole('button', { name: 'Confirm' }));
 
     await waitFor(() => {
       expect(

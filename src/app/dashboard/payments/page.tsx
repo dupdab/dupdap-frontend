@@ -15,6 +15,7 @@ import {
 import { QRCodeSVG } from 'qrcode.react';
 import { memo, useEffect, useState } from 'react';
 
+import ConfirmDialog from '@/components/ConfirmDialog';
 import { CopyButton } from '@/components/CopyButton';
 import { FormField } from '@/components/FormField';
 import Modal from '@/components/Modal';
@@ -212,8 +213,17 @@ export default function PaymentsPage() {
     description: '',
     customerEmail: '',
     expiryMinutes: '30',
+    metadata: '',
   });
   const [creating, setCreating] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [pendingCreate, setPendingCreate] = useState<{
+    amountUsd: number;
+    description?: string;
+    customerEmail?: string;
+    expiryMinutes: number;
+    metadata?: Record<string, unknown>;
+  } | null>(null);
   const [copied, setCopied] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [exporting, setExporting] = useState(false);
@@ -257,58 +267,71 @@ export default function PaymentsPage() {
     setCopied(false);
   }, [selectedPayment]);
 
-  const createPayment = async (e: React.FormEvent) => {
+  const createPayment = (e: React.FormEvent) => {
     e.preventDefault();
-    setCreating(true);
     setMetadataError('');
-    try {
-      const amountUsd = parseFloat(form.amountUsd);
-      if (Number.isNaN(amountUsd) || amountUsd <= 0) {
-        toast.error('Enter a valid amount');
-        return;
-      }
-      const expiryMinutes = parseInt(form.expiryMinutes, 10);
-      if (
-        !Number.isFinite(expiryMinutes) ||
-        !Number.isInteger(expiryMinutes) ||
-        expiryMinutes < EXPIRY_MIN_MINUTES ||
-        expiryMinutes > EXPIRY_MAX_MINUTES
-      ) {
-        toast.error(
-          `Expiry must be a whole number between ${EXPIRY_MIN_MINUTES} and ${EXPIRY_MAX_MINUTES} minutes`
-        );
-        return;
-      }
 
-      // Parse optional metadata JSON — must be a plain object when provided.
-      let parsedMetadata: Record<string, unknown> | undefined;
-      if (form.metadata.trim()) {
-        try {
-          const parsed = JSON.parse(form.metadata);
-          if (
-            typeof parsed !== 'object' ||
-            Array.isArray(parsed) ||
-            parsed === null
-          ) {
-            setMetadataError(
-              'Metadata must be a JSON object, e.g. {"orderId": "123"}'
-            );
-            return;
-          }
-          parsedMetadata = parsed as Record<string, unknown>;
-        } catch {
-          setMetadataError('Invalid JSON — check for missing quotes or commas');
+    const amountUsd = parseFloat(form.amountUsd);
+    if (Number.isNaN(amountUsd) || amountUsd <= 0) {
+      toast.error('Enter a valid amount');
+      return;
+    }
+    const expiryMinutes = parseInt(form.expiryMinutes, 10);
+    if (
+      !Number.isFinite(expiryMinutes) ||
+      !Number.isInteger(expiryMinutes) ||
+      expiryMinutes < EXPIRY_MIN_MINUTES ||
+      expiryMinutes > EXPIRY_MAX_MINUTES
+    ) {
+      toast.error(
+        `Expiry must be a whole number between ${EXPIRY_MIN_MINUTES} and ${EXPIRY_MAX_MINUTES} minutes`
+      );
+      return;
+    }
+
+    // Parse optional metadata JSON — must be a plain object when provided.
+    let parsedMetadata: Record<string, unknown> | undefined;
+    if (form.metadata.trim()) {
+      try {
+        const parsed = JSON.parse(form.metadata);
+        if (
+          typeof parsed !== 'object' ||
+          Array.isArray(parsed) ||
+          parsed === null
+        ) {
+          setMetadataError(
+            'Metadata must be a JSON object, e.g. {"orderId": "123"}'
+          );
           return;
         }
+        parsedMetadata = parsed as Record<string, unknown>;
+      } catch {
+        setMetadataError('Invalid JSON — check for missing quotes or commas');
+        return;
       }
+    }
 
-      const { data } = await paymentsApi.create({
-        amountUsd,
-        description: form.description || undefined,
-        customerEmail: form.customerEmail || undefined,
-        expiryMinutes,
-        metadata: parsedMetadata,
-      });
+    // Ask the merchant to confirm before creating a real payment (#863).
+    setPendingCreate({
+      amountUsd,
+      description: form.description || undefined,
+      customerEmail: form.customerEmail || undefined,
+      expiryMinutes,
+      metadata: parsedMetadata,
+    });
+    setShowConfirm(true);
+  };
+
+  const cancelCreate = () => {
+    setShowConfirm(false);
+    setPendingCreate(null);
+  };
+
+  const confirmCreate = async () => {
+    if (!pendingCreate) return;
+    setCreating(true);
+    try {
+      const { data } = await paymentsApi.create(pendingCreate);
       setSelectedPayment(data);
       setShowCreate(false);
       setForm({
@@ -316,6 +339,7 @@ export default function PaymentsPage() {
         description: '',
         customerEmail: '',
         expiryMinutes: '30',
+        metadata: '',
       });
       setPage(1);
       load(1);
@@ -324,6 +348,8 @@ export default function PaymentsPage() {
       toast.error(getErrorMessage(err) ?? 'Failed to create payment');
     } finally {
       setCreating(false);
+      setShowConfirm(false);
+      setPendingCreate(null);
     }
   };
 
@@ -509,6 +535,17 @@ export default function PaymentsPage() {
           </fieldset>
         </form>
       </Modal>
+
+      <ConfirmDialog
+        open={showConfirm}
+        title="Confirm payment creation"
+        message={`Create a payment for ${formatUsd(pendingCreate?.amountUsd ?? 0)}?`}
+        confirmLabel="Confirm"
+        cancelLabel="Cancel"
+        loading={creating}
+        onConfirm={confirmCreate}
+        onCancel={cancelCreate}
+      />
 
       <Modal
         open={!!selectedPayment}
