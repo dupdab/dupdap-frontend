@@ -96,6 +96,48 @@ export function formatDate(
   }).format(d);
 }
 
+/**
+ * Date-only formatter for merchant-facing tables and receipts (#859).
+ *
+ * Uses `Intl.DateTimeFormat` with the merchant's locale/BCP 47 tag and always
+ * renders a stable, unambiguous date: DD/MM/YYYY for UK/Nigerian and other
+ * day-first locales, and YYYY-MM-DD when `iso` is requested. UTC is pinned so
+ * the output is identical on the server and in the browser.
+ */
+export function formatDateForLocale(
+  date: string | Date | undefined | null,
+  locale = 'en-GB',
+  style: 'local' | 'iso' = 'local'
+): string {
+  if (!date) return '—';
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return '—';
+
+  const bcp47 = locale === 'pcm' ? 'en-NG' : locale === 'iso' ? 'en-CA' : locale;
+  const parts = new Intl.DateTimeFormat(bcp47, {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    timeZone: 'UTC',
+  }).formatToParts(d);
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((p) => p.type === type)?.value ?? '';
+  const year = part('year');
+  const month = part('month');
+  const day = part('day');
+
+  if (style === 'iso' || locale === 'iso') {
+    return `${year}-${month}-${day}`;
+  }
+
+  // Day-first locales (UK, Nigeria, France, Portugal, Hausa) must never be
+  // shown in the ambiguous US month-first order.
+  const dayFirst = /^(en-GB|en-NG|fr|pt|ha|pcm)/i.test(locale);
+  return dayFirst
+    ? `${day}/${month}/${year}`
+    : `${month}/${day}/${year}`;
+}
+
 export const STATUS_COLORS: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-800',
   pending_approval: 'bg-orange-100 text-orange-800',
