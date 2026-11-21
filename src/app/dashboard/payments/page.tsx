@@ -21,6 +21,7 @@ import Modal from '@/components/Modal';
 import { SkeletonList, SkeletonTableRows } from '@/components/Skeleton';
 import { paymentsApi } from '@/lib/api';
 import { getErrorMessage } from '@/lib/errors';
+import { paymentStatusLabel, useLocale } from '@/lib/locale';
 import toast from '@/lib/toast';
 import type { Payment } from '@/lib/types';
 import {
@@ -128,6 +129,7 @@ interface PaymentStatusBadgeProps {
 
 function PaymentStatusBadge({ status, testId }: PaymentStatusBadgeProps) {
   const StatusIcon = STATUS_ICONS[status];
+  const { locale } = useLocale();
 
   return (
     <span
@@ -137,7 +139,7 @@ function PaymentStatusBadge({ status, testId }: PaymentStatusBadgeProps) {
       {StatusIcon && (
         <StatusIcon aria-hidden="true" className="w-3 h-3 shrink-0" />
       )}
-      {status}
+      {paymentStatusLabel(status, locale)}
     </span>
   );
 }

@@ -666,3 +666,18 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
 export function useLocale() {
   return useContext(LocaleContext);
 }
+
+/** Human-readable, translated label for a backend payment status enum. */
+export function paymentStatusLabel(
+  status: string,
+  locale: SupportedLocale = 'en'
+): string {
+  const key = `status.${status.toLowerCase()}` as keyof Messages;
+  const translated = MESSAGES[locale][key] ?? EN[key];
+  if (translated) return translated;
+  // Unknown future enum values still get a readable label rather than a raw token.
+  return status
+    .toLowerCase()
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
+}
