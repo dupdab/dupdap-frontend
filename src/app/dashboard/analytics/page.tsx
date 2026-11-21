@@ -66,6 +66,13 @@ export default function AnalyticsPage() {
   const [topLoading, setTopLoading] = useState(true);
   const [topError, setTopError] = useState('');
 
+  // This page is a client component, so it can't export Next.js `metadata`.
+  // Set the document title imperatively so the browser tab and history entry
+  // reflect the current route instead of the default 'DupDub' title.
+  useEffect(() => {
+    document.title = 'Analytics — DupDub Dashboard';
+  }, []);
+
   const loadStats = useCallback(() => {
     setLoading(true);
     setError('');
@@ -244,119 +251,3 @@ export default function AnalyticsPage() {
                 <tbody>
                   {pieData.map((row) => (
                     <tr key={row.name}>
-                      <td>{row.name}</td>
-                      <td>{formatUsd(row.amount)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div className="card p-6">
-            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-              <h2 className="font-semibold">Top Merchants</h2>
-              <div className="flex items-center gap-2">
-                <div
-                  className="inline-flex rounded-md border border-gray-200"
-                  role="group"
-                  aria-label="Period selector"
-                >
-                  {PERIODS.map((p) => (
-                    <button
-                      key={p.value}
-                      type="button"
-                      onClick={() => setPeriod(p.value)}
-                      aria-pressed={period === p.value}
-                      className={`px-3 py-1.5 text-sm font-medium ${period === p.value ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
-                    >
-                      {p.label}
-                    </button>
-                  ))}
-                </div>
-                <button
-                  type="button"
-                  onClick={exportCsv}
-                  disabled={topLoading || rankedMerchants.length === 0}
-                  className="inline-flex items-center rounded-md border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50"
-                >
-                  Export CSV
-                </button>
-              </div>
-            </div>
-
-            {topLoading ? (
-              <table className="w-full text-sm">
-                <tbody>
-                  <SkeletonTableRows rows={5} cols={5} />
-                </tbody>
-              </table>
-            ) : topError ? (
-              <div className="text-center py-8 text-red-500">
-                <p>{topError}</p>
-                <button
-                  type="button"
-                  onClick={() => loadTopMerchants(period)}
-                  className="mt-4 inline-flex items-center rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
-                >
-                  Retry
-                </button>
-              </div>
-            ) : rankedMerchants.length === 0 ? (
-              <div className="text-center py-8 text-gray-400">
-                No merchant activity in this period.
-              </div>
-            ) : (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-gray-500 border-b border-gray-200">
-                    <th scope="col" className="py-2 pr-4">
-                      Rank
-                    </th>
-                    <th scope="col" className="py-2 pr-4">
-                      Merchant
-                    </th>
-                    <th scope="col" className="py-2 pr-4 text-right">
-                      Total Volume
-                    </th>
-                    <th scope="col" className="py-2 pr-4 text-right">
-                      Payments
-                    </th>
-                    <th scope="col" className="py-2 text-right">
-                      Avg Order Value
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rankedMerchants.map((m, i) => (
-                    <tr
-                      key={m.merchantId}
-                      onClick={() =>
-                        router.push(`/dashboard/merchants/${m.merchantId}`)
-                      }
-                      className="border-b border-gray-100 cursor-pointer hover:bg-gray-50"
-                    >
-                      <td className="py-2 pr-4 text-gray-500">{i + 1}</td>
-                      <td className="py-2 pr-4 font-medium text-gray-900">
-                        {m.merchantName}
-                      </td>
-                      <td className="py-2 pr-4 text-right">
-                        {formatUsd(m.totalVolume)}
-                      </td>
-                      <td className="py-2 pr-4 text-right">{m.paymentCount}</td>
-                      <td className="py-2 text-right">
-                        {formatUsd(m.avgOrderValue)}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            )}
-          </div>
-
-          <RevenueByMethodCard />
-        </div>
-      )}
-    </div>
-  );
-}

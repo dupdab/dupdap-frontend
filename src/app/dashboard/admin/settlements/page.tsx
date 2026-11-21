@@ -45,6 +45,10 @@ export default function AdminSettlementsPage() {
   const [rejectReason, setRejectReason] = useState('');
   const [submittingId, setSubmittingId] = useState<string | null>(null);
 
+  useEffect(() => {
+    document.title = 'Settlement Approvals — DupDub Dashboard';
+  }, []);
+
   const loadSettlements = useCallback(async () => {
     if (!token && !merchant) return;
     setLoading(true);
@@ -229,15 +233,13 @@ export default function AdminSettlementsPage() {
                         {entry.actor ? ` by ${entry.actor}` : ''}
                         {entry.reason ? ` — ${entry.reason}` : ''}
                         {entry.createdAt
-                          ? ` (${new Date(entry.createdAt).toLocaleString()})`
+                          ? ` · ${new Date(entry.createdAt).toLocaleString()}`
                           : ''}
                       </li>
                     ))}
                   </ul>
                 ) : (
-                  <p className="mt-2 text-xs text-gray-400">
-                    No audit entries yet.
-                  </p>
+                  <p className="mt-2 text-xs text-gray-500">No audit entries.</p>
                 )}
               </div>
             </li>
