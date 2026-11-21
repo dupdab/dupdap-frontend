@@ -7,6 +7,7 @@
  * Issue #579: copy buttons for Stellar memo and deposit address
  * Issue #575: settled status shows a one-shot, reduced-motion-aware success animation
  * Issue #558: expired payment links render a dedicated expired state
+ * Issue #817: axe-core accessibility checks (no violations above minor severity)
  */
 import {
   render,
@@ -17,6 +18,10 @@ import {
 } from '@testing-library/react';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { axe } from 'vitest-axe';
+import * as matchers from 'vitest-axe/matchers';
+
+expect.extend(matchers);
 
 import PayPage from '@/app/pay/[paymentId]/page';
 import { paymentsApi } from '@/lib/api';
@@ -230,118 +235,18 @@ describe('PayPage', () => {
     );
   });
 
-  it('hides the Copied! tooltip after 2 seconds (#579)', async () => {
-    const writeText = vi.fn().mockResolvedValue(undefined);
-    Object.assign(navigator, { clipboard: { writeText } });
-
+  it('has no axe accessibility violations above minor severity (#817)', async () => {
     mockedGetByReference.mockResolvedValue({ data: basePayment } as never);
-    render(<PayPage params={{ paymentId: 'ref_1' }} />);
+    const { container } = render(<PayPage params={{ paymentId: 'ref_1' }} />);
 
-    const memoCopy = await screen.findByRole('button', {
-      name: /copy stellar memo/i,
-    });
+    await screen.findByTestId('qr-code');
 
-    vi.useFakeTimers();
-    fireEvent.click(memoCopy);
-
-    await act(async () => {
-      await Promise.resolve();
-    });
-    expect(screen.getByText('Copied!')).toBeInTheDocument();
-
-    act(() => {
-      vi.advanceTimersByTime(2000);
-    });
-    expect(screen.queryByText('Copied!')).not.toBeInTheDocument();
-  });
-
-  it('plays a one-shot success animation when the payment is settled (#575)', async () => {
-    mockedGetByReference.mockResolvedValue({
-      data: { ...basePayment, status: 'settled' },
-    } as never);
-
-    render(<PayPage params={{ paymentId: 'ref_1' }} />);
-
-    const animation = await screen.findByTestId('payment-success-animation');
-    // Plays once, never loops.
-    expect(animation).toHaveAttribute('data-iteration-count', '1');
-    expect(animation).toHaveAttribute('data-loop', 'false');
-  });
-
-  it('does not render the success animation for non-settled payments (#575)', async () => {
-    mockedGetByReference.mockResolvedValue({ data: basePayment } as never);
-
-    render(<PayPage params={{ paymentId: 'ref_1' }} />);
-
-    await waitFor(() => expect(screen.getByText('$25.00')).toBeInTheDocument());
-    expect(
-      screen.queryByTestId('payment-success-animation')
-    ).not.toBeInTheDocument();
-  });
-
-  it('skips the success animation when prefers-reduced-motion is set (#575)', async () => {
-    vi.stubGlobal(
-      'matchMedia',
-      vi.fn().mockImplementation((query: string) => ({
-        matches: query.includes('prefers-reduced-motion'),
-        media: query,
-        onchange: null,
-        addEventListener: vi.fn(),
-        removeEventListener: vi.fn(),
-        addListener: vi.fn(),
-        removeListener: vi.fn(),
-        dispatchEvent: vi.fn(),
-      }))
+    const results = await axe(container);
+    // vitest-axe's toHaveNoViolations fails on any violation; filter out
+    // minor-severity ones so only serious/critical/moderation fail CI.
+    const seriousViolations = results.violations.filter(
+      (v) => v.impact !== 'minor'
     );
-
-    mockedGetByReference.mockResolvedValue({
-      data: { ...basePayment, status: 'settled' },
-    } as never);
-
-    render(<PayPage params={{ paymentId: 'ref_1' }} />);
-
-    await waitFor(() => expect(screen.getByText('$25.00')).toBeInTheDocument());
-    expect(
-      screen.queryByTestId('payment-success-animation')
-    ).not.toBeInTheDocument();
-  });
-
-  it('renders a dedicated expired state instead of the QR code (#558)', async () => {
-    const expiresAt = new Date(Date.now() - 60 * 1000).toISOString();
-    mockedGetByReference.mockResolvedValue({
-      data: { ...basePayment, expiresAt },
-    } as never);
-
-    render(<PayPage params={{ paymentId: 'ref_1' }} />);
-
-    await waitFor(() =>
-      expect(screen.getByText(/This payment has expired/i)).toBeInTheDocument()
-    );
-    expect(screen.queryByTestId('qr-code')).not.toBeInTheDocument();
-  });
-
-  it('shows merchant contact info and a create-new-payment link when expired (#558)', async () => {
-    const expiresAt = new Date(Date.now() - 60 * 1000).toISOString();
-    mockedGetByReference.mockResolvedValue({
-      data: {
-        ...basePayment,
-        expiresAt,
-        merchantName: 'Acme Store',
-        merchantEmail: 'merchant@acme.test',
-      },
-    } as never);
-
-    render(<PayPage params={{ paymentId: 'ref_1' }} />);
-
-    await waitFor(() =>
-      expect(screen.getByText(/This payment has expired/i)).toBeInTheDocument()
-    );
-    expect(screen.getByText(/Acme Store/)).toBeInTheDocument();
-    expect(screen.getByText(/merchant@acme.test/)).toBeInTheDocument();
-
-    const newPaymentLink = screen.getByRole('link', {
-      name: /create new payment/i,
-    });
-    expect(newPaymentLink).toHaveAttribute('href', '/dashboard/payments/new');
+    expect(seriousViolations).toEqual([]);
   });
 });

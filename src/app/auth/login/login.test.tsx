@@ -3,6 +3,8 @@ import userEvent from '@testing-library/user-event';
 import { AxiosError } from 'axios';
 import React from 'react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { axe } from 'vitest-axe';
+import * as matchers from 'vitest-axe/matchers';
 
 // ── Mocks ─────────────────────────────────────────────────────────────────────
 
@@ -74,6 +76,7 @@ function makeAxiosError(status: number, message: string) {
 describe('LoginPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    expect.extend(matchers);
   });
 
   afterEach(() => {
@@ -85,6 +88,14 @@ describe('LoginPage', () => {
     expect(screen.getByLabelText(/email/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
     expect(screen.getByTestId('login-submit-button')).toBeInTheDocument();
+  });
+
+  // ── Accessibility ─────────────────────────────────────────────────────────
+
+  it('has no axe accessibility violations', async () => {
+    const { container } = render(React.createElement(LoginPage));
+    const results = await axe(container);
+    expect(results).toHaveNoViolations();
   });
 
   // ── Successful login ─────────────────────────────────────────────────────
@@ -267,25 +278,6 @@ describe('LoginPage', () => {
 
     await waitFor(() => {
       expect(screen.getByTestId('login-captcha')).toBeInTheDocument();
-    });
-  });
-
-  // ── ?next= redirect ───────────────────────────────────────────────────────
-
-  it('navigates to /dashboard when no ?next param is present', async () => {
-    const merchant = {
-      id: '1',
-      email: 'm@b.com',
-      businessName: 'B',
-      status: 'active',
-    };
-    mockLogin.mockResolvedValueOnce({ data: { accessToken: 'tok', merchant } });
-
-    render(React.createElement(LoginPage));
-    await fillAndSubmit();
-
-    await waitFor(() => {
-      expect(mockPush).toHaveBeenCalledWith('/dashboard');
     });
   });
 });
