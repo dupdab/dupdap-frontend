@@ -126,18 +126,52 @@ interface WebhookRowProps {
   onSecretRotated: (id: string, secret: string) => void;
 }
 
+const MAX_URL_LENGTH = 50;
+
 const WebhookRow = memo(function WebhookRow({
   webhook: w,
   onDelete,
   onSecretRotated,
 }: WebhookRowProps) {
+  const [urlCopied, setUrlCopied] = useState(false);
+  const displayUrl =
+    w.url.length > MAX_URL_LENGTH
+      ? `${w.url.slice(0, MAX_URL_LENGTH)}…`
+      : w.url;
+
+  const copyUrl = async () => {
+    try {
+      await navigator.clipboard.writeText(w.url);
+      setUrlCopied(true);
+      setTimeout(() => setUrlCopied(false), 2000);
+    } catch {
+      toast.error('Failed to copy webhook URL');
+    }
+  };
+
   return (
     <div
       data-testid={`webhook-row-${w.id}`}
       className="card p-5 flex items-start justify-between"
     >
       <div className="flex-1 min-w-0">
-        <p className="font-mono text-sm font-medium break-all">{w.url}</p>
+        <button
+          type="button"
+          data-testid={`copy-url-${w.id}`}
+          onClick={copyUrl}
+          title={w.url}
+          aria-label={`Copy webhook URL: ${w.url}`}
+          className="flex max-w-full items-center gap-2 text-left text-blue-600 hover:underline"
+        >
+          <span className="truncate font-mono text-sm font-medium">
+            {displayUrl}
+          </span>
+          {urlCopied ? (
+            <Check className="h-4 w-4 shrink-0 text-green-500" aria-hidden="true" />
+          ) : (
+            <Copy className="h-4 w-4 shrink-0" aria-hidden="true" />
+          )}
+        </button>
         <div className="flex flex-wrap gap-1 mt-2">
           {w.events.map((e: string) => (
             <span

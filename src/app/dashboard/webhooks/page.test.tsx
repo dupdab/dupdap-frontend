@@ -118,6 +118,25 @@ describe('WebhooksPage — rendering & list state', () => {
     expect(screen.getByText('payment.failed')).toBeInTheDocument();
   });
 
+  it('truncates long URLs, shows the full URL on hover, and copies it on click', async () => {
+    const longUrl = `https://example.com/webhooks/${'a'.repeat(60)}`;
+    mockList.mockResolvedValueOnce({
+      data: [{ ...fixtureWebhooks[0], id: 'wh-long', url: longUrl }],
+    });
+
+    render(<WebhooksPage />);
+
+    const urlButton = await screen.findByTestId('copy-url-wh-long');
+    expect(urlButton).toHaveAttribute('title', longUrl);
+    expect(urlButton).toHaveTextContent(`${longUrl.slice(0, 50)}…`);
+    expect(urlButton).not.toHaveTextContent(longUrl);
+
+    fireEvent.click(urlButton);
+    await waitFor(() =>
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(longUrl)
+    );
+  });
+
   it('renders empty state when no webhooks are configured', async () => {
     mockList.mockResolvedValueOnce({ data: [] });
     render(<WebhooksPage />);
