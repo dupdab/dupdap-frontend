@@ -7,6 +7,7 @@
   },
   "scripts": {
     "dev": "next dev",
+    "dev:mock": "NEXT_PUBLIC_API_MOCKING=enabled next dev",
     "prebuild": "node scripts/validate-env.mjs",
     "analyze": "ANALYZE=true next build",
     "build": "next build",
@@ -73,6 +74,7 @@
     "husky": "^9.1.7",
     "jsdom": "26.1.0",
     "lint-staged": "^15.2.10",
+    "msw": "^2.6.0",
     "next-pwa": "^5.6.0",
     "next-sitemap": "4.2.3",
     "postcss": "8.5.10",
@@ -83,5 +85,10 @@
   },
   "overrides": {
     "@types/minimatch": "5.1.2"
+  },
+  "msw": {
+    "workerDirectory": [
+      "public"
+    ]
   }
 }
