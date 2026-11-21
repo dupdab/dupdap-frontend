@@ -13,7 +13,7 @@ import {
   Download,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
-import { memo, useEffect, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 
 import { CopyButton } from '@/components/CopyButton';
 import { FormField } from '@/components/FormField';
@@ -215,6 +215,8 @@ export default function PaymentsPage() {
   });
   const [creating, setCreating] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+  const qrRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [exporting, setExporting] = useState(false);
 
@@ -255,6 +257,7 @@ export default function PaymentsPage() {
   // memo never leaks into another payment's QR modal (#326).
   useEffect(() => {
     setCopied(false);
+    setLinkCopied(false);
   }, [selectedPayment]);
 
   const createPayment = async (e: React.FormEvent) => {
@@ -334,6 +337,58 @@ export default function PaymentsPage() {
       setTimeout(() => setCopied(false), 2000);
     } catch {
       toast.error('Failed to copy memo');
+    }
+  };
+
+  const downloadQrPng = async () => {
+    const svg = qrRef.current?.querySelector('svg');
+    if (!svg || !selectedPayment) return;
+
+    const svgString = new XMLSerializer().serializeToString(svg);
+    const svgBlob = new Blob([svgString], {
+      type: 'image/svg+xml;charset=utf-8',
+    });
+    const url = URL.createObjectURL(svgBlob);
+
+    try {
+      const img = new Image();
+      const pngUrl = await new Promise<string>((resolve, reject) => {
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = 512;
+          canvas.height = 512;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('Canvas unavailable'));
+            return;
+          }
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/png'));
+        };
+        img.onerror = () => reject(new Error('Failed to load QR image'));
+        img.src = url;
+      });
+
+      const a = document.createElement('a');
+      a.href = pngUrl;
+      a.download = `payment-${selectedPayment.reference}.png`;
+      a.click();
+    } catch {
+      toast.error('Failed to download QR code');
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  };
+
+  const copyPaymentLink = async (paymentUrl: string) => {
+    try {
+      await navigator.clipboard.writeText(paymentUrl);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch {
+      toast.error('Failed to copy link');
     }
   };
 
@@ -519,7 +574,10 @@ export default function PaymentsPage() {
       >
         {selectedPayment && (
           <>
-            <div className="bg-white p-4 rounded-lg inline-block mb-4">
+            <div
+              ref={qrRef}
+              className="bg-white p-4 rounded-lg inline-block mb-4"
+            >
               <QRCodeSVG
                 value={
                   selectedPayment.qrCode ??
@@ -550,48 +608,81 @@ export default function PaymentsPage() {
             {(() => {
               const paymentUrl = `${window.location.origin}/pay/${selectedPayment.reference}`;
               return (
-                <div className="flex items-center justify-center gap-2 mb-4 text-xs text-brand-600">
-                  <LinkIcon className="w-3 h-3 shrink-0" aria-hidden="true" />
-                  <span className="truncate max-w-[180px]">
-                    /pay/{selectedPayment.reference}
-                  </span>
-                  <CopyButton
-                    value={paymentUrl}
-                    label="Copy payment link"
-                    copiedLabel="Link copied"
-                    className="text-brand-500 hover:text-brand-700"
-                  />
-                </div>
+                <>
+                  <div className="flex items-center justify-center gap-2 mb-4 text-xs text-brand-600">
+                    <LinkIcon
+                      className="w-3 h-3 shrink-0"
+                      aria-hidden="true"
+                    />
+                    <span className="truncate max-w-[180px]">
+                      /pay/{selectedPayment.reference}
+                    </span>
+                    <CopyButton
+                      value={paymentUrl}
+                      label="Copy payment link"
+                      copiedLabel="Link copied"
+                      className="text-brand-500 hover:text-brand-700"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-center gap-2 mb-4">
+                    <button
+                      type="button"
+                      data-testid="download-qr-button"
+                      onClick={downloadQrPng}
+                      className="btn-secondary flex items-center gap-2 text-sm px-3 py-2"
+                    >
+                      <Download className="w-4 h-4" aria-hidden="true" />
+                      Download QR
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="copy-payment-link-button"
+                      onClick={() => copyPaymentLink(paymentUrl)}
+                      className="btn-secondary flex items-center gap-2 text-sm px-3 py-2"
+                    >
+                      {linkCopied ? (
+                        <Check className="w-4 h-4" aria-hidden="true" />
+                      ) : (
+                        <Copy className="w-4 h-4" aria-hidden="true" />
+                      )}
+                      {linkCopied ? 'Link copied' : 'Copy link'}
+                    </button>
+                  </div>
+
+                  {/* Share buttons — let merchants send the payment link via email or WhatsApp */}
+                  <div className="flex items-center justify-center gap-2 mb-4">
+                    <span className="text-xs text-gray-500 flex items-center gap-1">
+                      <Share2 className="w-3 h-3" aria-hidden="true" />
+                      Share:
+                    </span>
+                    <a
+                      data-testid="share-email-button"
+                      href={`mailto:?subject=${encodeURIComponent(`Payment request: ${formatUsd(selectedPayment.amountUsd)}`)}&body=${encodeURIComponent(`You have a payment request for ${formatUsd(selectedPayment.amountUsd)}.\n\nClick here to pay: ${paymentUrl}\n\nReference: ${selectedPayment.reference}${selectedPayment.description ? `\nDescription: ${selectedPayment.description}` : ''}`)}`}
+                      aria-label="Share payment link via email"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-300 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      <Mail className="w-3.5 h-3.5" aria-hidden="true" />
+                      Email
+                    </a>
+                    <a
+                      data-testid="share-whatsapp-button"
+                      href={`https://wa.me/?text=${encodeURIComponent(`You have a payment request for ${formatUsd(selectedPayment.amountUsd)}.\n\nClick here to pay: ${paymentUrl}\n\nReference: ${selectedPayment.reference}${selectedPayment.description ? `\nDescription: ${selectedPayment.description}` : ''}`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label="Share payment link via WhatsApp"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-300 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      <MessageCircle
+                        className="w-3.5 h-3.5"
+                        aria-hidden="true"
+                      />
+                      WhatsApp
+                    </a>
+                  </div>
+                </>
               );
             })()}
-
-            {/* Share buttons — let merchants send the payment link via email or WhatsApp */}
-            <div className="flex items-center justify-center gap-2 mb-4">
-              <span className="text-xs text-gray-500 flex items-center gap-1">
-                <Share2 className="w-3 h-3" aria-hidden="true" />
-                Share:
-              </span>
-              <a
-                data-testid="share-email-button"
-                href={`mailto:?subject=${encodeURIComponent(`Payment request: ${formatUsd(selectedPayment.amountUsd)}`)}&body=${encodeURIComponent(`You have a payment request for ${formatUsd(selectedPayment.amountUsd)}.\n\nClick here to pay: ${window.location.origin}/pay/${selectedPayment.reference}\n\nReference: ${selectedPayment.reference}${selectedPayment.description ? `\nDescription: ${selectedPayment.description}` : ''}`)}`}
-                aria-label="Share payment link via email"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-300 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-              >
-                <Mail className="w-3.5 h-3.5" aria-hidden="true" />
-                Email
-              </a>
-              <a
-                data-testid="share-whatsapp-button"
-                href={`https://wa.me/?text=${encodeURIComponent(`You have a payment request for ${formatUsd(selectedPayment.amountUsd)}.\n\nClick here to pay: ${window.location.origin}/pay/${selectedPayment.reference}\n\nReference: ${selectedPayment.reference}${selectedPayment.description ? `\nDescription: ${selectedPayment.description}` : ''}`)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Share payment link via WhatsApp"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-300 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-              >
-                <MessageCircle className="w-3.5 h-3.5" aria-hidden="true" />
-                WhatsApp
-              </a>
-            </div>
 
             {selectedPayment.stellarMemo && (
               <div className="flex items-center justify-center gap-2">
