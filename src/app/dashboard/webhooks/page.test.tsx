@@ -50,6 +50,20 @@ vi.mock('react-hot-toast', () => ({
 
 vi.mock('@/lib/utils', () => ({
   WEBHOOK_EVENTS: ['payment.created', 'payment.completed', 'payment.failed'],
+  WEBHOOK_EVENT_DETAILS: {
+    'payment.created': {
+      description: 'Sent when a new payment request is created.',
+      samplePayload: { event: 'payment.created', data: { id: 'pay_123' } },
+    },
+    'payment.completed': {
+      description: 'Sent when a payment is completed.',
+      samplePayload: { event: 'payment.completed', data: { id: 'pay_123' } },
+    },
+    'payment.failed': {
+      description: 'Sent when a payment fails.',
+      samplePayload: { event: 'payment.failed', data: { id: 'pay_123' } },
+    },
+  },
   formatDate: (s: string) => s.slice(0, 10),
   cn: (...classes: unknown[]) => classes.filter(Boolean).join(' '),
   maskSecret: (value: string) =>
@@ -116,6 +130,25 @@ describe('WebhooksPage — rendering & list state', () => {
     expect(screen.getByText('payment.created')).toBeInTheDocument();
     expect(screen.getByText('payment.completed')).toBeInTheDocument();
     expect(screen.getByText('payment.failed')).toBeInTheDocument();
+  });
+
+  it('truncates long URLs, shows the full URL on hover, and copies it on click', async () => {
+    const longUrl = `https://example.com/webhooks/${'a'.repeat(60)}`;
+    mockList.mockResolvedValueOnce({
+      data: [{ ...fixtureWebhooks[0], id: 'wh-long', url: longUrl }],
+    });
+
+    render(<WebhooksPage />);
+
+    const urlButton = await screen.findByTestId('copy-url-wh-long');
+    expect(urlButton).toHaveAttribute('title', longUrl);
+    expect(urlButton).toHaveTextContent(`${longUrl.slice(0, 50)}…`);
+    expect(urlButton).not.toHaveTextContent(longUrl);
+
+    fireEvent.click(urlButton);
+    await waitFor(() =>
+      expect(navigator.clipboard.writeText).toHaveBeenCalledWith(longUrl)
+    );
   });
 
   it('renders empty state when no webhooks are configured', async () => {

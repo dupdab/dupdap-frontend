@@ -159,11 +159,19 @@ export const paymentsApi = {
    * Accepts an optional axios config so callers can pass an AbortSignal for
    * cancellable in-flight requests (React Query request deduplication).
    */
-  list: (page = 1, limit = 20, config?: AxiosRequestConfig) =>
-    api.get<PaymentListResponse>(
-      `/payments?page=${page}&limit=${limit}`,
-      config
-    ),
+  list: (
+    page = 1,
+    limit = 20,
+    config?: AxiosRequestConfig,
+    status?: string
+  ) => {
+    const params = new URLSearchParams({
+      page: String(page),
+      limit: String(limit),
+    });
+    if (status) params.set('status', status);
+    return api.get<PaymentListResponse>(`/payments?${params.toString()}`, config);
+  },
   get: (id: string) => api.get<Payment>(`/payments/${id}`),
   stats: (config?: AxiosRequestConfig) =>
     api.get<PaymentStats[]>('/payments/stats', config),

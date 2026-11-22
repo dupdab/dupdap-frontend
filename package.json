@@ -3,10 +3,11 @@
   "version": "1.0.0",
   "private": true,
   "engines": {
-    "node": ">=18.18.0"
+    "node": ">=18"
   },
   "scripts": {
     "dev": "next dev",
+    "dev:mock": "NEXT_PUBLIC_API_MOCKING=enabled next dev",
     "prebuild": "node scripts/validate-env.mjs",
     "analyze": "ANALYZE=true next build",
     "build": "next build",
@@ -65,7 +66,9 @@
     "@typescript-eslint/eslint-plugin": "^7.18.0",
     "@typescript-eslint/parser": "^7.18.0",
     "@vitejs/plugin-react": "^4.3.4",
+    "chromatic": "^11.27.0",
     "autoprefixer": "10.5.0",
+    "chromatic": "^11.29.0",
     "eslint": "8.57.1",
     "eslint-config-next": "14.2.5",
     "eslint-plugin-import": "^2.29.1",
@@ -73,6 +76,7 @@
     "husky": "^9.1.7",
     "jsdom": "26.1.0",
     "lint-staged": "^15.2.10",
+    "msw": "^2.6.0",
     "next-pwa": "^5.6.0",
     "next-sitemap": "4.2.3",
     "postcss": "8.5.10",
@@ -83,5 +87,10 @@
   },
   "overrides": {
     "@types/minimatch": "5.1.2"
+  },
+  "msw": {
+    "workerDirectory": [
+      "public"
+    ]
   }
 }
