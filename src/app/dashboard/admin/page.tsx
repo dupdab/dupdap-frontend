@@ -2,6 +2,7 @@
 
 import { Shield, Banknote, ArrowRight } from 'lucide-react';
 import Link from 'next/link';
+import { useEffect } from 'react';
 
 const adminTools = [
   {
@@ -14,6 +15,10 @@ const adminTools = [
 ];
 
 export default function AdminDashboardPage() {
+  useEffect(() => {
+    document.title = 'Admin — DupDub Dashboard';
+  }, []);
+
   return (
     <div className="p-6 max-w-4xl">
       {/* Header */}

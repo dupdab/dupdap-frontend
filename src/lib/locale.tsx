@@ -14,11 +14,14 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react';
 
-export type SupportedLocale = 'en' | 'fr' | 'pcm' | 'ha';
+import { i18nInstance } from '@/i18n';
+
+export type SupportedLocale = 'en' | 'fr' | 'pt' | 'pcm' | 'ha';
 
 export const LOCALE_LABELS: Record<SupportedLocale, string> = {
   en: 'English',
   fr: 'Français',
+  pt: 'Português',
   pcm: 'Pidgin',
   ha: 'Hausa',
 };
@@ -132,6 +135,31 @@ const EN = {
   'common.next': 'Next',
   'common.page': 'Page {page} of {total}',
   'common.language': 'Language',
+
+  // Authentication
+  'auth.signIn': 'Sign in',
+  'auth.signInSubtitle': 'Welcome back to DupDub',
+  'auth.email': 'Email',
+  'auth.password': 'Password',
+  'auth.emailRequired': 'Email is required',
+  'auth.emailInvalid': 'Enter a valid email address',
+  'auth.passwordRequired': 'Password is required',
+  'auth.signingIn': 'Signing in…',
+  'auth.lockout': 'Too many attempts. Please try again shortly.',
+  'auth.noAccount': "Don't have an account?",
+  'auth.createOne': 'Create one',
+  'auth.forgotPassword': 'Forgot password?',
+
+  // Payment status labels
+  'status.pending': 'Pending',
+  'status.pending_approval': 'Pending approval',
+  'status.confirmed': 'Confirmed',
+  'status.processing': 'Processing',
+  'status.settling': 'Settling',
+  'status.settled': 'Settled',
+  'status.completed': 'Completed',
+  'status.failed': 'Failed',
+  'status.expired': 'Expired',
 };
 
 const FR: Messages = {
@@ -229,6 +257,29 @@ const FR: Messages = {
   'common.next': 'Suiv.',
   'common.page': 'Page {page} sur {total}',
   'common.language': 'Langue',
+
+  'auth.signIn': 'Se connecter',
+  'auth.signInSubtitle': 'Bon retour sur DupDub',
+  'auth.email': 'E-mail',
+  'auth.password': 'Mot de passe',
+  'auth.emailRequired': "L'e-mail est requis",
+  'auth.emailInvalid': 'Saisissez une adresse e-mail valide',
+  'auth.passwordRequired': 'Le mot de passe est requis',
+  'auth.signingIn': 'Connexion…',
+  'auth.lockout': "Trop de tentatives. Veuillez réessayer plus tard.",
+  'auth.noAccount': "Vous n'avez pas de compte ?",
+  'auth.createOne': 'Créer un compte',
+  'auth.forgotPassword': 'Mot de passe oublié ?',
+
+  'status.pending': 'En attente',
+  'status.pending_approval': 'En attente d’approbation',
+  'status.confirmed': 'Confirmé',
+  'status.processing': 'En cours',
+  'status.settling': 'En cours de virement',
+  'status.settled': 'Viré',
+  'status.completed': 'Terminé',
+  'status.failed': 'Échoué',
+  'status.expired': 'Expiré',
 };
 
 const PCM: Messages = {
@@ -325,6 +376,29 @@ const PCM: Messages = {
   'common.next': 'Next',
   'common.page': 'Page {page} of {total}',
   'common.language': 'Language',
+
+  'auth.signIn': 'Sign in',
+  'auth.signInSubtitle': 'Welcome back to DupDub',
+  'auth.email': 'Email',
+  'auth.password': 'Password',
+  'auth.emailRequired': 'Email is required',
+  'auth.emailInvalid': 'Enter a valid email address',
+  'auth.passwordRequired': 'Password is required',
+  'auth.signingIn': 'Signing in…',
+  'auth.lockout': 'Too many attempts. Try again later.',
+  'auth.noAccount': "Don't have an account?",
+  'auth.createOne': 'Create one',
+  'auth.forgotPassword': 'Forgot password?',
+
+  'status.pending': 'Pending',
+  'status.pending_approval': 'Pending approval',
+  'status.confirmed': 'Confirmed',
+  'status.processing': 'Processing',
+  'status.settling': 'Settling',
+  'status.settled': 'Settled',
+  'status.completed': 'Completed',
+  'status.failed': 'Failed',
+  'status.expired': 'Expired',
 };
 
 const HA: Messages = {
@@ -421,11 +495,99 @@ const HA: Messages = {
   'common.next': 'Gaba',
   'common.page': 'Shafi {page} na {total}',
   'common.language': 'Harshe',
+
+  'auth.signIn': 'Shiga',
+  'auth.signInSubtitle': 'Barka da dawowa zuwa DupDub',
+  'auth.email': 'Imel',
+  'auth.password': 'Kalmar sirri',
+  'auth.emailRequired': 'Ana buƙatar imel',
+  'auth.emailInvalid': 'Shigar da ingantaccen adireshin imel',
+  'auth.passwordRequired': 'Ana buƙatar kalmar sirri',
+  'auth.signingIn': 'Ana shiga…',
+  'auth.lockout': 'Yawancin ƙoƙari. Sake gwadawa daga baya.',
+  'auth.noAccount': 'Babu asusun?',
+  'auth.createOne': 'Ƙirƙiri ɗaya',
+  'auth.forgotPassword': 'An manta kalmar sirri?',
+
+  'status.pending': 'A jira',
+  'status.pending_approval': 'A jira amincewa',
+  'status.confirmed': 'An tabbatar',
+  'status.processing': 'Ana aiwatarwa',
+  'status.settling': 'Ana tsarawa',
+  'status.settled': 'An tsara',
+  'status.completed': 'An kammala',
+  'status.failed': 'Ya kasa',
+  'status.expired': 'Ya ƙare',
+};
+
+/** Portuguese translations. English is the fallback for keys not overridden. */
+const PT: Messages = {
+  ...EN,
+  'nav.overview': 'Visão geral',
+  'nav.payments': 'Pagamentos',
+  'nav.settlements': 'Liquidações',
+  'nav.analytics': 'Análises',
+  'nav.webhooks': 'Webhooks',
+  'nav.settings': 'Configurações',
+  'nav.signOut': 'Sair',
+  'nav.logout': 'Sair da conta',
+  'nav.tutorial': 'Vídeo tutorial',
+  'dashboard.welcome': 'Bem-vindo de volta',
+  'dashboard.subtitle': 'Veja o que está acontecendo com seus pagamentos',
+  'dashboard.totalVolume': 'Volume total',
+  'dashboard.settledPayments': 'Pagamentos liquidados',
+  'dashboard.pendingPayments': 'Pagamentos pendentes',
+  'dashboard.totalPayments': 'Total de pagamentos',
+  'dashboard.recentPayments': 'Pagamentos recentes',
+  'dashboard.noPayments': 'Nenhum pagamento ainda',
+  'dashboard.loadError': 'Não foi possível carregar o painel.',
+  'payments.title': 'Pagamentos',
+  'payments.new': 'Novo pagamento',
+  'payments.createTitle': 'Criar pagamento',
+  'payments.form.submit': 'Criar pagamento',
+  'payments.form.submitting': 'Criando...',
+  'payments.loadError': 'Não foi possível carregar os pagamentos.',
+  'settlements.title': 'Liquidações',
+  'settlements.noSettlements': 'Nenhuma liquidação ainda',
+  'settings.title': 'Configurações',
+  'settings.save': 'Salvar alterações',
+  'settings.saving': 'Salvando...',
+  'common.loading': 'Carregando...',
+  'common.retry': 'Tentar novamente',
+  'common.cancel': 'Cancelar',
+  'common.prev': 'Anterior',
+  'common.next': 'Próximo',
+  'common.page': 'Página {page} de {total}',
+  'common.language': 'Idioma',
+
+  'auth.signIn': 'Entrar',
+  'auth.signInSubtitle': 'Bem-vindo de volta ao DupDub',
+  'auth.email': 'E-mail',
+  'auth.password': 'Senha',
+  'auth.emailRequired': 'E-mail é obrigatório',
+  'auth.emailInvalid': 'Digite um e-mail válido',
+  'auth.passwordRequired': 'Senha é obrigatória',
+  'auth.signingIn': 'Entrando…',
+  'auth.lockout': 'Muitas tentativas. Tente novamente em instantes.',
+  'auth.noAccount': 'Não tem uma conta?',
+  'auth.createOne': 'Criar uma',
+  'auth.forgotPassword': 'Esqueceu a senha?',
+
+  'status.pending': 'Pendente',
+  'status.pending_approval': 'Aguardando aprovação',
+  'status.confirmed': 'Confirmado',
+  'status.processing': 'Processando',
+  'status.settling': 'Liquidando',
+  'status.settled': 'Liquidado',
+  'status.completed': 'Concluído',
+  'status.failed': 'Falhou',
+  'status.expired': 'Expirado',
 };
 
 const MESSAGES: Record<SupportedLocale, Messages> = {
   en: EN,
   fr: FR,
+  pt: PT,
   pcm: PCM,
   ha: HA,
 };
@@ -456,6 +618,7 @@ function readStoredLocale(): SupportedLocale {
   // Detect browser language as fallback
   const lang = navigator.language.slice(0, 2).toLowerCase();
   if (lang === 'fr') return 'fr';
+  if (lang === 'pt') return 'pt';
   if (lang === 'ha') return 'ha';
   return 'en';
 }
@@ -465,11 +628,14 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
 
   // Hydrate from localStorage after mount (avoids SSR mismatch)
   useEffect(() => {
-    setLocaleState(readStoredLocale());
+    const stored = readStoredLocale();
+    setLocaleState(stored);
+    void i18nInstance.changeLanguage(stored);
   }, []);
 
   const setLocale = (next: SupportedLocale) => {
     setLocaleState(next);
+    void i18nInstance.changeLanguage(next);
     try {
       localStorage.setItem(STORAGE_KEY, next);
     } catch {
@@ -499,4 +665,19 @@ export function LocaleProvider({ children }: { children: React.ReactNode }) {
 
 export function useLocale() {
   return useContext(LocaleContext);
+}
+
+/** Human-readable, translated label for a backend payment status enum. */
+export function paymentStatusLabel(
+  status: string,
+  locale: SupportedLocale = 'en'
+): string {
+  const key = `status.${status.toLowerCase()}` as keyof Messages;
+  const translated = MESSAGES[locale][key] ?? EN[key];
+  if (translated) return translated;
+  // Unknown future enum values still get a readable label rather than a raw token.
+  return status
+    .toLowerCase()
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, (c) => c.toUpperCase());
 }

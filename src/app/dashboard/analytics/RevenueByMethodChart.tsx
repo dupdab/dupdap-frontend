@@ -1,49 +1,33 @@
 'use client';
 
-import {
-  PieChart,
-  Pie,
-  Cell,
-  Tooltip,
-  Legend,
-  ResponsiveContainer,
-} from 'recharts';
+import dynamic from 'next/dynamic';
 
 import type { RevenueBreakdownRow } from '@/lib/revenue-breakdown';
+import { formatUsd } from '@/lib/utils';
 
-const COLORS = [
-  '#3b82f6',
-  '#22c55e',
-  '#eab308',
-  '#a855f7',
-  '#ef4444',
-  '#6b7280',
-];
+// Lazy-load recharts so the chart library is only pulled into the bundle
+// when the analytics page actually renders this chart (issue #823).
+const RevenueByMethodChartInner = dynamic(
+  () => import('./RevenueByMethodChartInner'),
+  {
+    ssr: false,
+    loading: () => (
+      <div
+        className="flex h-[250px] w-full items-center justify-center text-sm text-gray-500"
+        aria-busy="true"
+      >
+        Loading chart…
+      </div>
+    ),
+  },
+);
 
-export default function RevenueByMethodChart({
+function RevenueByMethodChart({
   data,
 }: {
   data: RevenueBreakdownRow[];
 }) {
-  return (
-    <ResponsiveContainer width="100%" height={250}>
-      <PieChart>
-        <Pie
-          data={data}
-          dataKey="value"
-          nameKey="name"
-          cx="50%"
-          cy="50%"
-          innerRadius={50}
-          outerRadius={80}
-        >
-          {data.map((_, i) => (
-            <Cell key={i} fill={COLORS[i % COLORS.length]} />
-          ))}
-        </Pie>
-        <Tooltip formatter={(v: number) => `$${v.toFixed(2)}`} />
-        <Legend />
-      </PieChart>
-    </ResponsiveContainer>
-  );
+  return <RevenueByMethodChartInner data={data} />;
 }
+
+export default React.memo(RevenueByMethodChart);

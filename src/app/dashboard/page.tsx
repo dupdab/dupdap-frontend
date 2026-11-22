@@ -23,6 +23,7 @@ import type { Payment, PaymentStats } from '@/lib/types';
 import {
   formatUsd,
   formatDate,
+  formatDateForLocale,
   PAYMENT_STATUS_COLORS,
   STATUS_ICONS,
   DEFAULT_STATUS_COLOR,
@@ -313,7 +314,7 @@ export default function DashboardPage() {
                       {p.reference}
                     </p>
                     <p className="text-xs text-gray-400">
-                      {formatDate(p.createdAt, locale)}
+                      {formatDateForLocale(p.createdAt, locale)}
                     </p>
                   </div>
                   <div className="flex items-center gap-3">

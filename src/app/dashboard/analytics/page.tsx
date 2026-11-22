@@ -66,6 +66,13 @@ export default function AnalyticsPage() {
   const [topLoading, setTopLoading] = useState(true);
   const [topError, setTopError] = useState('');
 
+  // This page is a client component, so it can't export Next.js `metadata`.
+  // Set the document title imperatively so the browser tab and history entry
+  // reflect the current route instead of the default 'DupDub' title.
+  useEffect(() => {
+    document.title = 'Analytics — DupDub Dashboard';
+  }, []);
+
   const loadStats = useCallback(() => {
     setLoading(true);
     setError('');
@@ -100,19 +107,23 @@ export default function AnalyticsPage() {
     loadTopMerchants(period);
   }, [loadTopMerchants, period]);
 
-  const pieData = stats.map((s) => ({
-    name: s.status,
-    value: parseInt(String(s.count), 10),
-    amount: parseFloat(String(s.totalUsd ?? 0)),
-  }));
-
-  const totalVolume = stats.reduce(
-    (acc, s) => acc + parseFloat(String(s.totalUsd ?? 0)),
-    0
+  const pieData = useMemo(
+    () =>
+      stats.map((s) => ({
+        name: s.status,
+        value: parseInt(String(s.count), 10),
+        amount: parseFloat(String(s.totalUsd ?? 0)),
+      })),
+    [stats]
   );
-  const totalCount = stats.reduce(
-    (acc, s) => acc + parseInt(String(s.count), 10),
-    0
+
+  const totalVolume = useMemo(
+    () => stats.reduce((acc, s) => acc + parseFloat(String(s.totalUsd ?? 0)), 0),
+    [stats]
+  );
+  const totalCount = useMemo(
+    () => stats.reduce((acc, s) => acc + parseInt(String(s.count), 10), 0),
+    [stats]
   );
 
   const rankedMerchants = useMemo(
@@ -253,14 +264,16 @@ export default function AnalyticsPage() {
             </div>
           </div>
 
+          <RevenueByMethodCard />
+
           <div className="card p-6">
-            <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-4">
               <h2 className="font-semibold">Top Merchants</h2>
               <div className="flex items-center gap-2">
                 <div
-                  className="inline-flex rounded-md border border-gray-200"
+                  className="inline-flex rounded-md border border-gray-200 dark:border-gray-700"
                   role="group"
-                  aria-label="Period selector"
+                  aria-label="Time period"
                 >
                   {PERIODS.map((p) => (
                     <button
@@ -268,7 +281,11 @@ export default function AnalyticsPage() {
                       type="button"
                       onClick={() => setPeriod(p.value)}
                       aria-pressed={period === p.value}
-                      className={`px-3 py-1.5 text-sm font-medium ${period === p.value ? 'bg-gray-900 text-white' : 'text-gray-600 hover:bg-gray-100'}`}
+                      className={`px-3 py-1.5 text-sm font-medium ${
+                        period === p.value
+                          ? 'bg-gray-900 text-white'
+                          : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+                      }`}
                     >
                       {p.label}
                     </button>
@@ -277,8 +294,8 @@ export default function AnalyticsPage() {
                 <button
                   type="button"
                   onClick={exportCsv}
-                  disabled={topLoading || rankedMerchants.length === 0}
-                  className="inline-flex items-center rounded-md border border-gray-200 px-3 py-1.5 text-sm font-medium text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+                  disabled={rankedMerchants.length === 0}
+                  className="inline-flex items-center rounded-md border border-gray-200 dark:border-gray-700 px-3 py-1.5 text-sm font-medium text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50"
                 >
                   Export CSV
                 </button>
@@ -286,10 +303,17 @@ export default function AnalyticsPage() {
             </div>
 
             {topLoading ? (
-              <table className="w-full text-sm">
-                <tbody>
-                  <SkeletonTableRows rows={5} cols={5} />
-                </tbody>
+              <table className="w-full text-sm" aria-busy="true">
+                <thead>
+                  <tr className="text-left text-gray-500">
+                    <th scope="col" className="py-2">Rank</th>
+                    <th scope="col" className="py-2">Merchant</th>
+                    <th scope="col" className="py-2">Total Volume</th>
+                    <th scope="col" className="py-2">Payments</th>
+                    <th scope="col" className="py-2">Avg Order Value</th>
+                  </tr>
+                </thead>
+                <SkeletonTableRows rows={5} columns={5} />
               </table>
             ) : topError ? (
               <div className="text-center py-8 text-red-500">
@@ -303,58 +327,39 @@ export default function AnalyticsPage() {
                 </button>
               </div>
             ) : rankedMerchants.length === 0 ? (
-              <div className="text-center py-8 text-gray-400">
+              <p className="text-sm text-gray-500 py-8 text-center">
                 No merchant activity in this period.
-              </div>
+              </p>
             ) : (
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="text-left text-gray-500 border-b border-gray-200">
-                    <th scope="col" className="py-2 pr-4">
-                      Rank
-                    </th>
-                    <th scope="col" className="py-2 pr-4">
-                      Merchant
-                    </th>
-                    <th scope="col" className="py-2 pr-4 text-right">
-                      Total Volume
-                    </th>
-                    <th scope="col" className="py-2 pr-4 text-right">
-                      Payments
-                    </th>
-                    <th scope="col" className="py-2 text-right">
-                      Avg Order Value
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {rankedMerchants.map((m, i) => (
-                    <tr
-                      key={m.merchantId}
-                      onClick={() =>
-                        router.push(`/dashboard/merchants/${m.merchantId}`)
-                      }
-                      className="border-b border-gray-100 cursor-pointer hover:bg-gray-50"
-                    >
-                      <td className="py-2 pr-4 text-gray-500">{i + 1}</td>
-                      <td className="py-2 pr-4 font-medium text-gray-900">
-                        {m.merchantName}
-                      </td>
-                      <td className="py-2 pr-4 text-right">
-                        {formatUsd(m.totalVolume)}
-                      </td>
-                      <td className="py-2 pr-4 text-right">{m.paymentCount}</td>
-                      <td className="py-2 text-right">
-                        {formatUsd(m.avgOrderValue)}
-                      </td>
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="text-left text-gray-500">
+                      <th scope="col" className="py-2">Rank</th>
+                      <th scope="col" className="py-2">Merchant</th>
+                      <th scope="col" className="py-2">Total Volume</th>
+                      <th scope="col" className="py-2">Payments</th>
+                      <th scope="col" className="py-2">Avg Order Value</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {rankedMerchants.map((m, i) => (
+                      <tr
+                        key={m.merchantId}
+                        className="border-t border-gray-100 dark:border-gray-800"
+                      >
+                        <td className="py-2">{i + 1}</td>
+                        <td className="py-2">{m.merchantName}</td>
+                        <td className="py-2">{formatUsd(m.totalVolume)}</td>
+                        <td className="py-2">{m.paymentCount}</td>
+                        <td className="py-2">{formatUsd(m.avgOrderValue)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )}
           </div>
-
-          <RevenueByMethodCard />
         </div>
       )}
     </div>

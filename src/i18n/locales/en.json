@@ -1,0 +1,27 @@
+{
+  "common": {
+    "language": "Language",
+    "loading": "Loading...",
+    "retry": "Retry",
+    "cancel": "Cancel"
+  },
+  "auth": {
+    "signIn": "Sign in",
+    "signInSubtitle": "Welcome back to DupDub",
+    "email": "Email",
+    "password": "Password",
+    "signingIn": "Signing in…",
+    "lockout": "Too many attempts. Please try again shortly."
+  },
+  "status": {
+    "pending": "Pending",
+    "pending_approval": "Pending approval",
+    "confirmed": "Confirmed",
+    "processing": "Processing",
+    "settling": "Settling",
+    "settled": "Settled",
+    "completed": "Completed",
+    "failed": "Failed",
+    "expired": "Expired"
+  }
+}

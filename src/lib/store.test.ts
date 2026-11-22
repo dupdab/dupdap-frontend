@@ -1,8 +1,15 @@
-import { describe, expect, it, beforeEach } from 'vitest';
+import { describe, expect, it, beforeEach, vi } from 'vitest';
 
 import { useAuthStore, clearLegacyAccessTokenKey } from './store';
 
 import type { Merchant } from './types';
+
+vi.mock('./api', () => ({
+  authApi: { logout: vi.fn().mockResolvedValue(undefined) },
+  merchantApi: { profile: vi.fn().mockResolvedValue({ data: null }) },
+}));
+
+import { merchantApi } from './api';
 
 const testMerchant: Merchant = {
   id: 'merchant-1',
@@ -14,7 +21,10 @@ const testMerchant: Merchant = {
 describe('useAuthStore', () => {
   beforeEach(() => {
     localStorage.clear();
-    useAuthStore.setState({ merchant: null, hasHydrated: false });
+    vi.mocked(merchantApi.profile).mockResolvedValue({
+      data: testMerchant,
+    } as Awaited<ReturnType<typeof merchantApi.profile>>);
+    useAuthStore.setState({ merchant: null, token: null, hasHydrated: false });
   });
 
   describe('setAuth()', () => {
@@ -24,16 +34,25 @@ describe('useAuthStore', () => {
       expect(useAuthStore.getState().token).toBeNull();
     });
 
-    it('persists the merchant to localStorage under the dupdub-auth key', () => {
+    it('does not write the merchant profile to localStorage (#857)', () => {
       useAuthStore.getState().setAuth(testMerchant);
       const stored = JSON.parse(localStorage.getItem('dupdub-auth') ?? '{}');
-      expect(stored.state.merchant).toEqual(testMerchant);
+      expect(stored.state.merchant).toBeUndefined();
+      expect(JSON.stringify(stored)).not.toContain('Test Business');
     });
 
     it('removes the legacy access_token key from localStorage', () => {
       localStorage.setItem('access_token', 'legacy');
       useAuthStore.getState().setAuth(testMerchant);
       expect(localStorage.getItem('access_token')).toBeNull();
+    });
+  });
+
+  describe('fetchProfile()', () => {
+    it('loads the merchant profile from the API on demand', async () => {
+      await useAuthStore.getState().fetchProfile();
+      expect(merchantApi.profile).toHaveBeenCalled();
+      expect(useAuthStore.getState().merchant).toEqual(testMerchant);
     });
   });
 
@@ -44,11 +63,11 @@ describe('useAuthStore', () => {
       expect(useAuthStore.getState().merchant).toBeNull();
     });
 
-    it('persists the cleared state to localStorage', async () => {
+    it('persists no merchant profile to localStorage', async () => {
       useAuthStore.getState().setAuth(testMerchant);
       await useAuthStore.getState().logout();
       const stored = JSON.parse(localStorage.getItem('dupdub-auth') ?? '{}');
-      expect(stored.state.merchant).toBeNull();
+      expect(stored.state.merchant).toBeUndefined();
     });
 
     it('removes the legacy access_token key from localStorage', async () => {
@@ -59,22 +78,27 @@ describe('useAuthStore', () => {
   });
 
   describe('persist middleware', () => {
-    it('persists only merchant and does not serialize hasHydrated', () => {
+    it('persists only the token and drops the merchant profile (#857)', () => {
       useAuthStore.getState().setAuth(testMerchant);
       const stored = JSON.parse(localStorage.getItem('dupdub-auth') ?? '{}');
-      expect(stored.state.merchant).toEqual(testMerchant);
+      expect(stored.state).toEqual({ token: null });
       expect(stored.state.hasHydrated).toBeUndefined();
+      expect(stored.state.merchant).toBeUndefined();
     });
 
-    it('sets hasHydrated to true upon rehydration from storage', async () => {
+    it('migrates old v1 persisted state by removing merchant', async () => {
       useAuthStore.setState({ hasHydrated: false, merchant: null });
       localStorage.setItem(
         'dupdub-auth',
-        JSON.stringify({ state: { merchant: testMerchant } }),
+        JSON.stringify({
+          version: 1,
+          state: { merchant: testMerchant, hasHydrated: true },
+        })
       );
       await useAuthStore.persist.rehydrate();
+      const stored = JSON.parse(localStorage.getItem('dupdub-auth') ?? '{}');
+      expect(JSON.stringify(stored)).not.toContain('Test Business');
       expect(useAuthStore.getState().hasHydrated).toBe(true);
-      expect(useAuthStore.getState().merchant).toEqual(testMerchant);
     });
 
     it('sets hasHydrated to true even when storage is empty', async () => {
