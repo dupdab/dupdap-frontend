@@ -1,6 +1,7 @@
 import { ImageResponse } from 'next/og';
 
 import { getApiUrl } from '@/lib/env';
+import { formatUsd } from '@/lib/utils';
 
 // Uses next/og (the engine behind @vercel/og), bundled with Next.js >= 13.3.
 export const alt = 'DupDub payment request';
@@ -42,7 +43,7 @@ export default async function Image({
     'a DupDub merchant';
   const amount =
     typeof payment?.amountUsd === 'number'
-      ? `$${payment.amountUsd.toFixed(2)} USD`
+      ? `${formatUsd(payment.amountUsd)} USD`
       : null;
   const headline = amount ? `Pay DupDub — ${amount}` : 'Pay with DupDub';
 

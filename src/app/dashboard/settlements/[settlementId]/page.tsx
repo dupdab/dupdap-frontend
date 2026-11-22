@@ -3,7 +3,12 @@
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 
-import { formatNgn } from '@/lib/utils';
+import {
+  formatNgn,
+  PENDING_APPROVAL_MESSAGE,
+  PENDING_APPROVAL_ETA,
+  isPendingApprovalStatus,
+} from '@/lib/utils';
 
 interface AuditEntry {
   id: string;
@@ -141,6 +146,16 @@ export default function AdminSettlementDetailPage({
           {settlement.status}
         </span>
       </div>
+
+      {isPendingApprovalStatus(settlement.status) && (
+        <div
+          role="status"
+          className="rounded-lg border border-orange-200 bg-orange-50 p-4 text-sm text-orange-800"
+        >
+          <p className="font-medium">{PENDING_APPROVAL_MESSAGE}</p>
+          <p className="mt-1">{PENDING_APPROVAL_ETA}</p>
+        </div>
+      )}
 
       {error && (
         <div className="rounded bg-red-50 p-3 text-red-600">{error}</div>

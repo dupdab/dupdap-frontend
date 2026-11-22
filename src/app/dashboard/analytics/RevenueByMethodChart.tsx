@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import {
   PieChart,
   Pie,
@@ -10,6 +11,7 @@ import {
 } from 'recharts';
 
 import type { RevenueBreakdownRow } from '@/lib/revenue-breakdown';
+import { formatUsd } from '@/lib/utils';
 
 const COLORS = [
   '#3b82f6',
@@ -20,7 +22,7 @@ const COLORS = [
   '#6b7280',
 ];
 
-export default function RevenueByMethodChart({
+function RevenueByMethodChart({
   data,
 }: {
   data: RevenueBreakdownRow[];
@@ -41,9 +43,11 @@ export default function RevenueByMethodChart({
             <Cell key={i} fill={COLORS[i % COLORS.length]} />
           ))}
         </Pie>
-        <Tooltip formatter={(v: number) => `$${v.toFixed(2)}`} />
+        <Tooltip formatter={(v: number) => formatUsd(v)} />
         <Legend />
       </PieChart>
     </ResponsiveContainer>
   );
 }
+
+export default React.memo(RevenueByMethodChart);

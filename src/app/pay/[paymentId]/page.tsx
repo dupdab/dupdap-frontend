@@ -355,6 +355,9 @@ function Receipt({ payment }: ReceiptProps) {
       {/* Status stamp */}
       <div className="flex flex-col items-center py-6">
         <CheckCircle className="w-14 h-14 text-green-500 mb-3" />
+        <p className="hidden text-sm font-medium text-gray-600 print:block">
+          {payment.merchantName || 'DupDub'}
+        </p>
         <h2 className="text-xl font-bold text-gray-900">Payment Complete</h2>
         <p className="text-sm text-gray-500 mt-1">
           Your payment has been confirmed and settled.
@@ -370,6 +373,10 @@ function Receipt({ payment }: ReceiptProps) {
           </dd>
         </div>
         <div className="flex justify-between px-4 py-3 bg-gray-50">
+          <dt className="text-gray-500">Status</dt>
+          <dd className="font-medium text-gray-900">{payment.status}</dd>
+        </div>
+        <div className="flex justify-between px-4 py-3 bg-white">
           <dt className="text-gray-500">Reference</dt>
           <dd className="font-mono text-gray-900 text-xs break-all">
             {payment.reference}

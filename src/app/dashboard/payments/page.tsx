@@ -13,14 +13,18 @@ import {
   Download,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
-import { memo, useEffect, useState } from 'react';
+import { Suspense, memo, useCallback, useEffect, useRef, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
+import ConfirmDialog from '@/components/ConfirmDialog';
 import { CopyButton } from '@/components/CopyButton';
+import { CurrencyInput } from '@/components/CurrencyInput';
 import { FormField } from '@/components/FormField';
 import Modal from '@/components/Modal';
 import { SkeletonList, SkeletonTableRows } from '@/components/Skeleton';
 import { paymentsApi } from '@/lib/api';
 import { getErrorMessage } from '@/lib/errors';
+import { paymentStatusLabel, useLocale } from '@/lib/locale';
 import toast from '@/lib/toast';
 import type { Payment } from '@/lib/types';
 import {
@@ -128,6 +132,7 @@ interface PaymentStatusBadgeProps {
 
 function PaymentStatusBadge({ status, testId }: PaymentStatusBadgeProps) {
   const StatusIcon = STATUS_ICONS[status];
+  const { locale } = useLocale();
 
   return (
     <span
@@ -137,7 +142,7 @@ function PaymentStatusBadge({ status, testId }: PaymentStatusBadgeProps) {
       {StatusIcon && (
         <StatusIcon aria-hidden="true" className="w-3 h-3 shrink-0" />
       )}
-      {status}
+      {paymentStatusLabel(status, locale)}
     </span>
   );
 }
@@ -199,7 +204,25 @@ const PaymentMobileCard = memo(function PaymentMobileCard({
   );
 });
 
-export default function PaymentsPage() {
+const DEFAULT_STATUS_FILTER = 'pending_confirmed';
+const STATUS_FILTER_OPTIONS = [
+  { value: 'pending_confirmed', label: 'Pending + Confirmed' },
+  { value: 'all', label: 'All payments' },
+] as const;
+
+function statusFilterToApiValue(filter: string): string | undefined {
+  if (filter === 'all') return undefined;
+  if (filter === 'pending_confirmed') return 'pending,confirmed';
+  return undefined;
+}
+
+function PaymentsPageContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const urlStatusFilter =
+    searchParams.get('status') === 'all' ? 'all' : DEFAULT_STATUS_FILTER;
+
   const [payments, setPayments] = useState<Payment[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -212,18 +235,54 @@ export default function PaymentsPage() {
     description: '',
     customerEmail: '',
     expiryMinutes: '30',
+    metadata: '',
   });
   const [creating, setCreating] = useState(false);
+  const [showConfirm, setShowConfirm] = useState(false);
+  const [pendingCreate, setPendingCreate] = useState<{
+    amountUsd: number;
+    description?: string;
+    customerEmail?: string;
+    expiryMinutes: number;
+    metadata?: Record<string, unknown>;
+  } | null>(null);
+  const [createError, setCreateError] = useState('');
   const [copied, setCopied] = useState(false);
+  const [linkCopied, setLinkCopied] = useState(false);
+  const qrRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [exporting, setExporting] = useState(false);
+  const [statusFilter, setStatusFilter] = useState(urlStatusFilter);
+  const [isMobileCreateFlow, setIsMobileCreateFlow] = useState(false);
+  const [createStep, setCreateStep] = useState(1);
 
-  const load = async (p = 1) => {
+  useEffect(() => {
+    setStatusFilter(urlStatusFilter);
+  }, [urlStatusFilter]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mql = window.matchMedia('(max-width: 767px)');
+    const onChange = () => setIsMobileCreateFlow(mql.matches);
+    onChange();
+    mql.addEventListener('change', onChange);
+    return () => mql.removeEventListener('change', onChange);
+  }, []);
+
+  useEffect(() => {
+    if (!showCreate) setCreateStep(1);
+  }, [showCreate]);
+
+  const load = useCallback(async (p = 1, filter = statusFilter) => {
     setLoading(true);
     setError('');
     try {
-      setError('');
-      const { data } = await paymentsApi.list(p, 20);
+      const { data } = await paymentsApi.list(
+        p,
+        20,
+        undefined,
+        statusFilterToApiValue(filter)
+      );
       setPayments(data.payments);
       setTotal(data.total);
     } catch (err) {
@@ -231,11 +290,26 @@ export default function PaymentsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [statusFilter]);
 
   useEffect(() => {
-    load(page);
-  }, [page]);
+    load(page, statusFilter);
+  }, [page, statusFilter, load]);
+
+  const handleStatusFilterChange = (next: string) => {
+    setStatusFilter(next);
+    setPage(1);
+    const params = new URLSearchParams(searchParams.toString());
+    if (next === DEFAULT_STATUS_FILTER) {
+      params.delete('status');
+    } else {
+      params.set('status', next);
+    }
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, {
+      scroll: false,
+    });
+  };
   // Client-side search filter — matches reference (case-insensitive) or
   // amountUsd. The API paginates server-side, so this filters within the
   // current page's results. This lets merchants quickly locate a specific
@@ -255,60 +329,75 @@ export default function PaymentsPage() {
   // memo never leaks into another payment's QR modal (#326).
   useEffect(() => {
     setCopied(false);
+    setLinkCopied(false);
   }, [selectedPayment]);
 
-  const createPayment = async (e: React.FormEvent) => {
+  const createPayment = (e: React.FormEvent) => {
     e.preventDefault();
-    setCreating(true);
     setMetadataError('');
-    try {
-      const amountUsd = parseFloat(form.amountUsd);
-      if (Number.isNaN(amountUsd) || amountUsd <= 0) {
-        toast.error('Enter a valid amount');
-        return;
-      }
-      const expiryMinutes = parseInt(form.expiryMinutes, 10);
-      if (
-        !Number.isFinite(expiryMinutes) ||
-        !Number.isInteger(expiryMinutes) ||
-        expiryMinutes < EXPIRY_MIN_MINUTES ||
-        expiryMinutes > EXPIRY_MAX_MINUTES
-      ) {
-        toast.error(
-          `Expiry must be a whole number between ${EXPIRY_MIN_MINUTES} and ${EXPIRY_MAX_MINUTES} minutes`
-        );
-        return;
-      }
 
-      // Parse optional metadata JSON — must be a plain object when provided.
-      let parsedMetadata: Record<string, unknown> | undefined;
-      if (form.metadata.trim()) {
-        try {
-          const parsed = JSON.parse(form.metadata);
-          if (
-            typeof parsed !== 'object' ||
-            Array.isArray(parsed) ||
-            parsed === null
-          ) {
-            setMetadataError(
-              'Metadata must be a JSON object, e.g. {"orderId": "123"}'
-            );
-            return;
-          }
-          parsedMetadata = parsed as Record<string, unknown>;
-        } catch {
-          setMetadataError('Invalid JSON — check for missing quotes or commas');
+    const amountUsd = parseFloat(form.amountUsd);
+    if (Number.isNaN(amountUsd) || amountUsd <= 0) {
+      toast.error('Enter a valid amount');
+      return;
+    }
+    const expiryMinutes = parseInt(form.expiryMinutes, 10);
+    if (
+      !Number.isFinite(expiryMinutes) ||
+      !Number.isInteger(expiryMinutes) ||
+      expiryMinutes < EXPIRY_MIN_MINUTES ||
+      expiryMinutes > EXPIRY_MAX_MINUTES
+    ) {
+      toast.error(
+        `Expiry must be a whole number between ${EXPIRY_MIN_MINUTES} and ${EXPIRY_MAX_MINUTES} minutes`
+      );
+      return;
+    }
+
+    // Parse optional metadata JSON — must be a plain object when provided.
+    let parsedMetadata: Record<string, unknown> | undefined;
+    if (form.metadata.trim()) {
+      try {
+        const parsed = JSON.parse(form.metadata);
+        if (
+          typeof parsed !== 'object' ||
+          Array.isArray(parsed) ||
+          parsed === null
+        ) {
+          setMetadataError(
+            'Metadata must be a JSON object, e.g. {"orderId": "123"}'
+          );
           return;
         }
+        parsedMetadata = parsed as Record<string, unknown>;
+      } catch {
+        setMetadataError('Invalid JSON — check for missing quotes or commas');
+        return;
       }
+    }
 
-      const { data } = await paymentsApi.create({
-        amountUsd,
-        description: form.description || undefined,
-        customerEmail: form.customerEmail || undefined,
-        expiryMinutes,
-        metadata: parsedMetadata,
-      });
+    // Ask the merchant to confirm before creating a real payment (#863).
+    setPendingCreate({
+      amountUsd,
+      description: form.description || undefined,
+      customerEmail: form.customerEmail || undefined,
+      expiryMinutes,
+      metadata: parsedMetadata,
+    });
+    setShowConfirm(true);
+  };
+
+  const cancelCreate = () => {
+    setShowConfirm(false);
+    setPendingCreate(null);
+  };
+
+  const confirmCreate = async () => {
+    if (!pendingCreate) return;
+    setCreating(true);
+    setCreateError('');
+    try {
+      const { data } = await paymentsApi.create(pendingCreate);
       setSelectedPayment(data);
       setShowCreate(false);
       setForm({
@@ -316,14 +405,21 @@ export default function PaymentsPage() {
         description: '',
         customerEmail: '',
         expiryMinutes: '30',
+        metadata: '',
       });
       setPage(1);
       load(1);
       toast.success('Payment created');
     } catch (err) {
-      toast.error(getErrorMessage(err) ?? 'Failed to create payment');
+      // Keep the entered values intact so the merchant can retry without
+      // re-typing everything, and surface the API's specific error message.
+      const message = getErrorMessage(err) || 'Failed to create payment';
+      setCreateError(message);
+      toast.error(message);
     } finally {
       setCreating(false);
+      setShowConfirm(false);
+      setPendingCreate(null);
     }
   };
 
@@ -334,6 +430,58 @@ export default function PaymentsPage() {
       setTimeout(() => setCopied(false), 2000);
     } catch {
       toast.error('Failed to copy memo');
+    }
+  };
+
+  const downloadQrPng = async () => {
+    const svg = qrRef.current?.querySelector('svg');
+    if (!svg || !selectedPayment) return;
+
+    const svgString = new XMLSerializer().serializeToString(svg);
+    const svgBlob = new Blob([svgString], {
+      type: 'image/svg+xml;charset=utf-8',
+    });
+    const url = URL.createObjectURL(svgBlob);
+
+    try {
+      const img = new Image();
+      const pngUrl = await new Promise<string>((resolve, reject) => {
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = 512;
+          canvas.height = 512;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('Canvas unavailable'));
+            return;
+          }
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/png'));
+        };
+        img.onerror = () => reject(new Error('Failed to load QR image'));
+        img.src = url;
+      });
+
+      const a = document.createElement('a');
+      a.href = pngUrl;
+      a.download = `payment-${selectedPayment.reference}.png`;
+      a.click();
+    } catch {
+      toast.error('Failed to download QR code');
+    } finally {
+      URL.revokeObjectURL(url);
+    }
+  };
+
+  const copyPaymentLink = async (paymentUrl: string) => {
+    try {
+      await navigator.clipboard.writeText(paymentUrl);
+      setLinkCopied(true);
+      setTimeout(() => setLinkCopied(false), 2000);
+    } catch {
+      toast.error('Failed to copy link');
     }
   };
 
@@ -404,8 +552,8 @@ export default function PaymentsPage() {
       </div>
 
       {/* Search bar — lets merchants find a specific payment by reference or amount */}
-      <div className="mb-4">
-        <div className="relative max-w-sm">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative max-w-sm w-full">
           <Search
             className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
             aria-hidden="true"
@@ -430,6 +578,27 @@ export default function PaymentsPage() {
             </button>
           )}
         </div>
+        <div className="flex items-center gap-2">
+          <label
+            htmlFor="payments-status-filter"
+            className="text-sm text-gray-600 whitespace-nowrap"
+          >
+            Status
+          </label>
+          <select
+            id="payments-status-filter"
+            data-testid="payments-status-filter"
+            value={statusFilter}
+            onChange={(e) => handleStatusFilterChange(e.target.value)}
+            className="py-2 px-3 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent bg-white"
+          >
+            {STATUS_FILTER_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <Modal
@@ -439,7 +608,13 @@ export default function PaymentsPage() {
         testId="create-payment-modal"
       >
         <form
-          onSubmit={createPayment}
+          onSubmit={(e) => {
+            if (isMobileCreateFlow && createStep < 4) {
+              e.preventDefault();
+              return;
+            }
+            return createPayment(e);
+          }}
           className="space-y-4"
           aria-busy={creating}
         >
@@ -447,16 +622,25 @@ export default function PaymentsPage() {
           <p className="sr-only" aria-live="polite" aria-atomic="true">
             {creating ? 'Creating payment, please wait…' : ''}
           </p>
+          {createError && (
+            <p
+              role="alert"
+              data-testid="create-payment-error"
+              className="rounded-md bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950 dark:text-red-300"
+            >
+              {createError}
+            </p>
+          )}
           <fieldset disabled={creating} className="space-y-4">
-            <FormField
+            <CurrencyInput
               label="Amount (USD)"
               name="amountUsd"
-              type="number"
-              step="0.01"
-              min="0.01"
+              currencySymbol="$"
               required
               value={form.amountUsd}
-              onChange={(e) => setForm({ ...form, amountUsd: e.target.value })}
+              onValueChange={(amountUsd) =>
+                setForm((current) => ({ ...current, amountUsd }))
+              }
             />
             <FormField
               label="Description (optional)"
@@ -504,11 +688,245 @@ export default function PaymentsPage() {
               disabled={creating}
               className="btn-primary w-full"
             >
-              {creating ? 'Creating...' : 'Create Payment'}
-            </button>
+              {createError}
+            </p>
+          )}
+          <fieldset disabled={creating} className="space-y-4">
+            {isMobileCreateFlow ? (
+              <>
+                <div className="flex items-center justify-between text-xs text-gray-500">
+                  <span data-testid="create-payment-step">
+                    Step {createStep} of 4
+                  </span>
+                  <span>
+                    {['Amount', 'Description', 'Customer email', 'Review'][createStep - 1]}
+                  </span>
+                </div>
+
+                {createStep === 1 && (
+                  <>
+                    <FormField
+                      label="Amount (USD)"
+                      name="amountUsd"
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      required
+                      value={form.amountUsd}
+                      onChange={(e) =>
+                        setForm({ ...form, amountUsd: e.target.value })
+                      }
+                    />
+                    <FormField
+                      label="Expires in (minutes)"
+                      name="expiryMinutes"
+                      type="number"
+                      aria-describedby="expiry-minutes-hint"
+                      value={form.expiryMinutes}
+                      onChange={(e) =>
+                        setForm({ ...form, expiryMinutes: e.target.value })
+                      }
+                    />
+                    <p id="expiry-minutes-hint" className="text-xs text-gray-500">
+                      Must be a whole number between {EXPIRY_MIN_MINUTES} and{' '}
+                      {EXPIRY_MAX_MINUTES} minutes.
+                    </p>
+                  </>
+                )}
+
+                {createStep === 2 && (
+                  <FormField
+                    label="Description (optional)"
+                    name="description"
+                    type="text"
+                    required={false}
+                    maxLength={MAX_DESCRIPTION_LENGTH}
+                    hint={
+                      <span data-testid="description-char-counter">
+                        {form.description.length}/{MAX_DESCRIPTION_LENGTH}
+                      </span>
+                    }
+                    value={form.description}
+                    onChange={(e) =>
+                      setForm({ ...form, description: e.target.value })
+                    }
+                  />
+                )}
+
+                {createStep === 3 && (
+                  <FormField
+                    label="Customer Email (optional)"
+                    name="customerEmail"
+                    type="email"
+                    required={false}
+                    value={form.customerEmail}
+                    onChange={(e) =>
+                      setForm({ ...form, customerEmail: e.target.value })
+                    }
+                  />
+                )}
+
+                {createStep === 4 && (
+                  <div
+                    data-testid="create-payment-review"
+                    className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-2 text-sm"
+                  >
+                    <div className="flex justify-between gap-4">
+                      <span className="text-gray-500">Amount</span>
+                      <span className="font-medium">
+                        {form.amountUsd ? `$${Number(form.amountUsd).toFixed(2)}` : '—'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <span className="text-gray-500">Description</span>
+                      <span className="font-medium text-right break-words">
+                        {form.description || '—'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <span className="text-gray-500">Customer email</span>
+                      <span className="font-medium text-right break-words">
+                        {form.customerEmail || '—'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <span className="text-gray-500">Expires in</span>
+                      <span className="font-medium">
+                        {form.expiryMinutes || '—'} minutes
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-2">
+                  {createStep > 1 && (
+                    <button
+                      type="button"
+                      data-testid="create-payment-back"
+                      onClick={() => setCreateStep((s) => Math.max(1, s - 1))}
+                      className="btn-secondary flex-1"
+                    >
+                      Back
+                    </button>
+                  )}
+                  {createStep < 4 ? (
+                    <button
+                      type="button"
+                      data-testid="create-payment-next"
+                      onClick={() => {
+                        if (createStep === 1) {
+                          const amountUsd = parseFloat(form.amountUsd);
+                          if (Number.isNaN(amountUsd) || amountUsd <= 0) {
+                            toast.error('Enter a valid amount');
+                            return;
+                          }
+                          const expiryMinutes = parseInt(form.expiryMinutes, 10);
+                          if (
+                            !Number.isFinite(expiryMinutes) ||
+                            !Number.isInteger(expiryMinutes) ||
+                            expiryMinutes < EXPIRY_MIN_MINUTES ||
+                            expiryMinutes > EXPIRY_MAX_MINUTES
+                          ) {
+                            toast.error(
+                              `Expiry must be a whole number between ${EXPIRY_MIN_MINUTES} and ${EXPIRY_MAX_MINUTES} minutes`
+                            );
+                            return;
+                          }
+                        }
+                        setCreateStep((s) => Math.min(4, s + 1));
+                      }}
+                      className="btn-primary flex-1"
+                    >
+                      Next
+                    </button>
+                  ) : (
+                    <button
+                      data-testid="create-payment-submit"
+                      type="submit"
+                      disabled={creating}
+                      className="btn-primary flex-1"
+                    >
+                      {creating ? 'Creating...' : 'Create Payment'}
+                    </button>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                <FormField
+                  label="Amount (USD)"
+                  name="amountUsd"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  required
+                  value={form.amountUsd}
+                  onChange={(e) => setForm({ ...form, amountUsd: e.target.value })}
+                />
+                <FormField
+                  label="Description (optional)"
+                  name="description"
+                  type="text"
+                  required={false}
+                  maxLength={MAX_DESCRIPTION_LENGTH}
+                  hint={
+                    <span data-testid="description-char-counter">
+                      {form.description.length}/{MAX_DESCRIPTION_LENGTH}
+                    </span>
+                  }
+                  value={form.description}
+                  onChange={(e) =>
+                    setForm({ ...form, description: e.target.value })
+                  }
+                />
+                <FormField
+                  label="Customer Email (optional)"
+                  name="customerEmail"
+                  type="email"
+                  required={false}
+                  value={form.customerEmail}
+                  onChange={(e) =>
+                    setForm({ ...form, customerEmail: e.target.value })
+                  }
+                />
+                <FormField
+                  label="Expires in (minutes)"
+                  name="expiryMinutes"
+                  type="number"
+                  aria-describedby="expiry-minutes-hint"
+                  value={form.expiryMinutes}
+                  onChange={(e) =>
+                    setForm({ ...form, expiryMinutes: e.target.value })
+                  }
+                />
+                <p id="expiry-minutes-hint" className="text-xs text-gray-500">
+                  Must be a whole number between {EXPIRY_MIN_MINUTES} and{' '}
+                  {EXPIRY_MAX_MINUTES} minutes.
+                </p>
+                <button
+                  data-testid="create-payment-submit"
+                  type="submit"
+                  disabled={creating}
+                  className="btn-primary w-full"
+                >
+                  {creating ? 'Creating...' : 'Create Payment'}
+                </button>
+              </>
+            )}
           </fieldset>
         </form>
       </Modal>
+
+      <ConfirmDialog
+        open={showConfirm}
+        title="Confirm payment creation"
+        message={`Create a payment for ${formatUsd(pendingCreate?.amountUsd ?? 0)}?`}
+        confirmLabel="Confirm"
+        cancelLabel="Cancel"
+        loading={creating}
+        onConfirm={confirmCreate}
+        onCancel={cancelCreate}
+      />
 
       <Modal
         open={!!selectedPayment}
@@ -519,7 +937,10 @@ export default function PaymentsPage() {
       >
         {selectedPayment && (
           <>
-            <div className="bg-white p-4 rounded-lg inline-block mb-4">
+            <div
+              ref={qrRef}
+              className="bg-white p-4 rounded-lg inline-block mb-4"
+            >
               <QRCodeSVG
                 value={
                   selectedPayment.qrCode ??
@@ -550,48 +971,81 @@ export default function PaymentsPage() {
             {(() => {
               const paymentUrl = `${window.location.origin}/pay/${selectedPayment.reference}`;
               return (
-                <div className="flex items-center justify-center gap-2 mb-4 text-xs text-brand-600">
-                  <LinkIcon className="w-3 h-3 shrink-0" aria-hidden="true" />
-                  <span className="truncate max-w-[180px]">
-                    /pay/{selectedPayment.reference}
-                  </span>
-                  <CopyButton
-                    value={paymentUrl}
-                    label="Copy payment link"
-                    copiedLabel="Link copied"
-                    className="text-brand-500 hover:text-brand-700"
-                  />
-                </div>
+                <>
+                  <div className="flex items-center justify-center gap-2 mb-4 text-xs text-brand-600">
+                    <LinkIcon
+                      className="w-3 h-3 shrink-0"
+                      aria-hidden="true"
+                    />
+                    <span className="truncate max-w-[180px]">
+                      /pay/{selectedPayment.reference}
+                    </span>
+                    <CopyButton
+                      value={paymentUrl}
+                      label="Copy payment link"
+                      copiedLabel="Link copied"
+                      className="text-brand-500 hover:text-brand-700"
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-center gap-2 mb-4">
+                    <button
+                      type="button"
+                      data-testid="download-qr-button"
+                      onClick={downloadQrPng}
+                      className="btn-secondary flex items-center gap-2 text-sm px-3 py-2"
+                    >
+                      <Download className="w-4 h-4" aria-hidden="true" />
+                      Download QR
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="copy-payment-link-button"
+                      onClick={() => copyPaymentLink(paymentUrl)}
+                      className="btn-secondary flex items-center gap-2 text-sm px-3 py-2"
+                    >
+                      {linkCopied ? (
+                        <Check className="w-4 h-4" aria-hidden="true" />
+                      ) : (
+                        <Copy className="w-4 h-4" aria-hidden="true" />
+                      )}
+                      {linkCopied ? 'Link copied' : 'Copy link'}
+                    </button>
+                  </div>
+
+                  {/* Share buttons — let merchants send the payment link via email or WhatsApp */}
+                  <div className="flex items-center justify-center gap-2 mb-4">
+                    <span className="text-xs text-gray-500 flex items-center gap-1">
+                      <Share2 className="w-3 h-3" aria-hidden="true" />
+                      Share:
+                    </span>
+                    <a
+                      data-testid="share-email-button"
+                      href={`mailto:?subject=${encodeURIComponent(`Payment request: ${formatUsd(selectedPayment.amountUsd)}`)}&body=${encodeURIComponent(`You have a payment request for ${formatUsd(selectedPayment.amountUsd)}.\n\nClick here to pay: ${paymentUrl}\n\nReference: ${selectedPayment.reference}${selectedPayment.description ? `\nDescription: ${selectedPayment.description}` : ''}`)}`}
+                      aria-label="Share payment link via email"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-300 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      <Mail className="w-3.5 h-3.5" aria-hidden="true" />
+                      Email
+                    </a>
+                    <a
+                      data-testid="share-whatsapp-button"
+                      href={`https://wa.me/?text=${encodeURIComponent(`You have a payment request for ${formatUsd(selectedPayment.amountUsd)}.\n\nClick here to pay: ${paymentUrl}\n\nReference: ${selectedPayment.reference}${selectedPayment.description ? `\nDescription: ${selectedPayment.description}` : ''}`)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label="Share payment link via WhatsApp"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-300 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
+                    >
+                      <MessageCircle
+                        className="w-3.5 h-3.5"
+                        aria-hidden="true"
+                      />
+                      WhatsApp
+                    </a>
+                  </div>
+                </>
               );
             })()}
-
-            {/* Share buttons — let merchants send the payment link via email or WhatsApp */}
-            <div className="flex items-center justify-center gap-2 mb-4">
-              <span className="text-xs text-gray-500 flex items-center gap-1">
-                <Share2 className="w-3 h-3" aria-hidden="true" />
-                Share:
-              </span>
-              <a
-                data-testid="share-email-button"
-                href={`mailto:?subject=${encodeURIComponent(`Payment request: ${formatUsd(selectedPayment.amountUsd)}`)}&body=${encodeURIComponent(`You have a payment request for ${formatUsd(selectedPayment.amountUsd)}.\n\nClick here to pay: ${window.location.origin}/pay/${selectedPayment.reference}\n\nReference: ${selectedPayment.reference}${selectedPayment.description ? `\nDescription: ${selectedPayment.description}` : ''}`)}`}
-                aria-label="Share payment link via email"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-300 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-              >
-                <Mail className="w-3.5 h-3.5" aria-hidden="true" />
-                Email
-              </a>
-              <a
-                data-testid="share-whatsapp-button"
-                href={`https://wa.me/?text=${encodeURIComponent(`You have a payment request for ${formatUsd(selectedPayment.amountUsd)}.\n\nClick here to pay: ${window.location.origin}/pay/${selectedPayment.reference}\n\nReference: ${selectedPayment.reference}${selectedPayment.description ? `\nDescription: ${selectedPayment.description}` : ''}`)}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Share payment link via WhatsApp"
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-300 text-xs font-medium text-gray-700 hover:bg-gray-50 transition-colors"
-              >
-                <MessageCircle className="w-3.5 h-3.5" aria-hidden="true" />
-                WhatsApp
-              </a>
-            </div>
 
             {selectedPayment.stellarMemo && (
               <div className="flex items-center justify-center gap-2">
@@ -630,7 +1084,9 @@ export default function PaymentsPage() {
             <div className="px-6 py-8 text-center text-gray-400 text-sm">
               {searchQuery
                 ? 'No payments match your search'
-                : 'No payments yet'}
+                : statusFilter === 'pending_confirmed'
+                  ? 'No pending or confirmed payments'
+                  : 'No payments yet'}
             </div>
           ) : (
             filteredPayments.map((p) => (
@@ -701,7 +1157,9 @@ export default function PaymentsPage() {
                   >
                     {searchQuery
                       ? 'No payments match your search'
-                      : 'No payments yet'}
+                      : statusFilter === 'pending_confirmed'
+                        ? 'No pending or confirmed payments'
+                        : 'No payments yet'}
                   </td>
                 </tr>
               ) : (
@@ -788,5 +1246,13 @@ export default function PaymentsPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function PaymentsPage() {
+  return (
+    <Suspense fallback={<div className="p-4 md:p-8">Loading payments…</div>}>
+      <PaymentsPageContent />
+    </Suspense>
   );
 }

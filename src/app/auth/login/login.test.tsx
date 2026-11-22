@@ -1,4 +1,4 @@
-import { render, screen, waitFor, cleanup } from '@testing-library/react';
+import { act, render, screen, waitFor, cleanup, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { AxiosError } from 'axios';
 import React from 'react';
@@ -210,15 +210,46 @@ describe('LoginPage', () => {
     });
   });
 
-  it('re-enables the submit button after a failed login', async () => {
-    mockLogin.mockRejectedValueOnce(new Error('bad'));
+  it('disables the submit button for 2s after a failed login', async () => {
+    vi.useFakeTimers();
+    try {
+      mockLogin.mockRejectedValueOnce(new Error('bad'));
+
+      render(React.createElement(LoginPage));
+      fireEvent.change(screen.getByLabelText(/email/i), {
+        target: { value: 'merchant@test.com' },
+      });
+      fireEvent.change(screen.getByLabelText(/password/i), {
+        target: { value: 'secret' },
+      });
+      fireEvent.click(screen.getByTestId('login-submit-button'));
+
+      const btn = screen.getByTestId('login-submit-button');
+      await act(async () => {
+        await Promise.resolve();
+      });
+      expect(btn).toBeDisabled();
+
+      await act(async () => {
+        vi.advanceTimersByTime(2000);
+      });
+      expect(btn).not.toBeDisabled();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('shows the lockout message returned by the backend', async () => {
+    mockLogin.mockRejectedValueOnce(
+      makeAxiosError(423, 'Account locked. Try again in 15 minutes.')
+    );
 
     render(React.createElement(LoginPage));
     await fillAndSubmit();
 
-    await waitFor(() => {
-      expect(screen.getByTestId('login-submit-button')).not.toBeDisabled();
-    });
+    expect(
+      await screen.findByTestId('login-lockout-banner')
+    ).toHaveTextContent(/account locked/i);
   });
 
   it('does not call setAuth or router.push on failure', async () => {
