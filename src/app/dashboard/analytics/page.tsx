@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { Skeleton, SkeletonTableRows } from '@/components/Skeleton';
 import { paymentsApi } from '@/lib/api';
+import { percentChange } from '@/lib/dashboard-stats';
 import type { PaymentStats } from '@/lib/types';
 import { formatUsd } from '@/lib/utils';
 
@@ -51,6 +52,49 @@ interface TopMerchant {
   avgOrderValue: number;
 }
 
+const PERIOD_DAYS: Record<Period, number> = { '7d': 7, '30d': 30, '90d': 90 };
+
+/** Date ranges for the selected period and the period before it (#793). */
+function periodRanges(period: Period) {
+  const days = PERIOD_DAYS[period];
+  const now = Date.now();
+  const dayMs = 24 * 60 * 60 * 1000;
+  const iso = (ms: number) => new Date(ms).toISOString();
+  return {
+    current: { from: iso(now - days * dayMs), to: iso(now) },
+    previous: { from: iso(now - 2 * days * dayMs), to: iso(now - days * dayMs) },
+  };
+}
+
+function sumVolume(stats: PaymentStats[]): number {
+  return stats.reduce((acc, s) => acc + parseFloat(String(s.totalUsd ?? 0)), 0);
+}
+
+function sumCount(stats: PaymentStats[]): number {
+  return stats.reduce((acc, s) => acc + parseInt(String(s.count), 10), 0);
+}
+
+/** "+12.5% vs previous period" badge, green for up and red for down (#793). */
+function ChangeBadge({ change }: { change: number | null }) {
+  if (change === null) {
+    return (
+      <p className="mt-1 text-xs text-gray-400" data-testid="stat-change">
+        No previous period data
+      </p>
+    );
+  }
+  const positive = change >= 0;
+  return (
+    <p
+      data-testid="stat-change"
+      className={`mt-1 text-xs font-medium ${positive ? 'text-green-600' : 'text-red-600'}`}
+    >
+      {positive ? '+' : '−'}
+      {Math.abs(change).toFixed(1)}% vs previous period
+    </p>
+  );
+}
+
 function csvEscape(value: string | number): string {
   const str = String(value);
   return /[",\n]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
@@ -59,6 +103,8 @@ function csvEscape(value: string | number): string {
 export default function AnalyticsPage() {
   const router = useRouter();
   const [stats, setStats] = useState<PaymentStats[]>([]);
+  const [prevStats, setPrevStats] = useState<PaymentStats[]>([]);
+  const [compare, setCompare] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [period, setPeriod] = useState<Period>('30d');
@@ -73,14 +119,23 @@ export default function AnalyticsPage() {
     document.title = 'Analytics — DupDub Dashboard';
   }, []);
 
-  const loadStats = useCallback(() => {
+  // Loads stats for the selected period and the previous one (#793).
+  const loadStats = useCallback((range: Period) => {
     setLoading(true);
     setError('');
-    paymentsApi
-      .stats()
-      .then(({ data }) => {
+    const { current, previous } = periodRanges(range);
+    Promise.all([
+      paymentsApi.stats({ params: current }),
+      paymentsApi
+        .stats({ params: previous })
+        .then(({ data }) => data)
+        // Comparison is best-effort: the page still renders without it.
+        .catch(() => [] as PaymentStats[]),
+    ])
+      .then(([{ data }, previousData]) => {
         setError('');
         setStats(data);
+        setPrevStats(previousData);
       })
       .catch(() => setError("Couldn't load analytics."))
       .finally(() => setLoading(false));
@@ -100,8 +155,8 @@ export default function AnalyticsPage() {
   }, []);
 
   useEffect(() => {
-    loadStats();
-  }, [loadStats]);
+    loadStats(period);
+  }, [loadStats, period]);
 
   useEffect(() => {
     loadTopMerchants(period);
@@ -109,21 +164,27 @@ export default function AnalyticsPage() {
 
   const pieData = useMemo(
     () =>
-      stats.map((s) => ({
-        name: s.status,
-        value: parseInt(String(s.count), 10),
-        amount: parseFloat(String(s.totalUsd ?? 0)),
-      })),
-    [stats]
+      stats.map((s) => {
+        const prev = prevStats.find((p) => p.status === s.status);
+        return {
+          name: s.status,
+          value: parseInt(String(s.count), 10),
+          amount: parseFloat(String(s.totalUsd ?? 0)),
+          prevAmount: prev ? parseFloat(String(prev.totalUsd ?? 0)) : 0,
+        };
+      }),
+    [stats, prevStats]
   );
 
-  const totalVolume = useMemo(
-    () => stats.reduce((acc, s) => acc + parseFloat(String(s.totalUsd ?? 0)), 0),
-    [stats]
+  const totalVolume = useMemo(() => sumVolume(stats), [stats]);
+  const totalCount = useMemo(() => sumCount(stats), [stats]);
+  const volumeChange = useMemo(
+    () => percentChange(totalVolume, sumVolume(prevStats)),
+    [totalVolume, prevStats]
   );
-  const totalCount = useMemo(
-    () => stats.reduce((acc, s) => acc + parseInt(String(s.count), 10), 0),
-    [stats]
+  const countChange = useMemo(
+    () => percentChange(totalCount, sumCount(prevStats)),
+    [totalCount, prevStats]
   );
 
   const rankedMerchants = useMemo(
@@ -197,7 +258,7 @@ export default function AnalyticsPage() {
           <p>{error}</p>
           <button
             type="button"
-            onClick={loadStats}
+            onClick={() => loadStats(period)}
             className="mt-4 inline-flex items-center rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
           >
             Retry
@@ -209,11 +270,28 @@ export default function AnalyticsPage() {
             <div className="card p-6">
               <p className="text-sm text-gray-500 mb-1">Total Volume</p>
               <p className="text-3xl font-bold">{formatUsd(totalVolume)}</p>
+              <ChangeBadge change={volumeChange} />
             </div>
             <div className="card p-6">
               <p className="text-sm text-gray-500 mb-1">Total Transactions</p>
               <p className="text-3xl font-bold">{totalCount}</p>
+              <ChangeBadge change={countChange} />
             </div>
+          </div>
+
+          <div className="flex justify-end">
+            <button
+              type="button"
+              onClick={() => setCompare((c) => !c)}
+              aria-pressed={compare}
+              className={`inline-flex items-center rounded-md border px-3 py-1.5 text-sm font-medium ${
+                compare
+                  ? 'border-gray-900 bg-gray-900 text-white'
+                  : 'border-gray-200 dark:border-gray-700 text-gray-700 dark:text-gray-200'
+              }`}
+            >
+              Compare to previous period
+            </button>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -242,7 +320,7 @@ export default function AnalyticsPage() {
 
             <div className="card p-6">
               <h2 className="font-semibold mb-4">Volume by Status (USD)</h2>
-              <VolumeBarChart data={pieData} />
+              <VolumeBarChart data={pieData} compare={compare} />
               {/* Visually-hidden data table — same data as chart for screen readers */}
               <table className="sr-only">
                 <caption>Volume by Status (USD)</caption>

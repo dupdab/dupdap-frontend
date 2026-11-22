@@ -103,10 +103,14 @@ describe('AnalyticsPage — initial render', () => {
     expect(document.querySelector('[aria-busy="true"]')).toBeInTheDocument();
   });
 
-  it('calls paymentsApi.stats() exactly once on mount', () => {
+  it('calls paymentsApi.stats() for the current and previous period on mount (#793)', () => {
     mockStats.mockReturnValue(new Promise(() => {}));
     render(<AnalyticsPage />);
-    expect(mockStats).toHaveBeenCalledOnce();
+    expect(mockStats).toHaveBeenCalledTimes(2);
+    const [[current], [previous]] = mockStats.mock.calls as [
+      { params: { from: string; to: string } },
+    ][];
+    expect(previous.params.to).toBe(current.params.from);
   });
 });
 

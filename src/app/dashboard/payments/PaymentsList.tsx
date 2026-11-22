@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
 const PAGE_SIZE = 20;
@@ -16,6 +16,29 @@ interface Payment {
 interface PaymentsResponse {
   payments: Payment[];
   total: number;
+}
+
+function csvEscape(value: string | number): string {
+  const str = String(value ?? '');
+  return /[",\n\r]/.test(str) ? `"${str.replace(/"/g, '""')}"` : str;
+}
+
+/** Downloads the given payments as a CSV file (#792). */
+function downloadPaymentsCsv(rows: Payment[]): void {
+  const header = ['ID', 'Amount', 'Currency', 'Status', 'Created At'];
+  const lines = rows.map((p) =>
+    [p.id, p.amount, p.currency, p.status, p.createdAt].map(csvEscape).join(',')
+  );
+  const csv = [header.join(','), ...lines].join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = `payments-${new Date().toISOString().slice(0, 10)}.csv`;
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
 }
 
 function parsePage(value: string | null): number {
@@ -34,6 +57,8 @@ export default function PaymentsList() {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const selectAllRef = useRef<HTMLInputElement>(null);
 
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
@@ -56,6 +81,7 @@ export default function PaymentsList() {
         if (!cancelled) {
           setPayments(data.payments ?? []);
           setTotal(data.total ?? 0);
+          setSelectedIds(new Set());
         }
       } catch (err) {
         if (!cancelled) {
@@ -89,6 +115,34 @@ export default function PaymentsList() {
     [pathname, router, searchParams],
   );
 
+  // ── Bulk selection (#792) ────────────────────────────────────────────
+  const selectedPayments = payments.filter((p) => selectedIds.has(p.id));
+  const allSelected =
+    payments.length > 0 && selectedPayments.length === payments.length;
+  const someSelected = selectedPayments.length > 0 && !allSelected;
+
+  useEffect(() => {
+    if (selectAllRef.current) {
+      selectAllRef.current.indeterminate = someSelected;
+    }
+  }, [someSelected]);
+
+  const toggleSelected = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    setSelectedIds(allSelected ? new Set() : new Set(payments.map((p) => p.id)));
+  };
+
   const rangeStart = total === 0 ? 0 : (page - 1) * PAGE_SIZE + 1;
   const rangeEnd = Math.min(page * PAGE_SIZE, total);
 
@@ -112,9 +166,54 @@ export default function PaymentsList() {
       ) : payments.length === 0 ? (
         <p className="text-sm text-gray-500">No payments found.</p>
       ) : (
+        <>
+          {selectedPayments.length > 0 ? (
+            <div
+              role="toolbar"
+              aria-label="Bulk actions"
+              data-testid="payments-bulk-bar"
+              className="flex items-center justify-between rounded-md bg-gray-100 px-3 py-2"
+            >
+              <span className="text-sm text-gray-700">
+                {selectedPayments.length} selected
+              </span>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => downloadPaymentsCsv(selectedPayments)}
+                  className="rounded-md bg-gray-900 px-3 py-1.5 text-sm font-medium text-white"
+                >
+                  Export selected
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSelectedIds(new Set())}
+                  className="rounded-md px-3 py-1.5 text-sm font-medium text-gray-600"
+                >
+                  Clear selection
+                </button>
+              </div>
+            </div>
+          ) : null}
+          <label className="flex items-center gap-2 text-sm text-gray-700">
+            <input
+              ref={selectAllRef}
+              type="checkbox"
+              checked={allSelected}
+              onChange={toggleSelectAll}
+              aria-label="Select all payments"
+            />
+            Select all
+          </label>
         <ul className="divide-y divide-gray-200">
           {payments.map((payment) => (
             <li key={payment.id} className="flex items-center justify-between py-3">
+              <input
+                type="checkbox"
+                checked={selectedIds.has(payment.id)}
+                onChange={() => toggleSelected(payment.id)}
+                aria-label={`Select payment ${payment.id}`}
+              />
               <span className="text-sm text-gray-900">{payment.id}</span>
               <span className="text-sm text-gray-700">
                 {payment.amount} {payment.currency}
@@ -123,6 +222,7 @@ export default function PaymentsList() {
             </li>
           ))}
         </ul>
+        </>
       )}
 
       <div className="flex items-center justify-between border-t border-gray-200 pt-4">

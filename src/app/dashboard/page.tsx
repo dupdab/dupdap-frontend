@@ -1,7 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { TrendingUp, CreditCard, Banknote, Clock } from 'lucide-react';
+import { TrendingUp, CreditCard, Percent, Clock } from 'lucide-react';
 import { useEffect, useMemo, useState } from 'react';
 import {
   ResponsiveContainer,
@@ -14,11 +14,13 @@ import {
   Legend,
 } from 'recharts';
 
+import { MerchantOnboardingChecklist } from '@/components/MerchantOnboardingChecklist';
 import { Skeleton, SkeletonList } from '@/components/Skeleton';
 import { paymentsApi } from '@/lib/api';
 import { aggregatePaymentStats } from '@/lib/dashboard-stats';
 import { useLocale } from '@/lib/locale';
 import { useAuthStore } from '@/lib/store';
+import { usePaymentEvents } from '@/lib/usePaymentEvents';
 import type { Payment, PaymentStats } from '@/lib/types';
 import {
   formatUsd,
@@ -86,6 +88,9 @@ export default function DashboardPage() {
   const { t, locale } = useLocale();
   const [compare, setCompare] = useState(false);
 
+  // Live payment confirmations over WebSocket (#795).
+  usePaymentEvents();
+
   // Deduplicated, abortable queries: React Query shares in-flight requests by key
   // and passes an AbortSignal that cancels the request on unmount/navigation.
   const paymentsQuery = useQuery({
@@ -98,12 +103,13 @@ export default function DashboardPage() {
   });
 
   const payments: Payment[] = paymentsQuery.data?.data.payments ?? [];
-  const stats: PaymentStat[] = statsQuery.data?.data ?? [];
+  const stats: PaymentStats[] = statsQuery.data?.data ?? [];
   const loading = paymentsQuery.isLoading || statsQuery.isLoading;
   const error =
     paymentsQuery.isError || statsQuery.isError ? t('dashboard.loadError') : '';
 
-  const { totalVolume, settledCount, pendingCount, totalPayments } =
+  // Live stats from GET /payments/stats (#794).
+  const { totalVolume, conversionRate, pendingCount, totalPayments } =
     aggregatePaymentStats(stats);
 
   const volumeSeries = useMemo(() => buildVolumeSeries(payments), [payments]);
@@ -111,15 +117,21 @@ export default function DashboardPage() {
   const statCards = useMemo(
     () => [
       {
+        label: t('dashboard.totalPayments'),
+        value: totalPayments,
+        icon: CreditCard,
+        color: 'text-purple-600',
+      },
+      {
         label: t('dashboard.totalVolume'),
         value: formatUsd(totalVolume, locale),
         icon: TrendingUp,
         color: 'text-blue-600',
       },
       {
-        label: t('dashboard.settledPayments'),
-        value: settledCount,
-        icon: Banknote,
+        label: t('dashboard.conversionRate'),
+        value: `${conversionRate.toFixed(1)}%`,
+        icon: Percent,
         color: 'text-green-600',
       },
       {
@@ -128,14 +140,8 @@ export default function DashboardPage() {
         icon: Clock,
         color: 'text-yellow-600',
       },
-      {
-        label: t('dashboard.totalPayments'),
-        value: totalPayments,
-        icon: CreditCard,
-        color: 'text-purple-600',
-      },
     ],
-    [totalVolume, settledCount, pendingCount, totalPayments, t, locale]
+    [totalVolume, conversionRate, pendingCount, totalPayments, t, locale]
   );
 
   return (
