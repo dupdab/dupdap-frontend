@@ -33,6 +33,15 @@ vi.mock('qrcode.react', () => ({
   QRCodeSVG: () => <div data-testid="qr-code" />,
 }));
 
+const mockReplace = vi.fn();
+let mockSearchParams = new URLSearchParams();
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ replace: mockReplace, push: vi.fn() }),
+  usePathname: () => '/dashboard/payments',
+  useSearchParams: () => mockSearchParams,
+}));
+
 const mockWriteText = vi.fn().mockResolvedValue(undefined);
 
 const basePayment: Payment = {
@@ -55,6 +64,8 @@ function mockListResponse(payments: Payment[], total: number) {
 describe('PaymentsPage', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSearchParams = new URLSearchParams();
+    mockReplace.mockReset();
     Object.defineProperty(navigator, 'clipboard', {
       configurable: true,
       value: { writeText: mockWriteText },
@@ -89,7 +100,12 @@ describe('PaymentsPage', () => {
     await userEvent.click(screen.getByTestId('pagination-next'));
 
     await waitFor(() => {
-      expect(paymentsApi.list).toHaveBeenCalledWith(2, 20);
+      expect(paymentsApi.list).toHaveBeenCalledWith(
+        2,
+        20,
+        undefined,
+        'pending,confirmed'
+      );
     });
 
     await waitFor(() => {
@@ -123,7 +139,12 @@ describe('PaymentsPage', () => {
     await userEvent.click(screen.getByTestId('pagination-next'));
 
     await waitFor(() => {
-      expect(paymentsApi.list).toHaveBeenCalledWith(2, 20);
+      expect(paymentsApi.list).toHaveBeenCalledWith(
+        2,
+        20,
+        undefined,
+        'pending,confirmed'
+      );
     });
 
     const next = screen.getByTestId('pagination-next');

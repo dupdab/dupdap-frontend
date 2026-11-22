@@ -18,7 +18,12 @@ import { webhooksApi } from '@/lib/api';
 import { getErrorMessage } from '@/lib/errors';
 import toast from '@/lib/toast';
 import type { Webhook } from '@/lib/types';
-import { WEBHOOK_EVENTS, formatDate, maskSecret } from '@/lib/utils';
+import {
+  WEBHOOK_EVENTS,
+  WEBHOOK_EVENT_DETAILS,
+  formatDate,
+  maskSecret,
+} from '@/lib/utils';
 
 function WebhookSecretRow({
   webhook,
@@ -183,6 +188,7 @@ export default function WebhooksPage() {
   const [deleting, setDeleting] = useState(false);
   const [formError, setFormError] = useState('');
   const [secretRevealed, setSecretRevealed] = useState(false);
+  const [expandedEvents, setExpandedEvents] = useState<string[]>([]);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -269,6 +275,7 @@ export default function WebhooksPage() {
     setForm({ url: '', events: [], secret: '' });
     setSecretRevealed(false);
     setFormError('');
+    setExpandedEvents([]);
   };
 
   const updateWebhookSecret = useCallback((id: string, secret: string) => {
@@ -368,20 +375,74 @@ export default function WebhooksPage() {
               <legend id="webhook-events-legend" className="label">
                 Events
               </legend>
-              <div className="grid grid-cols-2 gap-2">
-                {WEBHOOK_EVENTS.map((event) => (
-                  <label
-                    key={event}
-                    className="flex items-center gap-2 text-sm text-gray-700"
-                  >
-                    <input
-                      type="checkbox"
-                      checked={form.events.includes(event)}
-                      onChange={() => toggleEvent(event)}
-                    />
-                    <span className="font-mono text-xs">{event}</span>
-                  </label>
-                ))}
+              <a
+                href="https://docs.dupdub.io/webhooks"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-block text-xs text-brand-600 hover:underline mb-2"
+              >
+                Webhook docs
+              </a>
+              <p className="text-xs text-gray-500 mb-2">
+                Select events to subscribe to. Expand an event for details and a
+                sample payload.
+              </p>
+              <div className="space-y-2">
+                {WEBHOOK_EVENTS.map((event) => {
+                  const details = WEBHOOK_EVENT_DETAILS[event];
+                  const expanded = expandedEvents.includes(event);
+                  return (
+                    <div
+                      key={event}
+                      className="rounded-lg border border-gray-100 p-2"
+                    >
+                      <div className="flex items-center justify-between gap-2">
+                        <label className="flex items-center gap-2 text-sm text-gray-700 min-w-0">
+                          <input
+                            type="checkbox"
+                            checked={form.events.includes(event)}
+                            onChange={() => toggleEvent(event)}
+                          />
+                          <span className="font-mono text-xs">{event}</span>
+                        </label>
+                        <button
+                          type="button"
+                          data-testid={`webhook-event-details-${event}`}
+                          onClick={() =>
+                            setExpandedEvents((current) =>
+                              current.includes(event)
+                                ? current.filter((e) => e !== event)
+                                : [...current, event]
+                            )
+                          }
+                          aria-expanded={expanded}
+                          aria-controls={`webhook-event-panel-${event}`}
+                          className="text-xs text-brand-600 hover:underline shrink-0"
+                        >
+                          {expanded ? 'Hide details' : 'Details'}
+                        </button>
+                      </div>
+                      {details ? (
+                        <p className="text-xs text-gray-500 mt-1 ml-6">
+                          {details.description}
+                        </p>
+                      ) : null}
+                      {expanded && details ? (
+                        <div
+                          id={`webhook-event-panel-${event}`}
+                          className="mt-2 ml-6"
+                        >
+                          <p className="text-[11px] font-medium text-gray-500 mb-1">
+                            Sample payload
+                          </p>
+                          <pre className="text-[11px] bg-gray-50 border border-gray-100 rounded p-2 overflow-x-auto whitespace-pre-wrap">
+                            {JSON.stringify(details.samplePayload, null, 2)}
+                          </pre>
+                        </div>
+                      ) : null}
+                    </div>
+                  );
+                })}
               </div>
               {formError && (
                 <p

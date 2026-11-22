@@ -13,7 +13,8 @@ import {
   Download,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
-import { memo, useEffect, useRef, useState } from 'react';
+import { Suspense, memo, useCallback, useEffect, useRef, useState } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
 import { CopyButton } from '@/components/CopyButton';
 import { FormField } from '@/components/FormField';
@@ -199,7 +200,25 @@ const PaymentMobileCard = memo(function PaymentMobileCard({
   );
 });
 
-export default function PaymentsPage() {
+const DEFAULT_STATUS_FILTER = 'pending_confirmed';
+const STATUS_FILTER_OPTIONS = [
+  { value: 'pending_confirmed', label: 'Pending + Confirmed' },
+  { value: 'all', label: 'All payments' },
+] as const;
+
+function statusFilterToApiValue(filter: string): string | undefined {
+  if (filter === 'all') return undefined;
+  if (filter === 'pending_confirmed') return 'pending,confirmed';
+  return undefined;
+}
+
+function PaymentsPageContent() {
+  const searchParams = useSearchParams();
+  const router = useRouter();
+  const pathname = usePathname();
+  const urlStatusFilter =
+    searchParams.get('status') === 'all' ? 'all' : DEFAULT_STATUS_FILTER;
+
   const [payments, setPayments] = useState<Payment[]>([]);
   const [total, setTotal] = useState(0);
   const [page, setPage] = useState(1);
@@ -219,13 +238,37 @@ export default function PaymentsPage() {
   const qrRef = useRef<HTMLDivElement>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [exporting, setExporting] = useState(false);
+  const [statusFilter, setStatusFilter] = useState(urlStatusFilter);
+  const [isMobileCreateFlow, setIsMobileCreateFlow] = useState(false);
+  const [createStep, setCreateStep] = useState(1);
 
-  const load = async (p = 1) => {
+  useEffect(() => {
+    setStatusFilter(urlStatusFilter);
+  }, [urlStatusFilter]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined' || !window.matchMedia) return;
+    const mql = window.matchMedia('(max-width: 767px)');
+    const onChange = () => setIsMobileCreateFlow(mql.matches);
+    onChange();
+    mql.addEventListener('change', onChange);
+    return () => mql.removeEventListener('change', onChange);
+  }, []);
+
+  useEffect(() => {
+    if (!showCreate) setCreateStep(1);
+  }, [showCreate]);
+
+  const load = useCallback(async (p = 1, filter = statusFilter) => {
     setLoading(true);
     setError('');
     try {
-      setError('');
-      const { data } = await paymentsApi.list(p, 20);
+      const { data } = await paymentsApi.list(
+        p,
+        20,
+        undefined,
+        statusFilterToApiValue(filter)
+      );
       setPayments(data.payments);
       setTotal(data.total);
     } catch (err) {
@@ -233,11 +276,26 @@ export default function PaymentsPage() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [statusFilter]);
 
   useEffect(() => {
-    load(page);
-  }, [page]);
+    load(page, statusFilter);
+  }, [page, statusFilter, load]);
+
+  const handleStatusFilterChange = (next: string) => {
+    setStatusFilter(next);
+    setPage(1);
+    const params = new URLSearchParams(searchParams.toString());
+    if (next === DEFAULT_STATUS_FILTER) {
+      params.delete('status');
+    } else {
+      params.set('status', next);
+    }
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, {
+      scroll: false,
+    });
+  };
   // Client-side search filter — matches reference (case-insensitive) or
   // amountUsd. The API paginates server-side, so this filters within the
   // current page's results. This lets merchants quickly locate a specific
@@ -459,8 +517,8 @@ export default function PaymentsPage() {
       </div>
 
       {/* Search bar — lets merchants find a specific payment by reference or amount */}
-      <div className="mb-4">
-        <div className="relative max-w-sm">
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="relative max-w-sm w-full">
           <Search
             className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400"
             aria-hidden="true"
@@ -485,6 +543,27 @@ export default function PaymentsPage() {
             </button>
           )}
         </div>
+        <div className="flex items-center gap-2">
+          <label
+            htmlFor="payments-status-filter"
+            className="text-sm text-gray-600 whitespace-nowrap"
+          >
+            Status
+          </label>
+          <select
+            id="payments-status-filter"
+            data-testid="payments-status-filter"
+            value={statusFilter}
+            onChange={(e) => handleStatusFilterChange(e.target.value)}
+            className="py-2 px-3 text-sm border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent bg-white"
+          >
+            {STATUS_FILTER_OPTIONS.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
       <Modal
@@ -494,7 +573,13 @@ export default function PaymentsPage() {
         testId="create-payment-modal"
       >
         <form
-          onSubmit={createPayment}
+          onSubmit={(e) => {
+            if (isMobileCreateFlow && createStep < 4) {
+              e.preventDefault();
+              return;
+            }
+            return createPayment(e);
+          }}
           className="space-y-4"
           aria-busy={creating}
         >
@@ -503,64 +588,227 @@ export default function PaymentsPage() {
             {creating ? 'Creating payment, please wait…' : ''}
           </p>
           <fieldset disabled={creating} className="space-y-4">
-            <FormField
-              label="Amount (USD)"
-              name="amountUsd"
-              type="number"
-              step="0.01"
-              min="0.01"
-              required
-              value={form.amountUsd}
-              onChange={(e) => setForm({ ...form, amountUsd: e.target.value })}
-            />
-            <FormField
-              label="Description (optional)"
-              name="description"
-              type="text"
-              required={false}
-              maxLength={MAX_DESCRIPTION_LENGTH}
-              hint={
-                <span data-testid="description-char-counter">
-                  {form.description.length}/{MAX_DESCRIPTION_LENGTH}
-                </span>
-              }
-              value={form.description}
-              onChange={(e) =>
-                setForm({ ...form, description: e.target.value })
-              }
-            />
-            <FormField
-              label="Customer Email (optional)"
-              name="customerEmail"
-              type="email"
-              required={false}
-              value={form.customerEmail}
-              onChange={(e) =>
-                setForm({ ...form, customerEmail: e.target.value })
-              }
-            />
-            <FormField
-              label="Expires in (minutes)"
-              name="expiryMinutes"
-              type="number"
-              aria-describedby="expiry-minutes-hint"
-              value={form.expiryMinutes}
-              onChange={(e) =>
-                setForm({ ...form, expiryMinutes: e.target.value })
-              }
-            />
-            <p id="expiry-minutes-hint" className="text-xs text-gray-500">
-              Must be a whole number between {EXPIRY_MIN_MINUTES} and{' '}
-              {EXPIRY_MAX_MINUTES} minutes.
-            </p>
-            <button
-              data-testid="create-payment-submit"
-              type="submit"
-              disabled={creating}
-              className="btn-primary w-full"
-            >
-              {creating ? 'Creating...' : 'Create Payment'}
-            </button>
+            {isMobileCreateFlow ? (
+              <>
+                <div className="flex items-center justify-between text-xs text-gray-500">
+                  <span data-testid="create-payment-step">
+                    Step {createStep} of 4
+                  </span>
+                  <span>
+                    {['Amount', 'Description', 'Customer email', 'Review'][createStep - 1]}
+                  </span>
+                </div>
+
+                {createStep === 1 && (
+                  <>
+                    <FormField
+                      label="Amount (USD)"
+                      name="amountUsd"
+                      type="number"
+                      step="0.01"
+                      min="0.01"
+                      required
+                      value={form.amountUsd}
+                      onChange={(e) =>
+                        setForm({ ...form, amountUsd: e.target.value })
+                      }
+                    />
+                    <FormField
+                      label="Expires in (minutes)"
+                      name="expiryMinutes"
+                      type="number"
+                      aria-describedby="expiry-minutes-hint"
+                      value={form.expiryMinutes}
+                      onChange={(e) =>
+                        setForm({ ...form, expiryMinutes: e.target.value })
+                      }
+                    />
+                    <p id="expiry-minutes-hint" className="text-xs text-gray-500">
+                      Must be a whole number between {EXPIRY_MIN_MINUTES} and{' '}
+                      {EXPIRY_MAX_MINUTES} minutes.
+                    </p>
+                  </>
+                )}
+
+                {createStep === 2 && (
+                  <FormField
+                    label="Description (optional)"
+                    name="description"
+                    type="text"
+                    required={false}
+                    maxLength={MAX_DESCRIPTION_LENGTH}
+                    hint={
+                      <span data-testid="description-char-counter">
+                        {form.description.length}/{MAX_DESCRIPTION_LENGTH}
+                      </span>
+                    }
+                    value={form.description}
+                    onChange={(e) =>
+                      setForm({ ...form, description: e.target.value })
+                    }
+                  />
+                )}
+
+                {createStep === 3 && (
+                  <FormField
+                    label="Customer Email (optional)"
+                    name="customerEmail"
+                    type="email"
+                    required={false}
+                    value={form.customerEmail}
+                    onChange={(e) =>
+                      setForm({ ...form, customerEmail: e.target.value })
+                    }
+                  />
+                )}
+
+                {createStep === 4 && (
+                  <div
+                    data-testid="create-payment-review"
+                    className="rounded-lg border border-gray-200 bg-gray-50 p-4 space-y-2 text-sm"
+                  >
+                    <div className="flex justify-between gap-4">
+                      <span className="text-gray-500">Amount</span>
+                      <span className="font-medium">
+                        {form.amountUsd ? `$${Number(form.amountUsd).toFixed(2)}` : '—'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <span className="text-gray-500">Description</span>
+                      <span className="font-medium text-right break-words">
+                        {form.description || '—'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <span className="text-gray-500">Customer email</span>
+                      <span className="font-medium text-right break-words">
+                        {form.customerEmail || '—'}
+                      </span>
+                    </div>
+                    <div className="flex justify-between gap-4">
+                      <span className="text-gray-500">Expires in</span>
+                      <span className="font-medium">
+                        {form.expiryMinutes || '—'} minutes
+                      </span>
+                    </div>
+                  </div>
+                )}
+
+                <div className="flex gap-2">
+                  {createStep > 1 && (
+                    <button
+                      type="button"
+                      data-testid="create-payment-back"
+                      onClick={() => setCreateStep((s) => Math.max(1, s - 1))}
+                      className="btn-secondary flex-1"
+                    >
+                      Back
+                    </button>
+                  )}
+                  {createStep < 4 ? (
+                    <button
+                      type="button"
+                      data-testid="create-payment-next"
+                      onClick={() => {
+                        if (createStep === 1) {
+                          const amountUsd = parseFloat(form.amountUsd);
+                          if (Number.isNaN(amountUsd) || amountUsd <= 0) {
+                            toast.error('Enter a valid amount');
+                            return;
+                          }
+                          const expiryMinutes = parseInt(form.expiryMinutes, 10);
+                          if (
+                            !Number.isFinite(expiryMinutes) ||
+                            !Number.isInteger(expiryMinutes) ||
+                            expiryMinutes < EXPIRY_MIN_MINUTES ||
+                            expiryMinutes > EXPIRY_MAX_MINUTES
+                          ) {
+                            toast.error(
+                              `Expiry must be a whole number between ${EXPIRY_MIN_MINUTES} and ${EXPIRY_MAX_MINUTES} minutes`
+                            );
+                            return;
+                          }
+                        }
+                        setCreateStep((s) => Math.min(4, s + 1));
+                      }}
+                      className="btn-primary flex-1"
+                    >
+                      Next
+                    </button>
+                  ) : (
+                    <button
+                      data-testid="create-payment-submit"
+                      type="submit"
+                      disabled={creating}
+                      className="btn-primary flex-1"
+                    >
+                      {creating ? 'Creating...' : 'Create Payment'}
+                    </button>
+                  )}
+                </div>
+              </>
+            ) : (
+              <>
+                <FormField
+                  label="Amount (USD)"
+                  name="amountUsd"
+                  type="number"
+                  step="0.01"
+                  min="0.01"
+                  required
+                  value={form.amountUsd}
+                  onChange={(e) => setForm({ ...form, amountUsd: e.target.value })}
+                />
+                <FormField
+                  label="Description (optional)"
+                  name="description"
+                  type="text"
+                  required={false}
+                  maxLength={MAX_DESCRIPTION_LENGTH}
+                  hint={
+                    <span data-testid="description-char-counter">
+                      {form.description.length}/{MAX_DESCRIPTION_LENGTH}
+                    </span>
+                  }
+                  value={form.description}
+                  onChange={(e) =>
+                    setForm({ ...form, description: e.target.value })
+                  }
+                />
+                <FormField
+                  label="Customer Email (optional)"
+                  name="customerEmail"
+                  type="email"
+                  required={false}
+                  value={form.customerEmail}
+                  onChange={(e) =>
+                    setForm({ ...form, customerEmail: e.target.value })
+                  }
+                />
+                <FormField
+                  label="Expires in (minutes)"
+                  name="expiryMinutes"
+                  type="number"
+                  aria-describedby="expiry-minutes-hint"
+                  value={form.expiryMinutes}
+                  onChange={(e) =>
+                    setForm({ ...form, expiryMinutes: e.target.value })
+                  }
+                />
+                <p id="expiry-minutes-hint" className="text-xs text-gray-500">
+                  Must be a whole number between {EXPIRY_MIN_MINUTES} and{' '}
+                  {EXPIRY_MAX_MINUTES} minutes.
+                </p>
+                <button
+                  data-testid="create-payment-submit"
+                  type="submit"
+                  disabled={creating}
+                  className="btn-primary w-full"
+                >
+                  {creating ? 'Creating...' : 'Create Payment'}
+                </button>
+              </>
+            )}
           </fieldset>
         </form>
       </Modal>
@@ -721,7 +969,9 @@ export default function PaymentsPage() {
             <div className="px-6 py-8 text-center text-gray-400 text-sm">
               {searchQuery
                 ? 'No payments match your search'
-                : 'No payments yet'}
+                : statusFilter === 'pending_confirmed'
+                  ? 'No pending or confirmed payments'
+                  : 'No payments yet'}
             </div>
           ) : (
             filteredPayments.map((p) => (
@@ -792,7 +1042,9 @@ export default function PaymentsPage() {
                   >
                     {searchQuery
                       ? 'No payments match your search'
-                      : 'No payments yet'}
+                      : statusFilter === 'pending_confirmed'
+                        ? 'No pending or confirmed payments'
+                        : 'No payments yet'}
                   </td>
                 </tr>
               ) : (
@@ -879,5 +1131,13 @@ export default function PaymentsPage() {
         )}
       </div>
     </div>
+  );
+}
+
+export default function PaymentsPage() {
+  return (
+    <Suspense fallback={<div className="p-4 md:p-8">Loading payments…</div>}>
+      <PaymentsPageContent />
+    </Suspense>
   );
 }

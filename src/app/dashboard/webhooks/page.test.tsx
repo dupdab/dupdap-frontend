@@ -50,6 +50,20 @@ vi.mock('react-hot-toast', () => ({
 
 vi.mock('@/lib/utils', () => ({
   WEBHOOK_EVENTS: ['payment.created', 'payment.completed', 'payment.failed'],
+  WEBHOOK_EVENT_DETAILS: {
+    'payment.created': {
+      description: 'Sent when a new payment request is created.',
+      samplePayload: { event: 'payment.created', data: { id: 'pay_123' } },
+    },
+    'payment.completed': {
+      description: 'Sent when a payment is completed.',
+      samplePayload: { event: 'payment.completed', data: { id: 'pay_123' } },
+    },
+    'payment.failed': {
+      description: 'Sent when a payment fails.',
+      samplePayload: { event: 'payment.failed', data: { id: 'pay_123' } },
+    },
+  },
   formatDate: (s: string) => s.slice(0, 10),
   cn: (...classes: unknown[]) => classes.filter(Boolean).join(' '),
   maskSecret: (value: string) =>

@@ -79,6 +79,14 @@ export interface PaymentListResponse {
   total: number;
 }
 
+export interface SettlementPayment {
+  id: string;
+  reference?: string;
+  amountUsd?: number;
+  status?: string;
+  createdAt?: string;
+}
+
 export interface Settlement {
   id: string;
   merchantId: string;
@@ -99,6 +107,8 @@ export interface Settlement {
   completedAt?: string;
   failureReason?: string;
   updatedAt?: string;
+  paymentCount?: number;
+  payments?: SettlementPayment[];
 }
 
 export interface SettlementListResponse {

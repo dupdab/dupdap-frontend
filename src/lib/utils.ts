@@ -137,3 +137,81 @@ export const WEBHOOK_EVENTS = [
   'payment.failed',
   'payment.expired',
 ];
+
+export const WEBHOOK_EVENT_DETAILS: Record<
+  string,
+  { description: string; samplePayload: Record<string, unknown> }
+> = {
+  'payment.created': {
+    description: 'Sent when a new payment request is created.',
+    samplePayload: {
+      event: 'payment.created',
+      data: {
+        id: 'pay_123',
+        reference: 'REF-123',
+        amountUsd: 25,
+        status: 'pending',
+      },
+    },
+  },
+  'payment.confirmed': {
+    description: 'Sent when a payment is confirmed on-chain.',
+    samplePayload: {
+      event: 'payment.confirmed',
+      data: {
+        id: 'pay_123',
+        reference: 'REF-123',
+        amountUsd: 25,
+        status: 'confirmed',
+      },
+    },
+  },
+  'payment.settling': {
+    description: 'Sent when a confirmed payment begins settlement.',
+    samplePayload: {
+      event: 'payment.settling',
+      data: {
+        id: 'pay_123',
+        reference: 'REF-123',
+        amountUsd: 25,
+        status: 'settling',
+      },
+    },
+  },
+  'payment.settled': {
+    description: 'Sent when settlement completes successfully.',
+    samplePayload: {
+      event: 'payment.settled',
+      data: {
+        id: 'pay_123',
+        reference: 'REF-123',
+        amountUsd: 25,
+        status: 'settled',
+      },
+    },
+  },
+  'payment.failed': {
+    description: 'Sent when a payment fails processing.',
+    samplePayload: {
+      event: 'payment.failed',
+      data: {
+        id: 'pay_123',
+        reference: 'REF-123',
+        amountUsd: 25,
+        status: 'failed',
+      },
+    },
+  },
+  'payment.expired': {
+    description: 'Sent when a pending payment expires before confirmation.',
+    samplePayload: {
+      event: 'payment.expired',
+      data: {
+        id: 'pay_123',
+        reference: 'REF-123',
+        amountUsd: 25,
+        status: 'expired',
+      },
+    },
+  },
+};
