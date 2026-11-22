@@ -17,13 +17,143 @@ import { SkeletonList } from '@/components/Skeleton';
 import { webhooksApi } from '@/lib/api';
 import { getErrorMessage } from '@/lib/errors';
 import toast from '@/lib/toast';
-import type { Webhook } from '@/lib/types';
+import type { Webhook, WebhookDelivery } from '@/lib/types';
 import {
   WEBHOOK_EVENTS,
   WEBHOOK_EVENT_DETAILS,
   formatDate,
   maskSecret,
 } from '@/lib/utils';
+
+// ---------------------------------------------------------------------------
+// Delivery log panel (#788) — paginated delivery history for one webhook,
+// most recent first.
+// ---------------------------------------------------------------------------
+
+const DELIVERIES_PAGE_SIZE = 10;
+const RESPONSE_PREVIEW_LENGTH = 120;
+
+function previewBody(body?: string | null): string {
+  if (!body) return '—';
+  return body.length > RESPONSE_PREVIEW_LENGTH
+    ? `${body.slice(0, RESPONSE_PREVIEW_LENGTH)}…`
+    : body;
+}
+
+function statusClass(code: number | null): string {
+  if (code === null) return 'text-gray-500';
+  return code >= 200 && code < 300 ? 'text-green-600' : 'text-red-600';
+}
+
+function WebhookDeliveriesPanel({ webhook }: { webhook: Webhook }) {
+  const [page, setPage] = useState(1);
+  const [deliveries, setDeliveries] = useState<WebhookDelivery[]>([]);
+  const [total, setTotal] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setError('');
+    webhooksApi
+      .deliveries(webhook.id, page, DELIVERIES_PAGE_SIZE)
+      .then(({ data }) => {
+        if (cancelled) return;
+        const sorted = [...(data.deliveries ?? [])].sort(
+          (a, b) =>
+            new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+        );
+        setDeliveries(sorted);
+        setTotal(data.total ?? sorted.length);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          setError(getErrorMessage(err) ?? 'Failed to load deliveries');
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [webhook.id, page]);
+
+  const totalPages = Math.max(1, Math.ceil(total / DELIVERIES_PAGE_SIZE));
+
+  return (
+    <div data-testid={`webhook-deliveries-${webhook.id}`} className="space-y-3">
+      <p className="text-xs font-mono text-gray-500 break-all">{webhook.url}</p>
+      {loading ? (
+        <SkeletonList rows={3} />
+      ) : error ? (
+        <p role="alert" className="text-sm text-red-600">
+          {error}
+        </p>
+      ) : deliveries.length === 0 ? (
+        <p className="text-sm text-gray-500">No deliveries yet.</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-xs">
+            <thead>
+              <tr className="text-left text-gray-500">
+                <th scope="col" className="py-1 pr-3">Timestamp</th>
+                <th scope="col" className="py-1 pr-3">Event</th>
+                <th scope="col" className="py-1 pr-3">HTTP status</th>
+                <th scope="col" className="py-1 pr-3">Response time</th>
+                <th scope="col" className="py-1">Response body</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+              {deliveries.map((d) => (
+                <tr key={d.id} data-testid="webhook-delivery-row">
+                  <td className="py-1 pr-3 whitespace-nowrap">
+                    {formatDate(d.createdAt)}
+                  </td>
+                  <td className="py-1 pr-3 font-mono">{d.event}</td>
+                  <td className={`py-1 pr-3 font-mono ${statusClass(d.statusCode)}`}>
+                    {d.statusCode ?? 'No response'}
+                  </td>
+                  <td className="py-1 pr-3 whitespace-nowrap">
+                    {d.responseTimeMs === null ? '—' : `${d.responseTimeMs} ms`}
+                  </td>
+                  <td className="py-1 font-mono break-all text-gray-600">
+                    {previewBody(d.responseBody)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <nav
+        aria-label="Delivery history pagination"
+        className="flex items-center justify-between pt-2"
+      >
+        <button
+          type="button"
+          className="btn-secondary disabled:opacity-50"
+          onClick={() => setPage((p) => p - 1)}
+          disabled={loading || page <= 1}
+        >
+          Newer
+        </button>
+        <span className="text-xs text-gray-500">
+          Page {page} of {totalPages}
+        </span>
+        <button
+          type="button"
+          className="btn-secondary disabled:opacity-50"
+          onClick={() => setPage((p) => p + 1)}
+          disabled={loading || page >= totalPages}
+        >
+          Older
+        </button>
+      </nav>
+    </div>
+  );
+}
 
 function WebhookSecretRow({
   webhook,
@@ -129,6 +259,7 @@ interface WebhookRowProps {
   webhook: Webhook;
   onDelete: (id: string) => void;
   onSecretRotated: (id: string, secret: string) => void;
+  onViewDeliveries: (webhook: Webhook) => void;
 }
 
 const MAX_URL_LENGTH = 50;
@@ -137,6 +268,7 @@ const WebhookRow = memo(function WebhookRow({
   webhook: w,
   onDelete,
   onSecretRotated,
+  onViewDeliveries,
 }: WebhookRowProps) {
   const [urlCopied, setUrlCopied] = useState(false);
   const displayUrl =
@@ -190,6 +322,14 @@ const WebhookRow = memo(function WebhookRow({
         <p className="text-xs text-gray-400 mt-2">
           Created {formatDate(w.createdAt)}
         </p>
+        <button
+          type="button"
+          data-testid={`view-deliveries-${w.id}`}
+          onClick={() => onViewDeliveries(w)}
+          className="mt-2 text-xs text-brand-600 hover:underline"
+        >
+          View deliveries
+        </button>
         <WebhookSecretRow
           webhook={w}
           onRotated={(secret) => onSecretRotated(w.id, secret)}
@@ -223,6 +363,7 @@ export default function WebhooksPage() {
   const [formError, setFormError] = useState('');
   const [secretRevealed, setSecretRevealed] = useState(false);
   const [expandedEvents, setExpandedEvents] = useState<string[]>([]);
+  const [deliveriesFor, setDeliveriesFor] = useState<Webhook | null>(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -370,6 +511,7 @@ export default function WebhooksPage() {
               webhook={w}
               onDelete={setDeletingId}
               onSecretRotated={updateWebhookSecret}
+              onViewDeliveries={setDeliveriesFor}
             />
           ))}
         </div>
@@ -544,6 +686,21 @@ export default function WebhooksPage() {
             </div>
           </fieldset>
         </form>
+      </Modal>
+
+      <Modal
+        open={deliveriesFor !== null}
+        onClose={() => setDeliveriesFor(null)}
+        title="Delivery history"
+        testId="webhook-deliveries-modal"
+        contentClassName="max-w-3xl"
+      >
+        {deliveriesFor ? (
+          <WebhookDeliveriesPanel
+            key={deliveriesFor.id}
+            webhook={deliveriesFor}
+          />
+        ) : null}
       </Modal>
 
       <ConfirmDialog
