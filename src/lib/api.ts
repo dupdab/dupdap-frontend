@@ -14,6 +14,8 @@ import type {
   Settlement,
   TopMerchant,
   Webhook,
+  WebhookDeliveryListResponse,
+  NotificationPreferences,
   ApiKey,
 } from './types';
 
@@ -195,6 +197,13 @@ export const merchantApi = {
   generateApiKey: (scopes?: string[]) =>
     api.post<ApiKey>('/merchants/api-keys', { scopes }),
   rateLimit: () => api.get('/merchants/api-keys/rate-limit'),
+  notificationPreferences: () =>
+    api.get<NotificationPreferences>('/merchants/me/notification-preferences'),
+  updateNotificationPreferences: (data: Partial<NotificationPreferences>) =>
+    api.patch<NotificationPreferences>(
+      '/merchants/me/notification-preferences',
+      data
+    ),
 };
 
 export const webhooksApi = {
@@ -204,6 +213,11 @@ export const webhooksApi = {
   rotateSecret: (id: string) =>
     api.post<Webhook>(`/webhooks/${id}/rotate-secret`, {}),
   remove: (id: string) => api.delete(`/webhooks/${id}`),
+  /** Delivery log for one webhook, most recent first (#788). */
+  deliveries: (id: string, page = 1, limit = 10) =>
+    api.get<WebhookDeliveryListResponse>(
+      `/webhooks/${id}/deliveries?page=${page}&limit=${limit}&order=desc`
+    ),
 };
 
 export const adminApi = {

@@ -1,6 +1,6 @@
 'use client';
 
-import { Eye, EyeOff, Copy, Check } from 'lucide-react';
+import { Copy, Check } from 'lucide-react';
 import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 
 import ConfirmDialog from '@/components/ConfirmDialog';
@@ -9,7 +9,7 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { merchantApi } from '@/lib/api';
 import { getErrorMessage } from '@/lib/errors';
 import toast from '@/lib/toast';
-import { maskSecret } from '@/lib/utils';
+import type { NotificationPreferences } from '@/lib/types';
 
 /* ── Constants ─────────────────────────────────────────────────────────── */
 
@@ -27,6 +27,33 @@ const AVAILABLE_SCOPES = [
 
 const NAV_GUARD_MESSAGE =
   'Your API key is only shown once. Copy it before leaving this page.';
+
+/** How long a freshly generated API key stays visible before masking (#789). */
+const API_KEY_VISIBLE_MS = 30_000;
+
+/**
+ * Masks an API key down to its prefix, e.g. `sk_live_abc123` → `sk_live_****`
+ * (#789). Keys without a prefix are fully masked.
+ */
+function maskApiKey(key: string): string {
+  const prefixEnd = key.lastIndexOf('_') + 1;
+  return `${key.slice(0, prefixEnd)}****`;
+}
+
+const NOTIFICATION_OPTIONS: {
+  key: keyof NotificationPreferences;
+  label: string;
+}[] = [
+  { key: 'paymentReceived', label: 'Payment received' },
+  { key: 'paymentFailed', label: 'Payment failed' },
+  { key: 'settlementCompleted', label: 'Settlement completed' },
+];
+
+const DEFAULT_NOTIFICATION_PREFS: NotificationPreferences = {
+  paymentReceived: true,
+  paymentFailed: true,
+  settlementCompleted: true,
+};
 
 /* ── Avatar helpers (unchanged from prior implementation) ──────────────── */
 
@@ -123,8 +150,34 @@ export default function SettingsPage() {
   const [confirmGenerateOpen, setConfirmGenerateOpen] = useState(false);
   const [generating, setGenerating] = useState(false);
   const [generatedKey, setGeneratedKey] = useState<string | null>(null);
-  const [keyRevealed, setKeyRevealed] = useState(false);
+  const [keyMasked, setKeyMasked] = useState(false);
   const [keyCopied, setKeyCopied] = useState(false);
+
+  /* ── Notification preferences state ──────────────────────────────────── */
+  const [notificationPrefs, setNotificationPrefs] =
+    useState<NotificationPreferences>(DEFAULT_NOTIFICATION_PREFS);
+  const [savingPref, setSavingPref] = useState<
+    keyof NotificationPreferences | null
+  >(null);
+
+  /* ── Load notification preferences on mount ──────────────────────────── */
+  useEffect(() => {
+    merchantApi
+      .notificationPreferences()
+      .then(({ data }) =>
+        setNotificationPrefs({ ...DEFAULT_NOTIFICATION_PREFS, ...data })
+      )
+      .catch(() => {
+        // Keep defaults if preferences cannot be loaded.
+      });
+  }, []);
+
+  /* ── Mask the generated key after 30 seconds (#789) ──────────────────── */
+  useEffect(() => {
+    if (!generatedKey || keyMasked) return;
+    const timer = setTimeout(() => setKeyMasked(true), API_KEY_VISIBLE_MS);
+    return () => clearTimeout(timer);
+  }, [generatedKey, keyMasked]);
 
   /* ── Load profile on mount ───────────────────────────────────────────── */
   useEffect(() => {
@@ -252,7 +305,8 @@ export default function SettingsPage() {
     try {
       const { data } = await merchantApi.generateApiKey(selectedScopes);
       setGeneratedKey(data.apiKey);
-      setKeyRevealed(false);
+      // Show the full key once, immediately after generation (#789).
+      setKeyMasked(false);
       setKeyCopied(false);
     } catch (err) {
       toast.error(getErrorMessage(err) ?? 'Failed to generate API key');
@@ -266,6 +320,8 @@ export default function SettingsPage() {
     try {
       await navigator.clipboard.writeText(generatedKey);
       setKeyCopied(true);
+      // Mask as soon as the key has been copied (#789).
+      setKeyMasked(true);
       setTimeout(() => setKeyCopied(false), 2000);
     } catch {
       toast.error('Failed to copy API key');
@@ -274,15 +330,34 @@ export default function SettingsPage() {
 
   const dismissKey = () => {
     setGeneratedKey(null);
-    setKeyRevealed(false);
+    setKeyMasked(false);
     setKeyCopied(false);
+  };
+
+  /* ── Notification preference toggle ──────────────────────────────────── */
+  const toggleNotificationPref = async (key: keyof NotificationPreferences) => {
+    const previous = notificationPrefs;
+    const next = { ...previous, [key]: !previous[key] };
+    setNotificationPrefs(next);
+    setSavingPref(key);
+    try {
+      await merchantApi.updateNotificationPreferences({ [key]: next[key] });
+      toast.success('Notification preferences updated');
+    } catch (err) {
+      setNotificationPrefs(previous);
+      toast.error(
+        getErrorMessage(err) ?? 'Failed to update notification preferences'
+      );
+    } finally {
+      setSavingPref(null);
+    }
   };
 
   /* ── Render helpers ───────────────────────────────────────────────────── */
   const displayedKey = generatedKey
-    ? keyRevealed
-      ? generatedKey
-      : maskSecret(generatedKey)
+    ? keyMasked
+      ? maskApiKey(generatedKey)
+      : generatedKey
     : null;
 
   return (
@@ -340,19 +415,9 @@ export default function SettingsPage() {
             Save this key now — it will only be shown once.
           </p>
           <div className="flex items-center gap-2 font-mono text-sm bg-white border border-yellow-200 rounded px-3 py-2">
-            <span className="flex-1 break-all">{displayedKey}</span>
-            <button
-              type="button"
-              aria-label={keyRevealed ? 'Hide API key' : 'Reveal API key'}
-              onClick={() => setKeyRevealed((v) => !v)}
-              className="shrink-0 text-gray-400 hover:text-gray-600"
-            >
-              {keyRevealed ? (
-                <EyeOff className="w-4 h-4" />
-              ) : (
-                <Eye className="w-4 h-4" />
-              )}
-            </button>
+            <span className="flex-1 break-all" data-testid="generated-api-key">
+              {displayedKey}
+            </span>
             <button
               type="button"
               aria-label="Copy API key"
@@ -562,6 +627,38 @@ export default function SettingsPage() {
           >
             {generating ? 'Generating…' : 'Generate new API key'}
           </button>
+        </div>
+      </section>
+
+      {/* ── Notification preferences (#790) ─────────────────────────────── */}
+      <section className="mt-10" aria-labelledby="notifications-heading">
+        <h2
+          id="notifications-heading"
+          className="text-lg font-medium text-gray-900 dark:text-gray-100"
+        >
+          Notifications
+        </h2>
+        <p className="mt-1 text-sm text-gray-500">
+          Choose which events send you an email.
+        </p>
+        <div className="mt-4 space-y-2">
+          {NOTIFICATION_OPTIONS.map(({ key, label }) => (
+            <label
+              key={key}
+              className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 cursor-pointer"
+            >
+              <input
+                type="checkbox"
+                role="switch"
+                aria-checked={notificationPrefs[key]}
+                checked={notificationPrefs[key]}
+                disabled={savingPref === key}
+                onChange={() => toggleNotificationPref(key)}
+                className="rounded border-gray-300"
+              />
+              {label}
+            </label>
+          ))}
         </div>
       </section>
 
