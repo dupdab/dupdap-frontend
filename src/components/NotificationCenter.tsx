@@ -17,7 +17,7 @@ import {
   AlertTriangle,
   Info,
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
+import { cn, formatUsd } from '@/lib/utils';
 import { useFocusTrap } from '@/lib/useFocusTrap';
 import { settlementsApi } from '@/lib/api';
 import { getErrorMessage } from '@/lib/errors';
@@ -47,23 +47,42 @@ function settlementsToNotifications(
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   settlements: any[]
 ): AppNotification[] {
+  const decisionStatuses = ['completed', 'failed', 'approved', 'rejected'];
   return settlements
-    .filter((s) => s.status === 'completed' || s.status === 'failed')
-    .map((s) => ({
-      id: `settlement-${s.id}`,
-      type:
-        s.status === 'completed'
-          ? 'settlement_completed'
+    .filter((s) => decisionStatuses.includes(s.status))
+    .map((s) => {
+      const amount =
+        typeof s.netAmountUsd === 'number'
+          ? formatUsd(s.netAmountUsd)
+          : '—';
+      const isApproved = s.status === 'completed' || s.status === 'approved';
+      const title =
+        s.status === 'approved'
+          ? 'Settlement Approved'
+          : s.status === 'rejected'
+            ? 'Settlement Rejected'
+            : isApproved
+              ? 'Settlement Completed'
+              : 'Settlement Failed';
+      const message =
+        s.status === 'approved'
+          ? `Your settlement of ${amount} was approved and is being processed.`
+          : s.status === 'rejected'
+            ? `Your settlement of ${amount} was rejected${s.failureReason ? `: ${s.failureReason}` : '.'}`
+            : isApproved
+              ? `Your settlement of ${amount} has been processed.`
+              : `Settlement ${amount} failed${s.failureReason ? `: ${s.failureReason}` : '.'}`;
+      return {
+        id: `settlement-${s.id}`,
+        type: isApproved
+          ? ('settlement_completed' as NotificationType)
           : ('info' as NotificationType),
-      title:
-        s.status === 'completed' ? 'Settlement Completed' : 'Settlement Failed',
-      message:
-        s.status === 'completed'
-          ? `Your settlement of $${s.netAmountUsd?.toFixed(2) ?? '—'} has been processed.`
-          : `Settlement $${s.netAmountUsd?.toFixed(2) ?? '—'} failed${s.failureReason ? `: ${s.failureReason}` : '.'}`,
-      createdAt: s.updatedAt ?? s.createdAt,
-      read: false,
-    }));
+        title,
+        message,
+        createdAt: s.updatedAt ?? s.createdAt,
+        read: false,
+      };
+    });
 }
 
 function loadReadIds(): Set<string> {

@@ -100,6 +100,20 @@ describe('PayPage — payment receipt view', () => {
     });
   });
 
+  it('shows the merchant name and payment status on the printable receipt', async () => {
+    mockGetByReference.mockResolvedValue({
+      data: { ...BASE_PAYMENT, merchantName: 'Acme Store' },
+    } as never);
+
+    render(<PayPage params={defaultParams} />);
+    await flushMount();
+
+    const receipt = await screen.findByTestId('payment-receipt');
+    expect(receipt).toHaveTextContent('Acme Store');
+    expect(receipt).toHaveTextContent('Status');
+    expect(receipt).toHaveTextContent('settled');
+  });
+
   it('shows the payment reference on the receipt', async () => {
     mockGetByReference.mockResolvedValue({ data: BASE_PAYMENT } as never);
 
