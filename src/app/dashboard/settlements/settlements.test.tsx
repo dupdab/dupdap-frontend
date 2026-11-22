@@ -66,6 +66,7 @@ vi.mock('@/components/Skeleton', () => ({
 
 vi.mock('@/lib/utils', () => ({
   formatNgn: (v: number) => `₦${v.toFixed(2)}`,
+  formatUsd: (v: number) => `$${v.toFixed(2)}`,
   formatDate: (s: string) => s.slice(0, 10),
   STATUS_ICONS: {
     pending: (props: { className?: string; 'aria-hidden'?: boolean }) => (

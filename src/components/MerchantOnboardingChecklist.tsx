@@ -23,6 +23,7 @@ const STEPS = [
     href: '/dashboard/payments',
   },
   { id: 'webhook', label: 'Add a webhook', href: '/dashboard/webhooks' },
+  { id: 'goLive', label: 'Go live', href: '/dashboard/settings' },
 ] as const;
 
 interface SavedProgress {
@@ -75,6 +76,7 @@ export function MerchantOnboardingChecklist({
       bank: Boolean(profileQuery.data?.data.bankAccountNumber),
       payment: (paymentCount ?? 0) > 0,
       webhook: (webhooksQuery.data?.data.length ?? 0) > 0,
+      goLive: profileQuery.data?.data.status === 'active',
     }),
     [profileQuery.data, paymentCount, webhooksQuery.data]
   );

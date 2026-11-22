@@ -12,7 +12,11 @@ import { MerchantOnboardingChecklist } from './MerchantOnboardingChecklist';
 vi.mock('@/lib/api', () => ({
   merchantApi: {
     profile: vi.fn().mockResolvedValue({
-      data: { businessName: 'Acme', bankAccountNumber: '1234567890' },
+      data: {
+        businessName: 'Acme',
+        bankAccountNumber: '1234567890',
+        status: 'active',
+      },
     }),
   },
   webhooksApi: {
@@ -40,7 +44,7 @@ afterEach(() => {
 });
 
 describe('MerchantOnboardingChecklist', () => {
-  it('shows the four linked setup steps for merchants with no payments', async () => {
+  it('shows the five linked setup steps for merchants with no payments', async () => {
     renderChecklist(0);
 
     expect(
@@ -58,8 +62,11 @@ describe('MerchantOnboardingChecklist', () => {
     expect(
       screen.getByRole('link', { name: /add a webhook/i })
     ).toHaveAttribute('href', '/dashboard/webhooks');
+    expect(
+      screen.getByRole('link', { name: /go live/i })
+    ).toHaveAttribute('href', '/dashboard/settings');
     await waitFor(() =>
-      expect(screen.getByText('3 of 4 steps complete')).toBeInTheDocument()
+      expect(screen.getByText('4 of 5 steps complete')).toBeInTheDocument()
     );
     expect(localStorage.getItem('dupdub-onboarding-merchant-test')).toContain(
       '"profile"'
@@ -72,7 +79,7 @@ describe('MerchantOnboardingChecklist', () => {
   it('allows dismissal after all steps are complete and remembers progress', async () => {
     const view = renderChecklist(0);
     await waitFor(() =>
-      expect(screen.getByText('3 of 4 steps complete')).toBeInTheDocument()
+      expect(screen.getByText('4 of 5 steps complete')).toBeInTheDocument()
     );
     view.rerender(
       <QueryClientProvider

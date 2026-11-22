@@ -5,6 +5,7 @@ import { useEffect, useRef, useState, type ChangeEvent } from 'react';
 
 import ConfirmDialog from '@/components/ConfirmDialog';
 import { FormField } from '@/components/FormField';
+import { ThemeToggle } from '@/components/ThemeToggle';
 import { merchantApi } from '@/lib/api';
 import { getErrorMessage } from '@/lib/errors';
 import toast from '@/lib/toast';
@@ -289,6 +290,45 @@ export default function SettingsPage() {
       <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">
         Settings
       </h1>
+
+      {/* ── Appearance / dark mode ──────────────────────────────────────── */}
+      <section
+        id="appearance"
+        aria-labelledby="appearance-heading"
+        className="mt-6 rounded-lg border border-gray-200 dark:border-gray-700 p-4"
+      >
+        <h2
+          id="appearance-heading"
+          className="text-lg font-medium text-gray-900 dark:text-gray-100"
+        >
+          Appearance
+        </h2>
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+          Choose light, dark, or follow your system preference. Your choice is
+          saved in this browser.
+        </p>
+        <div className="mt-3">
+          <ThemeToggle />
+        </div>
+      </section>
+
+      {/* ── Environment / sandbox mode ──────────────────────────────────── */}
+      <section
+        id="environment"
+        aria-labelledby="environment-heading"
+        className="mt-8 scroll-mt-24"
+      >
+        <h2
+          id="environment-heading"
+          className="text-lg font-medium text-gray-900 dark:text-gray-100"
+        >
+          Environment
+        </h2>
+        <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
+          Sandbox mode uses test data and test payments only. Contact support
+          to move this merchant account to production.
+        </p>
+      </section>
 
       {/* ── API key banner (generated key, shown once) ──────────────────── */}
       {generatedKey && (
