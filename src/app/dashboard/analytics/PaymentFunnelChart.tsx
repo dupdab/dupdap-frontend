@@ -1,5 +1,6 @@
 'use client';
 
+import React from 'react';
 import {
   FunnelChart,
   Funnel,
@@ -28,7 +29,7 @@ interface Props {
  * drop-off between stages. The same data is also rendered in a visually-hidden
  * table by the parent page for screen-reader access (#375).
  */
-export default function PaymentFunnelChart({ data }: Props) {
+function PaymentFunnelChart({ data }: Props) {
   return (
     <ResponsiveContainer width="100%" height={250}>
       <FunnelChart>
@@ -53,3 +54,5 @@ export default function PaymentFunnelChart({ data }: Props) {
     </ResponsiveContainer>
   );
 }
+
+export default React.memo(PaymentFunnelChart);

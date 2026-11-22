@@ -3,6 +3,7 @@
 import dynamic from 'next/dynamic';
 
 import type { RevenueBreakdownRow } from '@/lib/revenue-breakdown';
+import { formatUsd } from '@/lib/utils';
 
 // Lazy-load recharts so the chart library is only pulled into the bundle
 // when the analytics page actually renders this chart (issue #823).
@@ -21,10 +22,12 @@ const RevenueByMethodChartInner = dynamic(
   },
 );
 
-export default function RevenueByMethodChart({
+function RevenueByMethodChart({
   data,
 }: {
   data: RevenueBreakdownRow[];
 }) {
   return <RevenueByMethodChartInner data={data} />;
 }
+
+export default React.memo(RevenueByMethodChart);

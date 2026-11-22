@@ -1,6 +1,14 @@
 'use client';
 
-import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import React from 'react';
+import {
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
 
 export interface StatusPieChartDatum {
   name: string;
@@ -12,6 +20,16 @@ export interface StatusPieChartProps {
   data: StatusPieChartDatum[];
   height?: number;
 }
+
+import React from 'react';
+import {
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from 'recharts';
 
 const DEFAULT_COLORS = ['#22c55e', '#f59e0b', '#ef4444', '#3b82f6', '#a855f7'];
 
@@ -41,3 +59,5 @@ export default function StatusPieChart({ data, height = 300 }: StatusPieChartPro
     </ResponsiveContainer>
   );
 }
+
+export default React.memo(StatusPieChart);

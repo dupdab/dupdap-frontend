@@ -23,6 +23,22 @@ Local development may omit it and uses `http://localhost:3000/api/v1`.
 
 For state-changing API calls, the frontend reads the API-provided `csrf_token` cookie and sends its value in `X-CSRF-Token`. The API must validate that this header matches the cookie on every non-GET request. Use `SameSite=Strict; Secure` for the cookie and allow the header through CORS when the app and API use different origins.
 
+## Local mock API development
+
+Frontend developers can run the UI without the full backend stack using the built-in [MSW](https://mswjs.io/) mock server.
+
+```sh
+npm run dev:mock
+```
+
+This starts Next.js with `NEXT_PUBLIC_API_MOCKING=enabled`, which registers a browser service worker and serves realistic mock responses for API endpoints (auth, payments, settlements, merchant, webhooks, admin, and waitlist).
+
+If you prefer to set the flag manually:
+
+```sh
+NEXT_PUBLIC_API_MOCKING=enabled npm run dev
+```
+
 ## Why Stellar
 
 The customer-facing payment flow here is built around Stellar, not a generic multi-chain wallet connector:

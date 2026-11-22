@@ -1,3 +1,4 @@
+import toast from '@/lib/toast';
 import {
   render,
   screen,
@@ -349,5 +350,41 @@ describe('PaymentsPage — Table column headers and checkbox labels (#822)', () 
     expect(
       screen.getByRole('checkbox', { name: 'Select payment PAY-002' })
     ).toBeInTheDocument();
+  });
+});
+
+describe('PaymentsPage — Payment creation success toast notification (#811)', () => {
+  it('displays a success toast when a payment is created successfully', async () => {
+    vi.mocked(paymentsApi.create).mockResolvedValueOnce({
+      data: {
+        id: 'pay_new_1',
+        reference: 'PAY-NEW-001',
+        amountUsd: 100,
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+      },
+    } as any);
+
+    const toastSpy = vi.spyOn(toast, 'success');
+    render(<PaymentsPage />);
+
+    await waitFor(() => expect(paymentsApi.list).toHaveBeenCalled());
+
+    // Open Create Payment modal
+    const createBtn = screen.getByRole('button', { name: /create payment/i });
+    fireEvent.click(createBtn);
+
+    // Fill form and submit
+    const amountInput = screen.getByLabelText(/amount/i);
+    fireEvent.change(amountInput, { target: { value: '100' } });
+
+    const submitBtn = screen.getByRole('button', { name: /^create$/i });
+    fireEvent.click(submitBtn);
+
+    await waitFor(() => {
+      expect(toastSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Payment created — share the QR code with your customer')
+      );
+    });
   });
 });

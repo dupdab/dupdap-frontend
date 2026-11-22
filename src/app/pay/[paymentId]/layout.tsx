@@ -1,4 +1,5 @@
 import { getApiUrl } from '@/lib/env';
+import { formatUsd } from '@/lib/utils';
 
 import type { Metadata } from 'next';
 
@@ -46,7 +47,7 @@ export async function generateMetadata({
 
   const amount =
     typeof payment?.amountUsd === 'number'
-      ? `$${payment.amountUsd.toFixed(2)}`
+      ? formatUsd(payment.amountUsd)
       : null;
 
   const title =

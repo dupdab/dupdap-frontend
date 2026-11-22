@@ -14,10 +14,19 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
 }
 
+/** Merchant's browser locale, with a safe fallback for server-side rendering. */
+export function getBrowserLocale(): string {
+  if (typeof navigator !== 'undefined' && navigator.language) {
+    return navigator.language;
+  }
+  return 'en-US';
+}
+
 export function formatUsd(amount: number, locale?: string): string {
   // Normalise -0 to 0 so negative zero never renders as "-$0.00".
   const normalised = amount === 0 ? 0 : amount;
-  const bcp47 = locale === 'pcm' ? 'en-NG' : (locale ?? 'en-US');
+  const bcp47 =
+    locale === 'pcm' ? 'en-NG' : (locale ?? getBrowserLocale());
   return new Intl.NumberFormat(bcp47, {
     style: 'currency',
     currency: 'USD',
@@ -96,6 +105,48 @@ export function formatDate(
   }).format(d);
 }
 
+/**
+ * Date-only formatter for merchant-facing tables and receipts (#859).
+ *
+ * Uses `Intl.DateTimeFormat` with the merchant's locale/BCP 47 tag and always
+ * renders a stable, unambiguous date: DD/MM/YYYY for UK/Nigerian and other
+ * day-first locales, and YYYY-MM-DD when `iso` is requested. UTC is pinned so
+ * the output is identical on the server and in the browser.
+ */
+export function formatDateForLocale(
+  date: string | Date | undefined | null,
+  locale = 'en-GB',
+  style: 'local' | 'iso' = 'local'
+): string {
+  if (!date) return '—';
+  const d = new Date(date);
+  if (isNaN(d.getTime())) return '—';
+
+  const bcp47 = locale === 'pcm' ? 'en-NG' : locale === 'iso' ? 'en-CA' : locale;
+  const parts = new Intl.DateTimeFormat(bcp47, {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    timeZone: 'UTC',
+  }).formatToParts(d);
+  const part = (type: Intl.DateTimeFormatPartTypes) =>
+    parts.find((p) => p.type === type)?.value ?? '';
+  const year = part('year');
+  const month = part('month');
+  const day = part('day');
+
+  if (style === 'iso' || locale === 'iso') {
+    return `${year}-${month}-${day}`;
+  }
+
+  // Day-first locales (UK, Nigeria, France, Portugal, Hausa) must never be
+  // shown in the ambiguous US month-first order.
+  const dayFirst = /^(en-GB|en-NG|fr|pt|ha|pcm)/i.test(locale);
+  return dayFirst
+    ? `${day}/${month}/${year}`
+    : `${month}/${day}/${year}`;
+}
+
 export const STATUS_COLORS: Record<string, string> = {
   pending: 'bg-yellow-100 text-yellow-800',
   pending_approval: 'bg-orange-100 text-orange-800',
@@ -129,6 +180,17 @@ export const PAYMENT_STATUS_COLORS = STATUS_COLORS;
 
 export const DEFAULT_STATUS_COLOR = 'bg-gray-100 text-gray-600';
 
+/** Context shown when a settlement is awaiting manual admin approval (#881). */
+export const PENDING_APPROVAL_MESSAGE =
+  'Awaiting approval — large settlements are manually reviewed within 24h';
+export const PENDING_APPROVAL_ETA =
+  'Estimated approval time: within 24 hours';
+
+/** Status values may arrive from the API in either upper or lower case. */
+export function isPendingApprovalStatus(status: string): boolean {
+  return String(status).toLowerCase() === 'pending_approval';
+}
+
 export const WEBHOOK_EVENTS = [
   'payment.created',
   'payment.confirmed',
@@ -137,3 +199,81 @@ export const WEBHOOK_EVENTS = [
   'payment.failed',
   'payment.expired',
 ];
+
+export const WEBHOOK_EVENT_DETAILS: Record<
+  string,
+  { description: string; samplePayload: Record<string, unknown> }
+> = {
+  'payment.created': {
+    description: 'Sent when a new payment request is created.',
+    samplePayload: {
+      event: 'payment.created',
+      data: {
+        id: 'pay_123',
+        reference: 'REF-123',
+        amountUsd: 25,
+        status: 'pending',
+      },
+    },
+  },
+  'payment.confirmed': {
+    description: 'Sent when a payment is confirmed on-chain.',
+    samplePayload: {
+      event: 'payment.confirmed',
+      data: {
+        id: 'pay_123',
+        reference: 'REF-123',
+        amountUsd: 25,
+        status: 'confirmed',
+      },
+    },
+  },
+  'payment.settling': {
+    description: 'Sent when a confirmed payment begins settlement.',
+    samplePayload: {
+      event: 'payment.settling',
+      data: {
+        id: 'pay_123',
+        reference: 'REF-123',
+        amountUsd: 25,
+        status: 'settling',
+      },
+    },
+  },
+  'payment.settled': {
+    description: 'Sent when settlement completes successfully.',
+    samplePayload: {
+      event: 'payment.settled',
+      data: {
+        id: 'pay_123',
+        reference: 'REF-123',
+        amountUsd: 25,
+        status: 'settled',
+      },
+    },
+  },
+  'payment.failed': {
+    description: 'Sent when a payment fails processing.',
+    samplePayload: {
+      event: 'payment.failed',
+      data: {
+        id: 'pay_123',
+        reference: 'REF-123',
+        amountUsd: 25,
+        status: 'failed',
+      },
+    },
+  },
+  'payment.expired': {
+    description: 'Sent when a pending payment expires before confirmation.',
+    samplePayload: {
+      event: 'payment.expired',
+      data: {
+        id: 'pay_123',
+        reference: 'REF-123',
+        amountUsd: 25,
+        status: 'expired',
+      },
+    },
+  },
+};
