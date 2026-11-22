@@ -3,15 +3,20 @@
 import Link from 'next/link';
 import { memo, useEffect, useState } from 'react';
 
+import Modal from '@/components/Modal';
 import { SkeletonList, SkeletonTableRows } from '@/components/Skeleton';
 import { settlementsApi } from '@/lib/api';
-import type { Settlement } from '@/lib/types';
+import type { Settlement, SettlementPayment } from '@/lib/types';
 import {
   formatNgn,
+  formatUsd,
   formatDate,
   STATUS_COLORS,
   STATUS_ICONS,
   DEFAULT_STATUS_COLOR,
+  PENDING_APPROVAL_MESSAGE,
+  PENDING_APPROVAL_ETA,
+  isPendingApprovalStatus,
 } from '@/lib/utils';
 
 // ---------------------------------------------------------------------------
@@ -21,13 +26,22 @@ import {
 
 interface SettlementRowProps {
   settlement: Settlement;
+  onShowPayments: (settlement: Settlement) => void;
+}
+
+function getSettlementPaymentCount(s: Settlement): number | null {
+  if (typeof s.paymentCount === 'number') return s.paymentCount;
+  if (Array.isArray(s.payments)) return s.payments.length;
+  return null;
 }
 
 /** Desktop table row */
 const SettlementTableRow = memo(function SettlementTableRow({
   settlement: s,
+  onShowPayments,
 }: SettlementRowProps) {
   const StatusIcon = STATUS_ICONS[s.status];
+  const paymentCount = getSettlementPaymentCount(s);
   return (
     <tr className="hover:bg-gray-50">
       <td className="px-6 py-4 font-mono text-xs text-gray-500">
@@ -44,6 +58,21 @@ const SettlementTableRow = memo(function SettlementTableRow({
         {formatNgn(s.netAmountUsd)}
       </td>
       <td className="px-6 py-4">
+        {paymentCount === null ? (
+          <span className="text-gray-400 text-xs">—</span>
+        ) : (
+          <button
+            type="button"
+            data-testid={`settlement-payments-${s.id}`}
+            onClick={() => onShowPayments(s)}
+            className="text-brand-600 hover:underline text-sm font-medium"
+            aria-label={`View ${paymentCount} payments for settlement ${s.id.slice(0, 8)}`}
+          >
+            {paymentCount}
+          </button>
+        )}
+      </td>
+      <td className="px-6 py-4">
         <span
           className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[s.status] ?? DEFAULT_STATUS_COLOR}`}
         >
@@ -52,6 +81,14 @@ const SettlementTableRow = memo(function SettlementTableRow({
           )}
           {s.status}
         </span>
+        {isPendingApprovalStatus(s.status) && (
+          <span
+            role="note"
+            className="mt-1 block max-w-xs text-xs text-orange-700"
+          >
+            {PENDING_APPROVAL_MESSAGE} {PENDING_APPROVAL_ETA}
+          </span>
+        )}
       </td>
       <td className="px-6 py-4 text-gray-500">{formatDate(s.createdAt)}</td>
     </tr>
@@ -61,8 +98,10 @@ const SettlementTableRow = memo(function SettlementTableRow({
 /** Mobile card */
 const SettlementMobileCard = memo(function SettlementMobileCard({
   settlement: s,
+  onShowPayments,
 }: SettlementRowProps) {
   const StatusIcon = STATUS_ICONS[s.status];
+  const paymentCount = getSettlementPaymentCount(s);
   return (
     <div className="px-6 py-4 space-y-1">
       <div className="flex items-center justify-between">
@@ -81,13 +120,31 @@ const SettlementMobileCard = memo(function SettlementMobileCard({
           {s.status}
         </span>
       </div>
+      {isPendingApprovalStatus(s.status) && (
+        <p role="note" className="text-xs text-orange-700">
+          {PENDING_APPROVAL_MESSAGE} {PENDING_APPROVAL_ETA}
+        </p>
+      )}
       <div className="font-semibold text-green-700">
         {formatNgn(s.netAmountUsd)}
       </div>
       <div className="text-xs text-gray-500">
         Gross {formatNgn(s.totalAmountUsd)} · Fee -{formatNgn(s.feeAmountUsd)}
       </div>
-      <div className="text-xs text-gray-500">{formatDate(s.createdAt)}</div>
+      <div className="flex items-center justify-between text-xs text-gray-500">
+        <span>{formatDate(s.createdAt)}</span>
+        {paymentCount !== null ? (
+          <button
+            type="button"
+            data-testid={`settlement-payments-mobile-${s.id}`}
+            onClick={() => onShowPayments(s)}
+            className="text-brand-600 hover:underline font-medium"
+            aria-label={`View ${paymentCount} payments for settlement ${s.id.slice(0, 8)}`}
+          >
+            {paymentCount} payment{paymentCount === 1 ? '' : 's'}
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 });
@@ -163,6 +220,12 @@ export default function SettlementsPage() {
   const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
   const [error, setError] = useState('');
+  const [paymentsOpen, setPaymentsOpen] = useState(false);
+  const [paymentsLoading, setPaymentsLoading] = useState(false);
+  const [paymentsError, setPaymentsError] = useState('');
+  const [selectedSettlement, setSelectedSettlement] =
+    useState<Settlement | null>(null);
+  const [linkedPayments, setLinkedPayments] = useState<SettlementPayment[]>([]);
 
   useEffect(() => {
     settlementsApi
@@ -178,10 +241,32 @@ export default function SettlementsPage() {
       .finally(() => setLoading(false));
   }, [page]);
 
+  const showPayments = async (settlement: Settlement) => {
+    setSelectedSettlement(settlement);
+    setPaymentsOpen(true);
+    setPaymentsError('');
+    setLinkedPayments(settlement.payments ?? []);
+    setPaymentsLoading(true);
+    try {
+      const { data } = await settlementsApi.get(settlement.id);
+      const detail = data as Settlement;
+      setLinkedPayments(detail.payments ?? settlement.payments ?? []);
+      setSelectedSettlement(detail);
+    } catch {
+      setPaymentsError("Couldn't load linked payments.");
+      setLinkedPayments(settlement.payments ?? []);
+    } finally {
+      setPaymentsLoading(false);
+    }
+  };
+
   // Parenthesized explicitly: `total > 20 || page > 1 && <controls>` parses as
   // `total > 20 || (page > 1 && <controls>)` because && binds tighter than ||,
   // which short-circuits to the boolean `true` and renders no controls (#338).
   const showPagination = total > 20 || page > 1;
+  const hasPendingApproval = settlements.some((s) =>
+    isPendingApprovalStatus(s.status)
+  );
 
   return (
     <div className="p-4 md:p-8">
@@ -191,6 +276,16 @@ export default function SettlementsPage() {
         </h1>
         <p className="text-sm text-gray-500 mt-1">{total} total settlements</p>
       </div>
+
+      {hasPendingApproval && (
+        <div
+          role="status"
+          className="mb-4 rounded-lg border border-orange-200 bg-orange-50 p-4 text-sm text-orange-800"
+        >
+          <p className="font-medium">{PENDING_APPROVAL_MESSAGE}</p>
+          <p className="mt-1">{PENDING_APPROVAL_ETA}</p>
+        </div>
+      )}
 
       <div className="card">
         {error ? (
@@ -209,7 +304,11 @@ export default function SettlementsPage() {
             <SettlementsEmptyState />
           ) : (
             settlements.map((s) => (
-              <SettlementMobileCard key={s.id} settlement={s} />
+              <SettlementMobileCard
+                key={s.id}
+                settlement={s}
+                onShowPayments={showPayments}
+              />
             ))
           )}
         </div>
@@ -231,6 +330,9 @@ export default function SettlementsPage() {
                   Net (NGN)
                 </th>
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">
+                  Payments
+                </th>
+                <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">
                   Status
                 </th>
                 <th className="text-left px-6 py-3 text-xs font-medium text-gray-500 uppercase">
@@ -240,16 +342,20 @@ export default function SettlementsPage() {
             </thead>
             <tbody className="divide-y divide-gray-50">
               {loading ? (
-                <SkeletonTableRows rows={6} cols={6} />
+                <SkeletonTableRows rows={6} cols={7} />
               ) : settlements.length === 0 ? (
                 <tr>
-                  <td colSpan={6}>
+                  <td colSpan={7}>
                     <SettlementsEmptyState />
                   </td>
                 </tr>
               ) : (
                 settlements.map((s) => (
-                  <SettlementTableRow key={s.id} settlement={s} />
+                  <SettlementTableRow
+                    key={s.id}
+                    settlement={s}
+                    onShowPayments={showPayments}
+                  />
                 ))
               )}
             </tbody>
@@ -281,6 +387,64 @@ export default function SettlementsPage() {
           </div>
         )}
       </div>
+
+      <Modal
+        open={paymentsOpen}
+        onClose={() => {
+          setPaymentsOpen(false);
+          setSelectedSettlement(null);
+          setLinkedPayments([]);
+          setPaymentsError('');
+        }}
+        title={
+          selectedSettlement
+            ? `Settlement ${selectedSettlement.id.slice(0, 8)} payments`
+            : 'Settlement payments'
+        }
+        testId="settlement-payments-modal"
+      >
+        {paymentsLoading ? (
+          <p className="text-sm text-gray-500">Loading linked payments…</p>
+        ) : paymentsError ? (
+          <p className="text-sm text-red-600">{paymentsError}</p>
+        ) : linkedPayments.length === 0 ? (
+          <p className="text-sm text-gray-500">
+            No linked payments found for this settlement.
+          </p>
+        ) : (
+          <div className="space-y-2">
+            {linkedPayments.map((p) => (
+              <div
+                key={p.id}
+                className="flex items-center justify-between rounded-lg border border-gray-100 px-3 py-2 text-sm"
+              >
+                <div>
+                  <p className="font-mono text-xs text-gray-700">
+                    {p.reference ?? p.id.slice(0, 8)}
+                  </p>
+                  {p.createdAt ? (
+                    <p className="text-xs text-gray-400">
+                      {formatDate(p.createdAt)}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="text-right">
+                  {typeof p.amountUsd === 'number' ? (
+                    <p className="font-medium text-gray-900">
+                      {formatUsd(p.amountUsd)}
+                    </p>
+                  ) : null}
+                  {p.status ? (
+                    <p className="text-xs text-gray-500 capitalize">
+                      {p.status}
+                    </p>
+                  ) : null}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Modal>
     </div>
   );
 }

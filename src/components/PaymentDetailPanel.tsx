@@ -1,6 +1,6 @@
 'use client';
 
-import { X } from 'lucide-react';
+import { Download, X } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { useEffect, useRef, useState } from 'react';
 
@@ -28,6 +28,7 @@ export default function PaymentDetailPanel({
 }: PaymentDetailPanelProps) {
   const [copied, setCopied] = useState<'memo' | 'link' | null>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
+  const qrRef = useRef<HTMLDivElement>(null);
   const open = !!payment;
 
   useEffect(() => {
@@ -57,6 +58,48 @@ export default function PaymentDetailPanel({
       toast.error(
         kind === 'memo' ? 'Failed to copy memo' : 'Failed to copy link'
       );
+    }
+  };
+
+  const downloadQrPng = async () => {
+    const svg = qrRef.current?.querySelector('svg');
+    if (!svg) return;
+
+    const svgString = new XMLSerializer().serializeToString(svg);
+    const svgBlob = new Blob([svgString], {
+      type: 'image/svg+xml;charset=utf-8',
+    });
+    const url = URL.createObjectURL(svgBlob);
+
+    try {
+      const img = new Image();
+      const pngUrl = await new Promise<string>((resolve, reject) => {
+        img.onload = () => {
+          const canvas = document.createElement('canvas');
+          canvas.width = 512;
+          canvas.height = 512;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            reject(new Error('Canvas unavailable'));
+            return;
+          }
+          ctx.fillStyle = '#ffffff';
+          ctx.fillRect(0, 0, canvas.width, canvas.height);
+          ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+          resolve(canvas.toDataURL('image/png'));
+        };
+        img.onerror = () => reject(new Error('Failed to load QR image'));
+        img.src = url;
+      });
+
+      const a = document.createElement('a');
+      a.href = pngUrl;
+      a.download = `payment-${payment.reference}.png`;
+      a.click();
+    } catch {
+      toast.error('Failed to download QR code');
+    } finally {
+      URL.revokeObjectURL(url);
     }
   };
 
@@ -141,7 +184,10 @@ export default function PaymentDetailPanel({
         )}
 
         {(payment.qrCode || payment.stellarDepositAddress) && (
-          <div className="bg-white p-4 rounded-lg border border-gray-100 inline-block">
+          <div
+            ref={qrRef}
+            className="bg-white p-4 rounded-lg border border-gray-100 inline-block"
+          >
             <QRCodeSVG
               value={payment.qrCode ?? payment.stellarDepositAddress ?? ''}
               size={180}
@@ -149,14 +195,23 @@ export default function PaymentDetailPanel({
           </div>
         )}
 
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <button
+            type="button"
+            data-testid="detail-download-qr"
+            onClick={downloadQrPng}
+            className="btn-secondary flex items-center gap-2 text-sm px-3 py-1"
+          >
+            <Download className="w-4 h-4" aria-hidden="true" />
+            Download QR
+          </button>
           <button
             type="button"
             data-testid="detail-copy-link"
             onClick={() => copy('link', payUrl)}
             className="btn-secondary text-sm px-3 py-1"
           >
-            {copied === 'link' ? 'Link copied' : 'Copy payment link'}
+            {copied === 'link' ? 'Link copied' : 'Copy link'}
           </button>
           <a
             href={payUrl}

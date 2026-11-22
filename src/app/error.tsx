@@ -3,6 +3,7 @@
 import { AlertTriangle } from 'lucide-react';
 import Link from 'next/link';
 import { useEffect } from 'react';
+import * as Sentry from '@sentry/nextjs';
 
 interface ErrorPageProps {
   /** The error thrown by the failing route segment. */
@@ -28,8 +29,10 @@ interface ErrorPageProps {
  */
 export default function GlobalError({ error, reset }: ErrorPageProps) {
   useEffect(() => {
-    // Log to the console so developers can see the stack in DevTools even though
-    // the visual UI only shows a human-readable message.
+    // Report the caught error to Sentry so it is captured even though the
+    // visual UI only shows a human-readable message.
+    Sentry.captureException(error);
+    // Log to the console so developers can see the stack in DevTools.
     // eslint-disable-next-line no-console
     console.error('[GlobalError boundary]', error);
   }, [error]);
@@ -79,7 +82,7 @@ export default function GlobalError({ error, reset }: ErrorPageProps) {
             href="/dashboard"
             className="inline-flex items-center justify-center px-5 py-2.5 border border-gray-300 hover:border-gray-400 text-gray-700 text-sm font-medium rounded-lg transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-brand-500 focus-visible:ring-offset-2"
           >
-            Go to dashboard
+            Go back to dashboard
           </Link>
         </div>
       </div>

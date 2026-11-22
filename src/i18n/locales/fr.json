@@ -1,0 +1,27 @@
+{
+  "common": {
+    "language": "Langue",
+    "loading": "Chargement...",
+    "retry": "Réessayer",
+    "cancel": "Annuler"
+  },
+  "auth": {
+    "signIn": "Se connecter",
+    "signInSubtitle": "Bon retour sur DupDub",
+    "email": "E-mail",
+    "password": "Mot de passe",
+    "signingIn": "Connexion…",
+    "lockout": "Trop de tentatives. Veuillez réessayer plus tard."
+  },
+  "status": {
+    "pending": "En attente",
+    "pending_approval": "En attente d’approbation",
+    "confirmed": "Confirmé",
+    "processing": "En cours",
+    "settling": "En cours de virement",
+    "settled": "Viré",
+    "completed": "Terminé",
+    "failed": "Échoué",
+    "expired": "Expiré"
+  }
+}

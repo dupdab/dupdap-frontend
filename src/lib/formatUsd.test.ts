@@ -54,4 +54,30 @@ describe('formatUsd()', () => {
     const result = formatUsd(1.005);
     expect(['$1.00', '$1.01']).toContain(result);
   });
+
+  describe('locale-aware separators (#860)', () => {
+    it('formats 1234567.89 for en-US with comma grouping and a decimal point', () => {
+      expect(formatUsd(1234567.89, 'en-US')).toBe('$1,234,567.89');
+    });
+
+    it('formats 1234567.89 for en-GB with comma grouping and a decimal point', () => {
+      expect(formatUsd(1234567.89, 'en-GB')).toBe('US$1,234,567.89');
+    });
+
+    it('formats 1234567.89 for fr-FR with a comma decimal separator', () => {
+      const result = formatUsd(1234567.89, 'fr-FR');
+      expect(result).toContain(',89');
+      expect(result).not.toContain('1,234,567');
+      expect(result.replace(/\u202f|\u00a0/g, ' ')).toBe('1 234 567,89 $US');
+    });
+
+    it('uses the browser locale when no locale is supplied', () => {
+      expect(formatUsd(1234567.89)).toBe(
+        new Intl.NumberFormat(navigator.language, {
+          style: 'currency',
+          currency: 'USD',
+        }).format(1234567.89)
+      );
+    });
+  });
 });

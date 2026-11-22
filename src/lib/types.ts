@@ -5,10 +5,20 @@ export type PaymentStatus =
   | 'settled'
   | 'completed'
   | 'failed'
-  | 'expired';
+  | 'expired'
+  | 'partially_refunded'
+  | 'refunded'
+  | 'cancelled';
+
+export type SettlementStatus =
+  | 'pending'
+  | 'processing'
+  | 'settling'
+  | 'completed'
+  | 'failed'
+  | 'cancelled';
 
 export type MerchantRole = 'merchant' | 'admin' | 'staff';
-
 export interface Merchant {
   id: string;
   email: string;
@@ -21,6 +31,10 @@ export interface Merchant {
   bankCode?: string;
   bankName?: string;
   apiKeyScopes?: string[];
+  /** 'sandbox' when the merchant is using test mode. */
+  mode?: string;
+  environment?: string;
+  testMode?: boolean;
 }
 
 export interface TopMerchant {
@@ -79,6 +93,14 @@ export interface PaymentListResponse {
   total: number;
 }
 
+export interface SettlementPayment {
+  id: string;
+  reference?: string;
+  amountUsd?: number;
+  status?: string;
+  createdAt?: string;
+}
+
 export interface Settlement {
   id: string;
   merchantId: string;
@@ -86,7 +108,7 @@ export interface Settlement {
   totalAmountUsd: number;
   feeAmountUsd: number;
   netAmountUsd: number;
-  status: string;
+  status: SettlementStatus;
   partnerReference?: string;
   createdAt: string;
   // Detail-only fields returned by GET /settlements/:id (#341).
@@ -99,6 +121,8 @@ export interface Settlement {
   completedAt?: string;
   failureReason?: string;
   updatedAt?: string;
+  paymentCount?: number;
+  payments?: SettlementPayment[];
 }
 
 export interface SettlementListResponse {

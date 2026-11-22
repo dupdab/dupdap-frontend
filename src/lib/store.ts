@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 import type { Merchant } from './types';
-import { authApi } from './api';
+import { authApi, merchantApi } from './api';
 
 interface AuthState {
   token: string | null;
@@ -10,6 +10,8 @@ interface AuthState {
   /** True once Zustand's persist middleware has finished rehydrating from localStorage. */
   hasHydrated: boolean;
   setAuth: (merchant: Merchant) => void;
+  /** Fetch the merchant profile from the API instead of trusting localStorage (#857). */
+  fetchProfile: () => Promise<void>;
   logout: () => Promise<void>;
   _setHasHydrated: (value: boolean) => void;
 }
@@ -24,8 +26,9 @@ export function clearLegacyAccessTokenKey() {
 }
 
 /**
- * Auth token is stored in an httpOnly cookie managed by the backend.
- * The frontend only persists the merchant object in localStorage.
+ * Only the auth token may live in localStorage. The merchant profile contains
+ * business name, country and role and must be fetched from the API on demand
+ * so browser extensions cannot read it from plaintext storage (#857).
  */
 export const useAuthStore = create<AuthState>()(
   persist(
@@ -36,6 +39,14 @@ export const useAuthStore = create<AuthState>()(
       setAuth: (merchant) => {
         clearLegacyAccessTokenKey();
         set({ merchant });
+      },
+      fetchProfile: async () => {
+        try {
+          const { data } = await merchantApi.profile();
+          set({ merchant: data });
+        } catch {
+          // No authenticated session (or network failure) — leave merchant null.
+        }
       },
       logout: async () => {
         clearLegacyAccessTokenKey();
@@ -50,18 +61,27 @@ export const useAuthStore = create<AuthState>()(
     }),
     {
       name: 'dupdub-auth',
-      partialize: (state) => ({ merchant: state.merchant }),
+      version: 2,
+      // Bump the version and drop the old merchant field so previously stored
+      // profiles are discarded instead of merged back into the live store.
+      migrate: (persistedState) => {
+        const persisted = { ...(persistedState as Record<string, unknown>) };
+        delete persisted.merchant;
+        return persisted as unknown as AuthState;
+      },
+      partialize: (state) => ({ token: state.token }),
       onRehydrateStorage: () => (state) => {
         clearLegacyAccessTokenKey();
-        // Mark hydration complete so the dashboard can stop showing its loading
-        // spinner. `state` is undefined when there is no persisted data yet
-        // (first-ever visit), so fall back to the store's own setter.
-        if (state) {
-          state.token = null;
-          state._setHasHydrated(true);
-        } else {
-          useAuthStore.getState()._setHasHydrated(true);
-        }
+        const finish = () => {
+          if (state) {
+            state._setHasHydrated(true);
+          } else {
+            useAuthStore.getState()._setHasHydrated(true);
+          }
+        };
+        // Never trust a profile read from storage: clear it and fetch on demand.
+        if (state) state.merchant = null;
+        void useAuthStore.getState().fetchProfile().finally(finish);
       },
     }
   )

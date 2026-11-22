@@ -43,8 +43,6 @@ vi.mock('./auth-redirect', () => ({
   setAuthRedirectHandler: vi.fn(),
 }));
 
-import { redirectToLogin } from './auth-redirect';
-
 vi.mock('./env', () => ({
   getApiUrl: vi.fn(() => 'http://localhost:3000/api/v1'),
 }));
@@ -82,11 +80,13 @@ describe('Axios 401 response interceptor', () => {
     });
   });
 
-  it('clears auth state on a 401 response', async () => {
+  it('calls logout() and clears auth state on a 401 response', async () => {
+    const logoutSpy = vi.spyOn(useAuthStore.getState(), 'logout');
     const err = { response: { status: 401 } };
 
     await expect(responseErrorHandler?.(err)).rejects.toEqual(err);
 
+    expect(logoutSpy).toHaveBeenCalledTimes(1);
     expect(useAuthStore.getState().merchant).toBeNull();
   });
 

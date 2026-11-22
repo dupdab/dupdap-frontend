@@ -2,6 +2,7 @@
 
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { useRef } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -60,9 +61,17 @@ const registerSchema = z
 
 type RegisterFormValues = z.infer<typeof registerSchema>;
 
+const FIELD_ORDER: (keyof RegisterFormValues)[] = [
+  'businessName',
+  'email',
+  'password',
+  'confirmPassword',
+];
+
 export default function RegisterPage() {
   const router = useRouter();
   const setAuth = useAuthStore((state) => state.setAuth);
+  const formRef = useRef<HTMLFormElement>(null);
   const {
     register,
     handleSubmit,
@@ -102,6 +111,16 @@ export default function RegisterPage() {
 
   const passwordsMatch = password === confirmPassword;
 
+  const focusFirstError = () => {
+    const form = formRef.current;
+    if (!form) return;
+    const firstInvalid = form.querySelector<HTMLElement>('[aria-invalid="true"]');
+    if (firstInvalid) {
+      firstInvalid.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      firstInvalid.focus();
+    }
+  };
+
   const onSubmit = async (values: RegisterFormValues) => {
     try {
       const response = await authApi.register({
@@ -124,7 +143,15 @@ export default function RegisterPage() {
     }
   };
 
+  const onInvalid = () => {
+    focusFirstError();
+  };
+
   const loading = isSubmitting;
+
+  const errorMessages = FIELD_ORDER.map((field) => errors[field]?.message).filter(
+    (message): message is string => typeof message === 'string' && message.length > 0
+  );
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4">
@@ -139,7 +166,8 @@ export default function RegisterPage() {
         </div>
 
         <form
-          onSubmit={handleSubmit(onSubmit)}
+          ref={formRef}
+          onSubmit={handleSubmit(onSubmit, onInvalid)}
           className="space-y-4"
           aria-busy={loading}
           noValidate
@@ -148,6 +176,27 @@ export default function RegisterPage() {
           <p className="sr-only" aria-live="polite" aria-atomic="true">
             {loading ? 'Creating account, please wait…' : ''}
           </p>
+
+          {/* Error summary announced to screen readers on failed submission (#821) */}
+          <div
+            data-testid="register-form-error-summary"
+            aria-live="polite"
+            aria-atomic="true"
+            className={errorMessages.length > 0 ? 'bg-red-50 border border-red-200 rounded-lg p-3 text-sm text-red-700' : 'sr-only'}
+          >
+            {errorMessages.length > 0 && (
+              <>
+                <p className="font-medium">
+                  Please fix the following {errorMessages.length === 1 ? 'error' : 'errors'}:
+                </p>
+                <ul className="mt-1 list-disc list-inside">
+                  {errorMessages.map((message, index) => (
+                    <li key={index}>{message}</li>
+                  ))}
+                </ul>
+              </>
+            )}
+          </div>
 
           {errors.root?.message && (
             <div
@@ -247,8 +296,17 @@ export default function RegisterPage() {
                 ))}
               </ul>
               <p className="sr-only" aria-live="polite">
-                {metCount} of {PASSWORD_REQUIREMENTS.length} requirements met
+                {metCount} of {PASSWORD_REQUIREMENTS.length} password requirements met
               </p>
+              {errors.password && (
+                <p
+                  id="password-error"
+                  role="alert"
+                  className="text-xs text-red-500 mt-1"
+                >
+                  {errors.password.message}
+                </p>
+              )}
             </div>
 
             <div>
@@ -262,25 +320,19 @@ export default function RegisterPage() {
                 id="confirmPassword"
                 type="password"
                 {...register('confirmPassword')}
-                aria-describedby={
-                  errors.confirmPassword ? 'confirm-password-error' : undefined
-                }
                 aria-invalid={!!errors.confirmPassword}
+                aria-describedby={
+                  errors.confirmPassword ? 'confirmPassword-error' : undefined
+                }
                 className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm"
               />
               {errors.confirmPassword && (
                 <p
-                  id="confirm-password-error"
+                  id="confirmPassword-error"
                   role="alert"
                   className="text-xs text-red-500 mt-1"
                 >
                   {errors.confirmPassword.message}
-                </p>
-              )}
-              {/* Live mismatch feedback so merchants see it without submitting */}
-              {password !== '' && confirmPassword !== '' && !passwordsMatch && (
-                <p role="alert" className="text-xs text-red-500 mt-1">
-                  Passwords do not match
                 </p>
               )}
             </div>
@@ -308,16 +360,15 @@ export default function RegisterPage() {
           </fieldset>
 
           <button
-            data-testid="register-submit-button"
             type="submit"
-            disabled={loading || !passwordValid || !passwordsMatch}
-            className="w-full flex justify-center rounded-md bg-indigo-600 px-4 py-2 text-sm font-semibold text-white hover:bg-indigo-500 disabled:opacity-50"
+            disabled={loading}
+            className="w-full flex justify-center py-2 px-4 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
           >
             {loading ? 'Creating account…' : 'Create account'}
           </button>
         </form>
 
-        <p className="text-center text-sm text-gray-600">
+        <p className="mt-4 text-center text-sm text-gray-600">
           Already have an account?{' '}
           <Link
             href="/auth/login"
