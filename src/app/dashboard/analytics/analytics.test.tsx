@@ -10,7 +10,7 @@
  * Covers:
  *  - Analytics heading always visible
  *  - Loading spinner while fetch is in flight
- *  - paymentsApi.stats() called on mount
+ *  - analyticsApi.getVolume() called on mount
  *  - Error message rendered when API rejects
  *  - Total Volume and Total Transactions summary cards
  *  - Chart section h2 headings rendered
@@ -28,9 +28,11 @@ const mockStats = vi.fn();
 const mockTopMerchants = vi.fn();
 
 vi.mock('@/lib/api', () => ({
+  analyticsApi: {
+    getVolume: (...args: unknown[]) => mockStats(...args),
+    getRevenue: (...args: unknown[]) => mockTopMerchants(...args),
+  },
   paymentsApi: {
-    stats: (...args: unknown[]) => mockStats(...args),
-    topMerchants: (...args: unknown[]) => mockTopMerchants(...args),
     // RevenueByMethodCard fetches payments independently; a plain resolved
     // response keeps that side effect inert in these tests.
     list: vi.fn().mockResolvedValue({ data: { payments: [], total: 0 } }),
@@ -103,7 +105,7 @@ describe('AnalyticsPage — initial render', () => {
     expect(document.querySelector('[aria-busy="true"]')).toBeInTheDocument();
   });
 
-  it('calls paymentsApi.stats() exactly once on mount', () => {
+  it('calls analyticsApi.getVolume() exactly once on mount', () => {
     mockStats.mockReturnValue(new Promise(() => {}));
     render(<AnalyticsPage />);
     expect(mockStats).toHaveBeenCalledOnce();

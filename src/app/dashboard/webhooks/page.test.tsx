@@ -9,7 +9,7 @@
  *  - Webhook creation validation (requires at least one event selected)
  *  - Successful webhook creation flow (calls webhooksApi.create, resets form, closes modal)
  *  - WebhookSecretRow: masking, reveal/hide toggle, clipboard copy, secret rotation
- *  - Delete flow via ConfirmDialog: cancellation leaves webhook intact, confirmation calls webhooksApi.remove and refreshes list
+ *  - Delete flow via ConfirmDialog: cancellation leaves webhook intact, confirmation calls webhooksApi.delete and refreshes list
  */
 
 import {
@@ -29,14 +29,14 @@ import WebhooksPage from './page';
 const mockList = vi.fn();
 const mockCreate = vi.fn();
 const mockRotateSecret = vi.fn();
-const mockRemove = vi.fn();
+const mockDelete = vi.fn();
 
 vi.mock('@/lib/api', () => ({
   webhooksApi: {
     list: (...args: unknown[]) => mockList(...args),
     create: (...args: unknown[]) => mockCreate(...args),
     rotateSecret: (...args: unknown[]) => mockRotateSecret(...args),
-    remove: (...args: unknown[]) => mockRemove(...args),
+    delete: (...args: unknown[]) => mockDelete(...args),
   },
 }));
 
@@ -321,11 +321,11 @@ describe('WebhooksPage — delete confirmation flow', () => {
     fireEvent.click(screen.getByRole('button', { name: /cancel/i }));
 
     expect(screen.queryByText('Delete webhook?')).not.toBeInTheDocument();
-    expect(mockRemove).not.toHaveBeenCalled();
+    expect(mockDelete).not.toHaveBeenCalled();
   });
 
-  it('confirms deletion, calls webhooksApi.remove, and reloads list', async () => {
-    mockRemove.mockResolvedValueOnce({});
+  it('confirms deletion, calls webhooksApi.delete, and reloads list', async () => {
+    mockDelete.mockResolvedValueOnce({});
 
     render(<WebhooksPage />);
     await waitFor(() =>
@@ -344,7 +344,7 @@ describe('WebhooksPage — delete confirmation flow', () => {
     fireEvent.click(deleteButtons[0]);
 
     await waitFor(() => {
-      expect(mockRemove).toHaveBeenCalledWith('wh-1');
+      expect(mockDelete).toHaveBeenCalledWith('wh-1');
       expect(toast.success).toHaveBeenCalledWith(
         'Webhook removed',
         expect.anything()

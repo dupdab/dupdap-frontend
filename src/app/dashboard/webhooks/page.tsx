@@ -278,7 +278,7 @@ export default function WebhooksPage() {
   const remove = async (id: string) => {
     setDeleting(true);
     try {
-      await webhooksApi.remove(id);
+      await webhooksApi.delete(id);
       toast.success('Webhook removed');
       setDeletingId(null);
       load();

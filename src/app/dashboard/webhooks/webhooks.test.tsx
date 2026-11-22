@@ -16,7 +16,7 @@ vi.mock('@/lib/api', () => ({
   webhooksApi: {
     list: vi.fn(),
     create: vi.fn(),
-    remove: vi.fn(),
+    delete: vi.fn(),
     rotateSecret: vi.fn(),
   },
 }));

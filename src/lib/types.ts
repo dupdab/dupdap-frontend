@@ -141,3 +141,25 @@ export interface Webhook {
 export interface ApiKey {
   apiKey: string;
 }
+
+/** Merchant email notification preferences (#798). */
+export interface NotificationPreferences {
+  paymentReceived: boolean;
+  paymentFailed: boolean;
+  settlementCompleted: boolean;
+}
+
+/** Analytics query range, e.g. '7d' | '30d' | '90d' (#799). */
+export type AnalyticsRange = string;
+
+/** Payment funnel stage counts (#799). */
+export interface FunnelStage {
+  name: string;
+  value: number;
+}
+
+/** Current vs previous period totals (#799). */
+export interface PeriodComparison {
+  current: { volumeUsd: number; count: number };
+  previous: { volumeUsd: number; count: number };
+}

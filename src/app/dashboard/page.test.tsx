@@ -12,8 +12,8 @@ vi.mock('@/lib/api', () => ({
     list: vi.fn(),
     stats: vi.fn(),
   },
-  merchantApi: {
-    profile: vi
+  merchantsApi: {
+    getProfile: vi
       .fn()
       .mockResolvedValue({
         data: { businessName: 'Acme', bankAccountNumber: '1234567890' },

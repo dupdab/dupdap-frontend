@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { useQuery } from '@tanstack/react-query';
 import { CheckCircle2, Circle, X } from 'lucide-react';
-import { merchantApi, webhooksApi } from '@/lib/api';
+import { merchantsApi, webhooksApi } from '@/lib/api';
 
 const STEPS = [
   {
@@ -63,7 +63,7 @@ export function MerchantOnboardingChecklist({
   );
   const profileQuery = useQuery({
     queryKey: ['merchant', 'onboarding-profile'],
-    queryFn: () => merchantApi.profile(),
+    queryFn: () => merchantsApi.getProfile(),
   });
   const webhooksQuery = useQuery({
     queryKey: ['webhooks', 'onboarding'],

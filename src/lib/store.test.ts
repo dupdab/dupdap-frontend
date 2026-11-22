@@ -6,10 +6,10 @@ import type { Merchant } from './types';
 
 vi.mock('./api', () => ({
   authApi: { logout: vi.fn().mockResolvedValue(undefined) },
-  merchantApi: { profile: vi.fn().mockResolvedValue({ data: null }) },
+  merchantsApi: { getProfile: vi.fn().mockResolvedValue({ data: null }) },
 }));
 
-import { merchantApi } from './api';
+import { merchantsApi } from './api';
 
 const testMerchant: Merchant = {
   id: 'merchant-1',
@@ -21,9 +21,9 @@ const testMerchant: Merchant = {
 describe('useAuthStore', () => {
   beforeEach(() => {
     localStorage.clear();
-    vi.mocked(merchantApi.profile).mockResolvedValue({
+    vi.mocked(merchantsApi.getProfile).mockResolvedValue({
       data: testMerchant,
-    } as Awaited<ReturnType<typeof merchantApi.profile>>);
+    } as Awaited<ReturnType<typeof merchantsApi.getProfile>>);
     useAuthStore.setState({ merchant: null, token: null, hasHydrated: false });
   });
 
@@ -51,7 +51,7 @@ describe('useAuthStore', () => {
   describe('fetchProfile()', () => {
     it('loads the merchant profile from the API on demand', async () => {
       await useAuthStore.getState().fetchProfile();
-      expect(merchantApi.profile).toHaveBeenCalled();
+      expect(merchantsApi.getProfile).toHaveBeenCalled();
       expect(useAuthStore.getState().merchant).toEqual(testMerchant);
     });
   });

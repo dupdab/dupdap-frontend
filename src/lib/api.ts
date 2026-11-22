@@ -15,6 +15,10 @@ import type {
   TopMerchant,
   Webhook,
   ApiKey,
+  NotificationPreferences,
+  AnalyticsRange,
+  FunnelStage,
+  PeriodComparison,
 } from './types';
 
 const api = axios.create({
@@ -182,28 +186,65 @@ export const paymentsApi = {
   getByReference: (ref: string) => api.get<Payment>(`/pay/${ref}`),
 };
 
+/** Settlement endpoints (#796). */
 export const settlementsApi = {
   list: (page = 1, limit = 20) =>
     api.get(`/settlements?page=${page}&limit=${limit}`),
   get: (id: string) => api.get<Settlement>(`/settlements/${id}`),
+  /** Downloads settlements as CSV. */
+  export: (params?: { from?: string; to?: string; status?: string }) =>
+    api.get<Blob>('/settlements/export', { params, responseType: 'blob' }),
 };
 
-export const merchantApi = {
-  profile: () => api.get<Merchant>('/merchants/me'),
-  update: (data: Record<string, string>) =>
+/** Merchant profile, API key and notification preference endpoints (#798). */
+export const merchantsApi = {
+  getProfile: () => api.get<Merchant>('/merchants/me'),
+  updateProfile: (data: Record<string, string>) =>
     api.patch<Merchant>('/merchants/me', data),
   generateApiKey: (scopes?: string[]) =>
     api.post<ApiKey>('/merchants/api-keys', { scopes }),
+  getNotificationPrefs: () =>
+    api.get<NotificationPreferences>('/merchants/me/notification-preferences'),
+  updateNotificationPrefs: (data: Partial<NotificationPreferences>) =>
+    api.patch<NotificationPreferences>(
+      '/merchants/me/notification-preferences',
+      data
+    ),
   rateLimit: () => api.get('/merchants/api-keys/rate-limit'),
 };
 
+/** Webhook endpoints (#797). */
 export const webhooksApi = {
   list: () => api.get<Webhook[]>('/webhooks'),
   create: (data: { url: string; events: string[]; secret?: string }) =>
     api.post<Webhook>('/webhooks', data),
+  update: (id: string, data: { url?: string; events?: string[] }) =>
+    api.patch<Webhook>(`/webhooks/${id}`, data),
+  delete: (id: string) => api.delete(`/webhooks/${id}`),
   rotateSecret: (id: string) =>
     api.post<Webhook>(`/webhooks/${id}/rotate-secret`, {}),
-  remove: (id: string) => api.delete(`/webhooks/${id}`),
+};
+
+/** Analytics endpoints (#799). */
+export const analyticsApi = {
+  /** Payment count and volume broken down by status. */
+  getVolume: (config?: AxiosRequestConfig) =>
+    api.get<PaymentStats[]>('/payments/stats', config),
+  /** Revenue ranked by merchant for the given range. */
+  getRevenue: (range?: AnalyticsRange) =>
+    api.get<TopMerchant[]>(
+      `/payments/top-merchants${range ? `?range=${range}` : ''}`
+    ),
+  /** Payment counts at each funnel stage (created → confirmed → settled). */
+  getFunnel: (range?: AnalyticsRange) =>
+    api.get<FunnelStage[]>('/analytics/funnel', {
+      params: range ? { range } : undefined,
+    }),
+  /** Totals for the range compared with the previous period of equal length. */
+  getComparison: (range?: AnalyticsRange) =>
+    api.get<PeriodComparison>('/analytics/comparison', {
+      params: range ? { range } : undefined,
+    }),
 };
 
 export const adminApi = {
