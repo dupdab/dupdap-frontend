@@ -2,6 +2,7 @@ import axios, { type AxiosRequestConfig } from 'axios';
 
 import { redirectToLogin } from './auth-redirect';
 import { getApiUrl } from './env';
+import { normalizeError, type NormalizedError } from './errors';
 import { useAuthStore } from './store';
 
 import type {
@@ -17,9 +18,13 @@ import type {
   ApiKey,
 } from './types';
 
+/** Requests that take longer than this fail with 'Request timed out' (#800). */
+export const REQUEST_TIMEOUT_MS = 30_000;
+
 const api = axios.create({
   baseURL: getApiUrl(),
   withCredentials: true,
+  timeout: REQUEST_TIMEOUT_MS,
 });
 
 /** Extra config field used to bound reconnect retries for one request. */
@@ -32,27 +37,48 @@ interface OfflineRetryConfig {
 const MAX_OFFLINE_RETRIES = 2;
 
 /**
- * Maximum number of automatic retries for 5xx responses and transient network
- * errors while the browser is online. Kept low so we don't flood a struggling
- * backend; exponential back-off spreads the load further.
+ * Maximum number of automatic retries for transient failures (502, 503 and
+ * network timeouts) while the browser is online (#802).
  */
-const MAX_SERVER_RETRIES = 3;
+export const MAX_SERVER_RETRIES = 2;
 
-/** Initial delay (ms) before the first server-error retry. Doubles each attempt. */
-const SERVER_RETRY_BASE_MS = 500;
+/** Exponential back-off before each retry: 1s, then 3s (#802). */
+export const SERVER_RETRY_DELAYS_MS = [1_000, 3_000];
 
 /** HTTP methods safe to retry automatically (idempotent reads + payment status polling). */
 const RETRYABLE_METHODS = new Set(['get', 'head', 'options']);
 
-function isRetryable5xx(status: number): boolean {
-  // 503 Service Unavailable and 502/504 gateway errors are transient by
-  // definition. Retry 500 as well — backend blips during settlement processing
-  // are common and a single retry is low-risk for read endpoints.
-  return status >= 500 && status <= 599;
+/**
+ * Only gateway/availability errors are transient. Client errors such as 400,
+ * 401, 403, 404 and 422 are never retried (#802).
+ */
+const RETRYABLE_STATUSES = new Set([502, 503]);
+
+function isRetryableStatus(status: number): boolean {
+  return RETRYABLE_STATUSES.has(status);
 }
 
 function serverRetryDelay(attempt: number): number {
-  return Math.min(SERVER_RETRY_BASE_MS * 2 ** attempt, 30_000);
+  return SERVER_RETRY_DELAYS_MS[Math.min(attempt, SERVER_RETRY_DELAYS_MS.length - 1)];
+}
+
+/**
+ * Attaches the normalized `{ message }` shape to a rejected error so every
+ * caller sees the same thing (#801). The original error object is kept so
+ * status codes and response bodies remain available.
+ */
+function normalizeRejection<T>(err: T): T {
+  if (err && typeof err === 'object') {
+    const normalized: NormalizedError = normalizeError(err);
+    const target = err as unknown as { message?: string; normalized?: NormalizedError };
+    target.normalized = normalized;
+    try {
+      target.message = normalized.message;
+    } catch {
+      // message may be read-only on exotic error objects; normalized is still set
+    }
+  }
+  return err;
 }
 
 function isOffline(): boolean {
@@ -105,17 +131,21 @@ api.interceptors.response.use(
       return api.request(config);
     }
 
-    // Retry idempotent requests (GET, HEAD, OPTIONS) on 5xx responses or
-    // transient network errors while the browser is online. Exponential
-    // back-off reduces load on a struggling backend (#retry-5xx).
+    // Retry idempotent requests (GET, HEAD, OPTIONS) on 502/503 responses and
+    // network timeouts / transient network errors while the browser is online,
+    // up to 2 times with 1s then 3s back-off (#802).
     const serverRetries = config?.__serverRetryCount ?? 0;
     const method = config?.method?.toLowerCase() ?? '';
-    const is5xx = err.response ? isRetryable5xx(err.response.status) : false;
+    const isRetryableResponse = err.response
+      ? isRetryableStatus(err.response.status)
+      : false;
+    // No response at all: a network timeout (ECONNABORTED/ETIMEDOUT) or a
+    // dropped connection while online.
     const isNetworkError = !err.response && !isOffline();
     if (
       config &&
       RETRYABLE_METHODS.has(method) &&
-      (is5xx || isNetworkError) &&
+      (isRetryableResponse || isNetworkError) &&
       serverRetries < MAX_SERVER_RETRIES
     ) {
       config.__serverRetryCount = serverRetries + 1;
@@ -124,7 +154,7 @@ api.interceptors.response.use(
       return api.request(config);
     }
 
-    return Promise.reject(err);
+    return Promise.reject(normalizeRejection(err));
   }
 );
 

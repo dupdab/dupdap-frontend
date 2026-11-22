@@ -29,6 +29,13 @@ jobs:
 
       - run: npm run verify
 
+      # Fails CI when required production env vars are missing or invalid (#803).
+      - name: Validate environment
+        run: node scripts/validate-env.mjs
+        env:
+          NODE_ENV: production
+          NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
+
       - name: Build
         run: npm run build
 

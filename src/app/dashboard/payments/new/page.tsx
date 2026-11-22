@@ -3,6 +3,8 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 
+import { getErrorMessage } from '@/lib/errors';
+
 const DESCRIPTION_MAX_LENGTH = 500;
 
 export default function NewPaymentPage() {
@@ -32,7 +34,7 @@ export default function NewPaymentPage() {
       }
       router.push('/dashboard/payments');
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to create payment');
+      setError(getErrorMessage(err) ?? 'Failed to create payment');
     } finally {
       setSubmitting(false);
     }

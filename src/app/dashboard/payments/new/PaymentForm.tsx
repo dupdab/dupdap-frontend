@@ -16,6 +16,7 @@ import {
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/components/ui/use-toast';
 import { createPayment } from '@/lib/api/payments';
+import { getErrorMessage } from '@/lib/errors';
 import type { CreatePaymentInput } from '@/lib/types';
 
 const DESCRIPTION_MAX_LENGTH = 500;
@@ -53,7 +54,7 @@ export function PaymentForm() {
     } catch (error) {
       toast({
         title: 'Error',
-        description: error instanceof Error ? error.message : 'Failed to create payment.',
+        description: getErrorMessage(error) ?? 'Failed to create payment.',
         variant: 'destructive',
       });
     } finally {

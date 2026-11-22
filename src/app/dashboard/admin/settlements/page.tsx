@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 
+import { getErrorMessage } from '@/lib/errors';
 import { useAuthStore } from '@/lib/store';
 import { formatUsd } from '@/lib/utils';
 
@@ -61,7 +62,7 @@ export default function AdminSettlementsPage() {
       setSettlements(Array.isArray(data) ? data : (data.settlements ?? []));
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : 'Failed to load settlements'
+        getErrorMessage(err) ?? 'Failed to load settlements'
       );
     } finally {
       setLoading(false);
@@ -86,7 +87,7 @@ export default function AdminSettlementsPage() {
       await loadSettlements();
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : 'Failed to approve settlement'
+        getErrorMessage(err) ?? 'Failed to approve settlement'
       );
     } finally {
       setSubmittingId(null);
@@ -117,7 +118,7 @@ export default function AdminSettlementsPage() {
       await loadSettlements();
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : 'Failed to reject settlement'
+        getErrorMessage(err) ?? 'Failed to reject settlement'
       );
     } finally {
       setSubmittingId(null);

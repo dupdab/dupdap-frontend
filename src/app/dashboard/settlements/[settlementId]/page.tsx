@@ -3,6 +3,7 @@
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 
+import { getErrorMessage } from '@/lib/errors';
 import {
   formatNgn,
   PENDING_APPROVAL_MESSAGE,
@@ -59,7 +60,7 @@ export default function AdminSettlementDetailPage({
       setSettlement(await res.json());
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : 'Failed to load settlement'
+        getErrorMessage(err) ?? 'Failed to load settlement'
       );
     } finally {
       setLoading(false);
@@ -86,7 +87,7 @@ export default function AdminSettlementDetailPage({
       await loadSettlement();
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : 'Failed to approve settlement'
+        getErrorMessage(err) ?? 'Failed to approve settlement'
       );
     } finally {
       setSubmitting(false);
@@ -117,7 +118,7 @@ export default function AdminSettlementDetailPage({
       await loadSettlement();
     } catch (err) {
       setError(
-        err instanceof Error ? err.message : 'Failed to reject settlement'
+        getErrorMessage(err) ?? 'Failed to reject settlement'
       );
     } finally {
       setSubmitting(false);

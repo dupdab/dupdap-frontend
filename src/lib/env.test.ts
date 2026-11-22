@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { getApiUrl } from './env';
+import { getApiUrl, validateEnv } from './env';
 
 describe('getApiUrl', () => {
   const originalEnv = process.env;
@@ -34,5 +34,37 @@ describe('getApiUrl', () => {
     delete process.env.NEXT_PUBLIC_API_URL;
     (process.env as Record<string, string>).NODE_ENV = 'production';
     expect(() => getApiUrl()).toThrow('NEXT_PUBLIC_API_URL is not configured');
+  });
+});
+
+describe('validateEnv (#803)', () => {
+  const originalEnv = process.env;
+
+  beforeEach(() => {
+    process.env = { ...originalEnv };
+  });
+
+  afterEach(() => {
+    process.env = originalEnv;
+  });
+
+  it('throws in production when NEXT_PUBLIC_API_URL is unset', () => {
+    delete process.env.NEXT_PUBLIC_API_URL;
+    (process.env as Record<string, string>).NODE_ENV = 'production';
+    expect(() => validateEnv()).toThrow(
+      'Missing required environment variable(s): NEXT_PUBLIC_API_URL'
+    );
+  });
+
+  it('passes in production when required variables are set', () => {
+    process.env.NEXT_PUBLIC_API_URL = 'https://api.dupdap.io/v1';
+    (process.env as Record<string, string>).NODE_ENV = 'production';
+    expect(() => validateEnv()).not.toThrow();
+  });
+
+  it('does not throw outside production', () => {
+    delete process.env.NEXT_PUBLIC_API_URL;
+    (process.env as Record<string, string>).NODE_ENV = 'development';
+    expect(() => validateEnv()).not.toThrow();
   });
 });
