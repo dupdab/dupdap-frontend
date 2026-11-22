@@ -2,7 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 import type { Merchant } from './types';
-import { authApi, merchantApi } from './api';
+import { authApi, merchantsApi } from './api';
 
 interface AuthState {
   token: string | null;
@@ -42,7 +42,7 @@ export const useAuthStore = create<AuthState>()(
       },
       fetchProfile: async () => {
         try {
-          const { data } = await merchantApi.profile();
+          const { data } = await merchantsApi.getProfile();
           set({ merchant: data });
         } catch {
           // No authenticated session (or network failure) — leave merchant null.

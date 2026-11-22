@@ -43,8 +43,8 @@ vi.mock('@/lib/api', () => ({
     list: (...args: unknown[]) => mockList(...args),
     stats: (...args: unknown[]) => mockStats(...args),
   },
-  merchantApi: {
-    profile: vi.fn().mockResolvedValue({ data: { businessName: 'Acme' } }),
+  merchantsApi: {
+    getProfile: vi.fn().mockResolvedValue({ data: { businessName: 'Acme' } }),
   },
   webhooksApi: { list: vi.fn().mockResolvedValue({ data: [] }) },
 }));

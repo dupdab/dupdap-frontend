@@ -10,8 +10,8 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { MerchantOnboardingChecklist } from './MerchantOnboardingChecklist';
 
 vi.mock('@/lib/api', () => ({
-  merchantApi: {
-    profile: vi.fn().mockResolvedValue({
+  merchantsApi: {
+    getProfile: vi.fn().mockResolvedValue({
       data: {
         businessName: 'Acme',
         bankAccountNumber: '1234567890',

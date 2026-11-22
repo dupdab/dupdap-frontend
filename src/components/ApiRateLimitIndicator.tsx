@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 
-import { merchantApi } from '@/lib/api';
+import { merchantsApi } from '@/lib/api';
 import {
   isNearRateLimit,
   parseRateLimit,
@@ -18,7 +18,7 @@ export function ApiRateLimitIndicator() {
 
   useEffect(() => {
     let cancelled = false;
-    merchantApi
+    merchantsApi
       .rateLimit()
       .then(({ data }) => {
         if (!cancelled) setUsage(parseRateLimit(data));
