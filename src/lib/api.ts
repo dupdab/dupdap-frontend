@@ -14,6 +14,8 @@ import type {
   Settlement,
   TopMerchant,
   Webhook,
+  WebhookDeliveryListResponse,
+  NotificationPreferences,
   ApiKey,
   NotificationPreferences,
   AnalyticsRange,
@@ -211,6 +213,13 @@ export const merchantsApi = {
       data
     ),
   rateLimit: () => api.get('/merchants/api-keys/rate-limit'),
+  notificationPreferences: () =>
+    api.get<NotificationPreferences>('/merchants/me/notification-preferences'),
+  updateNotificationPreferences: (data: Partial<NotificationPreferences>) =>
+    api.patch<NotificationPreferences>(
+      '/merchants/me/notification-preferences',
+      data
+    ),
 };
 
 /** Webhook endpoints (#797). */
@@ -223,6 +232,12 @@ export const webhooksApi = {
   delete: (id: string) => api.delete(`/webhooks/${id}`),
   rotateSecret: (id: string) =>
     api.post<Webhook>(`/webhooks/${id}/rotate-secret`, {}),
+  remove: (id: string) => api.delete(`/webhooks/${id}`),
+  /** Delivery log for one webhook, most recent first (#788). */
+  deliveries: (id: string, page = 1, limit = 10) =>
+    api.get<WebhookDeliveryListResponse>(
+      `/webhooks/${id}/deliveries?page=${page}&limit=${limit}&order=desc`
+    ),
 };
 
 /** Analytics endpoints (#799). */

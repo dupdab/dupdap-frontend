@@ -138,6 +138,30 @@ export interface Webhook {
   createdAt: string;
 }
 
+/** A single delivery attempt of a webhook event (#788). */
+export interface WebhookDelivery {
+  id: string;
+  event: string;
+  /** HTTP status returned by the endpoint; null when no response was received. */
+  statusCode: number | null;
+  /** Round-trip time in milliseconds. */
+  responseTimeMs: number | null;
+  responseBody?: string | null;
+  createdAt: string;
+}
+
+export interface WebhookDeliveryListResponse {
+  deliveries: WebhookDelivery[];
+  total: number;
+}
+
+/** Merchant email notification preferences (#790). */
+export interface NotificationPreferences {
+  paymentReceived: boolean;
+  paymentFailed: boolean;
+  settlementCompleted: boolean;
+}
+
 export interface ApiKey {
   apiKey: string;
 }
