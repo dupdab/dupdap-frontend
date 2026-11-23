@@ -247,6 +247,7 @@ export default function RegisterPage() {
               <input
                 id="email"
                 type="email"
+                autoComplete="email"
                 {...register('email')}
                 aria-invalid={!!errors.email}
                 aria-describedby={errors.email ? 'email-error' : undefined}
@@ -273,6 +274,7 @@ export default function RegisterPage() {
               <input
                 id="password"
                 type="password"
+                autoComplete="new-password"
                 {...register('password')}
                 aria-describedby="password-requirements"
                 aria-invalid={!!errors.password}
@@ -319,6 +321,7 @@ export default function RegisterPage() {
               <input
                 id="confirmPassword"
                 type="password"
+                autoComplete="new-password"
                 {...register('confirmPassword')}
                 aria-invalid={!!errors.confirmPassword}
                 aria-describedby={

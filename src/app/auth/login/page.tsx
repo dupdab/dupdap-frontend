@@ -153,6 +153,7 @@ function LoginForm() {
               <input
                 id="email"
                 type="email"
+                autoComplete="email"
                 {...register('email')}
                 aria-invalid={!!errors.email}
                 aria-describedby={errors.email ? 'email-error' : undefined}
@@ -173,6 +174,7 @@ function LoginForm() {
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
                   {...register('password')}
                   aria-invalid={!!errors.password}
                   aria-describedby={errors.password ? 'password-error' : undefined}

@@ -384,3 +384,22 @@ describe('RegisterPage', () => {
     });
   });
 });
+
+describe('RegisterPage autocomplete attributes (#762)', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
+  it('sets autocomplete hints for password managers', () => {
+    render(React.createElement(RegisterPage));
+    expect(document.querySelector('#email')).toHaveAttribute('autocomplete', 'email');
+    expect(document.querySelector('#password')).toHaveAttribute(
+      'autocomplete',
+      'new-password'
+    );
+    expect(document.querySelector('#confirmPassword')).toHaveAttribute(
+      'autocomplete',
+      'new-password'
+    );
+  });
+});
