@@ -91,6 +91,16 @@ const URGENCY_STYLES: Record<ExpiryUrgency, string> = {
 
 // ─── QR code subtree (memoized for countdown isolation #310) ───────────────
 
+const STELLAR_URI_PREFIX = 'web+stellar:pay?';
+
+/**
+ * A malformed `stellarUri` makes `qrcode.react` throw while rendering, so the
+ * value is validated before it ever reaches the QR renderer (#771).
+ */
+export function isValidStellarUri(uri: string | null | undefined): boolean {
+  return typeof uri === 'string' && uri.startsWith(STELLAR_URI_PREFIX);
+}
+
 interface QrSubtreeProps {
   stellarUri: string;
   amountLabel: string;
@@ -99,6 +109,24 @@ interface QrSubtreeProps {
 
 function QrSubtree({ stellarUri, amountLabel, reference }: QrSubtreeProps) {
   const qrRef = useRef<HTMLDivElement>(null);
+
+  if (!isValidStellarUri(stellarUri)) {
+    return (
+      <div className="flex justify-center mb-4">
+        <div
+          data-testid="stellar-uri-invalid"
+          role="alert"
+          className="bg-red-50 border border-red-200 rounded-xl p-4 flex flex-col items-center justify-center text-center space-y-2 w-44 h-44"
+        >
+          <AlertTriangle className="w-8 h-8 text-red-500" aria-hidden="true" />
+          <p className="text-xs text-red-700">
+            This payment link is invalid. Please contact the merchant for a new
+            payment request.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   const handleDownload = () => {
     // Serialize the SVG element rendered by QRCodeSVG into a standalone SVG
@@ -618,13 +646,14 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
     hasCryptoAmount && payment
       ? `web+stellar:pay?destination=${encodeURIComponent(payment.stellarDepositAddress ?? '')}&amount=${encodeURIComponent(String(payment.amountXlm))}&memo=${encodeURIComponent(payment.stellarMemo)}&memo_type=text`
       : null;
+  const hasValidStellarUri = isValidStellarUri(stellarUri);
 
   // Memoize the QR subtree so the 1-second countdown tick (which updates `now`
   // and re-renders the page) does NOT re-create the QR code DOM node (#310).
   // The dependency array intentionally excludes `now` — the QR code value and
   // reference don't change on a tick, so the subtree identity stays stable.
   const memoizedQrSubtree = useMemo(() => {
-    if (!stellarUri || !payment) return null;
+    if (!isValidStellarUri(stellarUri) || !payment) return null;
     return (
       <QrSubtree
         stellarUri={stellarUri}
@@ -714,8 +743,25 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
                 <ExpiredState payment={payment} />
               ) : (
                 <>
-                  {stellarUri ? (
+                  {hasValidStellarUri ? (
                     memoizedQrSubtree
+                  ) : hasCryptoAmount ? (
+                    <div className="flex justify-center mb-4">
+                      <div
+                        data-testid="stellar-uri-invalid"
+                        role="alert"
+                        className="bg-red-50 border border-red-200 rounded-xl p-4 flex flex-col items-center justify-center text-center space-y-2 w-44 h-44"
+                      >
+                        <AlertTriangle
+                          className="w-8 h-8 text-red-500"
+                          aria-hidden="true"
+                        />
+                        <p className="text-xs text-red-700">
+                          This payment link is invalid. Please contact the
+                          merchant for a new payment request.
+                        </p>
+                      </div>
+                    </div>
                   ) : (
                     <div className="flex justify-center mb-4">
                       <div
