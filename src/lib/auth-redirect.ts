@@ -33,3 +33,17 @@ export function redirectToLogin(returnPath?: string) {
     window.location.assign(`/auth/login${next}`);
   }
 }
+
+/**
+ * Validates the `next` query param read on the login page (#761). Only
+ * same-origin relative paths are accepted; anything else (absolute URLs,
+ * protocol-relative `//host`, backslash tricks, control characters, or a loop
+ * back to the login page) falls back to `fallback`.
+ */
+export function resolveNextPath(next: string | null | undefined, fallback = '/dashboard'): string {
+  if (!next) return fallback;
+  if (!next.startsWith('/') || next.startsWith('//')) return fallback;
+  if (next.includes('\\') || /[\u0000-\u001f]/.test(next)) return fallback;
+  if (next.startsWith('/auth/login')) return fallback;
+  return next;
+}
