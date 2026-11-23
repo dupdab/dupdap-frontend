@@ -11,11 +11,13 @@ import {
   WifiOff,
   Printer,
   Download,
+  RefreshCw,
 } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { paymentsApi } from '@/lib/api';
+import { isRateStale } from '@/lib/stale-rate';
 import type { Payment } from '@/lib/types';
 import { formatUsd, formatDate } from '@/lib/utils';
 
@@ -205,6 +207,57 @@ function DegradedBanner({ visible }: DegradedBannerProps) {
           <strong> not been lost</strong> — we&apos;ll confirm it as soon as the
           connection is restored. Please keep this page open.
         </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Stale rate banner (#772) ──────────────────────────────────────────────
+
+interface StaleRateBannerProps {
+  visible: boolean;
+  refreshing: boolean;
+  onRefresh: () => void;
+}
+
+function StaleRateBanner({
+  visible,
+  refreshing,
+  onRefresh,
+}: StaleRateBannerProps) {
+  if (!visible) return null;
+  return (
+    <div
+      role="alert"
+      aria-live="polite"
+      data-testid="stale-rate-banner"
+      className="flex items-start gap-3 rounded-lg bg-amber-50 border border-amber-300 p-3 mb-4 text-sm text-amber-800"
+    >
+      <AlertTriangle
+        className="w-4 h-4 mt-0.5 shrink-0 text-amber-600"
+        aria-hidden="true"
+      />
+      <div className="flex-1">
+        <p className="font-semibold">
+          Rate updated — please review new amount
+        </p>
+        <p className="mt-0.5 text-xs">
+          The XLM exchange rate moved since this payment was created. Refresh to
+          see the current amount before sending funds.
+        </p>
+        <button
+          type="button"
+          onClick={onRefresh}
+          disabled={refreshing}
+          aria-label="Refresh payment details"
+          className="mt-2 inline-flex items-center gap-2 px-3 py-1.5 border border-amber-300 rounded-lg text-xs font-medium text-amber-900 bg-white hover:bg-amber-100 transition-colors disabled:opacity-60"
+        >
+          <RefreshCw
+            className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`}
+            aria-hidden="true"
+          />
+          {refreshing ? 'Refreshing…' : 'Refresh'}
+        </button>
       </div>
     </div>
   );
@@ -444,6 +497,9 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
   const [pollWarning, setPollWarning] = useState<string>('');
   /** True when consecutive poll failures have crossed the degradation threshold. */
   const [networkDegraded, setNetworkDegraded] = useState(false);
+  /** Payment snapshot captured at creation, used to detect XLM rate drift. */
+  const [createdPayment, setCreatedPayment] = useState<Payment | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const pollNowRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
@@ -454,7 +510,10 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
 
     paymentsApi
       .getByReference(params.paymentId)
-      .then(({ data }) => setPayment(data))
+      .then(({ data }) => {
+        setPayment(data);
+        setCreatedPayment(data);
+      })
       .catch(() => {
         setLoadError(true);
         // Treat a failed initial load as a degraded network too — the customer
@@ -572,6 +631,22 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
     }
   };
 
+  /** Re-fetch the latest payment details (e.g. after the XLM rate moved). */
+  const refreshPayment = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const { data } = await paymentsApi.getByReference(params.paymentId);
+      setPayment(data);
+      setNetworkDegraded(false);
+    } catch {
+      setNetworkDegraded(true);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [params.paymentId]);
+
+  const rateStale = isRateStale(createdPayment, payment);
+
   // Compute the stellar URI (needed before early returns for the memoized QR subtree).
   const hasCryptoAmount =
     payment != null && payment.amountXlm != null && payment.amountXlm > 0;
@@ -594,7 +669,7 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
       />
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stellarUri, payment?.reference]);
+  }, [stellarUri, payment?.reference, payment?.amountXlm]);
 
   if (loading) {
     return (
@@ -656,6 +731,14 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
             payment.status !== 'expired' && (
               <DegradedBanner visible={networkDegraded} />
             )}
+
+          {isPending && (
+            <StaleRateBanner
+              visible={rateStale}
+              refreshing={refreshing}
+              onRefresh={refreshPayment}
+            />
+          )}
 
           {isSettled ? (
             <>
