@@ -250,10 +250,11 @@ export default function DashboardLayout({
     event: React.MouseEvent<HTMLAnchorElement>,
     href: string
   ) => {
-    if (pathname === href) return;
-    if (!confirmNavigation()) {
+    if (pathname !== href && !confirmNavigation()) {
       event.preventDefault();
+      return;
     }
+    setMobileNavOpen(false);
   };
 
   const sidebarContent = (

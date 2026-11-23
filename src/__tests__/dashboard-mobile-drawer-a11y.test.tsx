@@ -19,20 +19,23 @@ import DashboardLayout from '@/app/dashboard/layout';
 import { useAuthStore } from '@/lib/store';
 
 const mockPush = vi.fn();
+const mockPathname = vi.fn(() => '/dashboard');
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mockPush, replace: vi.fn() }),
-  usePathname: () => '/dashboard',
+  usePathname: () => mockPathname(),
 }));
 
 vi.mock('next/link', () => ({
   default: ({
     children,
     href,
+    onClick,
   }: {
     children: React.ReactNode;
     href: string;
-  }) => <a href={href}>{children}</a>,
+    onClick?: React.MouseEventHandler<HTMLAnchorElement>;
+  }) => <a href={href} onClick={onClick}>{children}</a>,
 }));
 
 vi.mock('@/lib/store');
@@ -60,9 +63,9 @@ function stubAuth() {
   );
 }
 
-/** The mobile drawer is the element with role="dialog" (aria-label "Navigation menu"). */
+/** The mobile drawer is the element with role="dialog" (aria-label "Navigation"). */
 function drawer() {
-  return screen.getByRole('dialog', { name: 'Navigation menu' });
+  return screen.getByRole('dialog', { name: 'Navigation' });
 }
 
 /** Focusable elements inside the drawer, in DOM order. */
@@ -78,7 +81,7 @@ function openDrawer() {
       <div data-testid="child-content">Content</div>
     </DashboardLayout>
   );
-  const hamburger = screen.getByLabelText('Open menu');
+  const hamburger = screen.getByLabelText('Open navigation');
   hamburger.focus();
   fireEvent.click(hamburger);
   return hamburger;
@@ -86,6 +89,7 @@ function openDrawer() {
 
 describe('DashboardLayout — mobile nav drawer focus management (#356)', () => {
   beforeEach(() => {
+    mockPathname.mockReturnValue('/dashboard');
     vi.clearAllMocks();
     document.body.style.overflow = 'visible';
     stubAuth();
@@ -103,7 +107,7 @@ describe('DashboardLayout — mobile nav drawer focus management (#356)', () => 
       </DashboardLayout>
     );
     expect(
-      screen.queryByRole('dialog', { name: 'Navigation menu' })
+      screen.queryByRole('dialog', { name: 'Navigation' })
     ).not.toBeInTheDocument();
   });
 
@@ -140,13 +144,47 @@ describe('DashboardLayout — mobile nav drawer focus management (#356)', () => 
     expect(document.activeElement).toBe(focusables[focusables.length - 1]);
   });
 
+  it('closes the drawer immediately when a navigation link is clicked', () => {
+    openDrawer();
+    const paymentsLink = drawer().querySelector<HTMLAnchorElement>(
+      'a[href="/dashboard/payments"]'
+    );
+
+    fireEvent.click(paymentsLink!);
+
+    expect(
+      screen.queryByRole('dialog', { name: 'Navigation' })
+    ).not.toBeInTheDocument();
+  });
+
+  it('closes the drawer when the pathname changes', () => {
+    const view = render(
+      <DashboardLayout>
+        <div data-testid="child-content">Content</div>
+      </DashboardLayout>
+    );
+    fireEvent.click(screen.getByLabelText('Open navigation'));
+    expect(drawer()).toBeInTheDocument();
+
+    mockPathname.mockReturnValue('/dashboard/payments');
+    view.rerender(
+      <DashboardLayout>
+        <div data-testid="child-content">Content</div>
+      </DashboardLayout>
+    );
+
+    expect(
+      screen.queryByRole('dialog', { name: 'Navigation' })
+    ).not.toBeInTheDocument();
+  });
+
   it('closes the drawer on Escape', () => {
     openDrawer();
     expect(drawer()).toBeInTheDocument();
 
     fireEvent.keyDown(document, { key: 'Escape', code: 'Escape' });
     expect(
-      screen.queryByRole('dialog', { name: 'Navigation menu' })
+      screen.queryByRole('dialog', { name: 'Navigation' })
     ).not.toBeInTheDocument();
   });
 
@@ -163,7 +201,7 @@ describe('DashboardLayout — mobile nav drawer focus management (#356)', () => 
       drawer().parentElement!.querySelector<HTMLElement>('.bg-black\\/40');
     fireEvent.click(backdrop!);
     expect(
-      screen.queryByRole('dialog', { name: 'Navigation menu' })
+      screen.queryByRole('dialog', { name: 'Navigation' })
     ).not.toBeInTheDocument();
   });
 
@@ -172,11 +210,11 @@ describe('DashboardLayout — mobile nav drawer focus management (#356)', () => 
     // sidebarContent is shared with the (always-rendered, CSS-hidden) desktop
     // sidebar, so scope the query to the drawer instance.
     const closeButton = drawer().querySelector<HTMLElement>(
-      '[aria-label="Close menu"]'
+      '[aria-label="Close navigation"]'
     )!;
     fireEvent.click(closeButton);
     expect(
-      screen.queryByRole('dialog', { name: 'Navigation menu' })
+      screen.queryByRole('dialog', { name: 'Navigation' })
     ).not.toBeInTheDocument();
   });
 
@@ -196,7 +234,7 @@ describe('DashboardLayout — mobile nav drawer focus management (#356)', () => 
     );
     fireEvent.keyDown(document, { key: 'Escape', code: 'Escape' });
     expect(
-      screen.queryByRole('dialog', { name: 'Navigation menu' })
+      screen.queryByRole('dialog', { name: 'Navigation' })
     ).not.toBeInTheDocument();
     expect(mockPush).not.toHaveBeenCalled();
   });
