@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
+import { startCrossTabLogoutListener } from '@/lib/cross-tab-logout';
 import { useAuthStore } from '@/lib/store';
 
 /**
@@ -31,6 +32,9 @@ export function AuthRedirectSetup() {
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  // Log out this tab when another tab logs out (#760).
+  useEffect(() => startCrossTabLogoutListener(), []);
 
   useEffect(() => {
     // Do not redirect until we are both mounted on the client and Zustand has
