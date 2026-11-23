@@ -134,6 +134,13 @@ function QrSubtree({ stellarUri, amountLabel, reference }: QrSubtreeProps) {
       <p className="text-center text-xs text-gray-500 mb-4">
         Scan with a Stellar wallet app, then approve USDC before deposit
       </p>
+      {/* Mobile-only tap-to-open deep link; desktop users scan the QR instead. */}
+      <a
+        href={stellarUri}
+        className="sm:hidden flex items-center justify-center gap-2 w-full px-4 py-2 mb-4 bg-brand-700 text-white rounded-lg text-sm font-medium hover:bg-brand-800 transition-colors"
+      >
+        Open in Wallet
+      </a>
     </>
   );
 }
