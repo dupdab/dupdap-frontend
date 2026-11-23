@@ -42,6 +42,8 @@ const POLL_SLOWEST_INTERVAL_MS = 30_000;
 const POLL_SLOWEST_AFTER_ATTEMPTS = 20;
 /** Hard stop: polling gives up after 15 minutes and shows the timeout state. */
 const POLL_TIMEOUT_MS = 15 * 60_000;
+/** After this long without a terminal status we warn the customer (#770). */
+const SLOW_PAYMENT_WARNING_MS = 5 * 60_000;
 
 /**
  * Number of consecutive poll failures before we show the network degradation
@@ -319,8 +321,45 @@ function ExpiredState({ payment }: ExpiredStateProps) {
         href="/dashboard/payments/new"
         className="inline-block px-4 py-2 bg-brand-500 text-white rounded-lg text-sm font-medium hover:bg-brand-600 transition-colors"
       >
-        create new payment
+        Start a new payment
       </a>
+    </div>
+  );
+}
+
+// ─── Slow payment / timeout state (#770) ─────────────────────────────────────
+
+interface SlowPaymentStateProps {
+  payment: Payment;
+}
+
+function SlowPaymentState({ payment }: SlowPaymentStateProps) {
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      data-testid="payment-slow"
+      className="text-center py-6"
+    >
+      <Clock className="w-12 h-12 text-amber-500 mx-auto mb-4" />
+      <h2 className="text-lg font-bold text-gray-900 mb-2">
+        Payment is taking longer than expected
+      </h2>
+      <p className="text-sm text-gray-500 mb-4">
+        We&apos;re still checking the status of this payment. Your funds have
+        not been lost — you can keep this page open or start a new payment.
+      </p>
+      <a
+        href="/dashboard/payments/new"
+        className="inline-block px-4 py-2 bg-brand-500 text-white rounded-lg text-sm font-medium hover:bg-brand-600 transition-colors"
+      >
+        Start a new payment
+      </a>
+      {payment.reference && (
+        <p className="mt-3 text-xs text-gray-400">
+          Reference: {payment.reference}
+        </p>
+      )}
     </div>
   );
 }
@@ -483,6 +522,8 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
   const [networkDegraded, setNetworkDegraded] = useState(false);
   /** True once polling has been running for `POLL_TIMEOUT_MS` without a terminal status. */
   const [pollTimedOut, setPollTimedOut] = useState(false);
+  /** True once polling has run for `SLOW_PAYMENT_WARNING_MS` without a terminal status. */
+  const [slowPayment, setSlowPayment] = useState(false);
   const pollNowRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
@@ -504,6 +545,7 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
     const handleTimeout = () => {
       stopPolling();
       setPollTimedOut(true);
+      setSlowPayment(true);
       setPollWarning(
         'We stopped checking automatically after 15 minutes. Refresh the page to check again.'
       );
@@ -527,6 +569,9 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
         handleTimeout();
         return;
       }
+      if (Date.now() - startedAt >= SLOW_PAYMENT_WARNING_MS) {
+        setSlowPayment(true);
+      }
       const interval =
         pollAttempts >= POLL_SLOWEST_AFTER_ATTEMPTS
           ? POLL_SLOWEST_INTERVAL_MS
@@ -541,6 +586,9 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
       if (Date.now() - startedAt >= POLL_TIMEOUT_MS) {
         handleTimeout();
         return;
+      }
+      if (Date.now() - startedAt >= SLOW_PAYMENT_WARNING_MS) {
+        setSlowPayment(true);
       }
       pollAttempts += 1;
       paymentsApi
@@ -608,6 +656,9 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
   // the QR code — the backend may have extended the window server-side.
   const isExplicitlyExpired =
     isPending && explicitExpiresAt ? explicitExpiresAt.getTime() <= now : false;
+  // The backend is the source of truth for expiry (#770).
+  const isBackendExpired = payment?.status === 'expired';
+  const isExpired = isBackendExpired || isExplicitlyExpired;
 
   useEffect(() => {
     if (!isPending || !expiresAt) return;
@@ -730,6 +781,8 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
               <SuccessAnimation show={isSettled} />
               <Receipt payment={payment} />
             </>
+          ) : isExpired ? (
+            <ExpiredState payment={payment} />
           ) : isPending ? (
             <>
               {expiresAt && (
@@ -741,6 +794,8 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
 
               {isExplicitlyExpired ? (
                 <ExpiredState payment={payment} />
+              ) : slowPayment ? (
+                <SlowPaymentState payment={payment} />
               ) : (
                 <>
                   {hasValidStellarUri ? (
@@ -867,6 +922,12 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
                   check again.
                 </p>
               )}
+              <a
+                href="/dashboard/payments/new"
+                className="inline-block mt-4 px-4 py-2 bg-brand-500 text-white rounded-lg text-sm font-medium hover:bg-brand-600 transition-colors"
+              >
+                Start a new payment
+              </a>
             </div>
           )}
         </div>
