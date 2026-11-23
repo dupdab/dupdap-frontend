@@ -11,13 +11,22 @@ import {
   WifiOff,
   Printer,
   Download,
+  RefreshCw,
 } from 'lucide-react';
+import Link from 'next/link';
 import { QRCodeSVG } from 'qrcode.react';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { paymentsApi } from '@/lib/api';
+import { isRateStale } from '@/lib/stale-rate';
 import type { Payment } from '@/lib/types';
-import { formatUsd, formatDate } from '@/lib/utils';
+import {
+  formatUsdWithCode,
+  formatXlmEquivalent,
+  formatDate,
+} from '@/lib/utils';
+
+import { ErrorBoundary } from '@/components/ErrorBoundary';
 
 const STATUS_ICONS: Record<string, React.ReactNode> = {
   pending: <Clock className="w-8 h-8 text-yellow-500" />,
@@ -86,9 +95,17 @@ interface QrSubtreeProps {
   stellarUri: string;
   amountLabel: string;
   reference: string;
+  depositAddress: string;
+  amountXlm: number;
 }
 
-function QrSubtree({ stellarUri, amountLabel, reference }: QrSubtreeProps) {
+function QrSubtree({
+  stellarUri,
+  amountLabel,
+  reference,
+  depositAddress,
+  amountXlm,
+}: QrSubtreeProps) {
   const qrRef = useRef<HTMLDivElement>(null);
 
   const handleDownload = () => {
@@ -115,11 +132,24 @@ function QrSubtree({ stellarUri, amountLabel, reference }: QrSubtreeProps) {
           ref={qrRef}
           className="bg-white p-3 rounded-xl border border-gray-200"
           role="img"
-          aria-label={`Stellar payment QR code for ${amountLabel}`}
+          aria-label="Stellar payment QR code — scan with your wallet app"
         >
-          <QRCodeSVG value={stellarUri} size={160} />
+          <QRCodeSVG value={stellarUri} size={160} aria-hidden="true" />
         </div>
       </div>
+      <p className="text-center text-xs text-gray-600 mb-4 break-words">
+        <span className="sr-only">
+          Stellar payment QR code — scan with your wallet app. Deposit address:{' '}
+        </span>
+        <span className="font-mono">{depositAddress}</span>
+        <span className="sr-only">, amount: </span>
+        <span className="font-semibold">
+          {amountXlm} XLM ({amountLabel})
+        </span>
+      </p>
+      <p className="sr-only" data-testid="qr-text-alternative">
+        Deposit address {depositAddress}, amount {amountXlm} XLM ({amountLabel})
+      </p>
       <button
         type="button"
         onClick={handleDownload}
@@ -132,6 +162,13 @@ function QrSubtree({ stellarUri, amountLabel, reference }: QrSubtreeProps) {
       <p className="text-center text-xs text-gray-500 mb-4">
         Scan with a Stellar wallet app, then approve USDC before deposit
       </p>
+      {/* Mobile-only tap-to-open deep link; desktop users scan the QR instead. */}
+      <a
+        href={stellarUri}
+        className="sm:hidden flex items-center justify-center gap-2 w-full px-4 py-2 mb-4 bg-brand-700 text-white rounded-lg text-sm font-medium hover:bg-brand-800 transition-colors"
+      >
+        Open in Wallet
+      </a>
     </>
   );
 }
@@ -205,6 +242,57 @@ function DegradedBanner({ visible }: DegradedBannerProps) {
           <strong> not been lost</strong> — we&apos;ll confirm it as soon as the
           connection is restored. Please keep this page open.
         </p>
+      </div>
+    </div>
+  );
+}
+
+// ─── Stale rate banner (#772) ──────────────────────────────────────────────
+
+interface StaleRateBannerProps {
+  visible: boolean;
+  refreshing: boolean;
+  onRefresh: () => void;
+}
+
+function StaleRateBanner({
+  visible,
+  refreshing,
+  onRefresh,
+}: StaleRateBannerProps) {
+  if (!visible) return null;
+  return (
+    <div
+      role="alert"
+      aria-live="polite"
+      data-testid="stale-rate-banner"
+      className="flex items-start gap-3 rounded-lg bg-amber-50 border border-amber-300 p-3 mb-4 text-sm text-amber-800"
+    >
+      <AlertTriangle
+        className="w-4 h-4 mt-0.5 shrink-0 text-amber-600"
+        aria-hidden="true"
+      />
+      <div className="flex-1">
+        <p className="font-semibold">
+          Rate updated — please review new amount
+        </p>
+        <p className="mt-0.5 text-xs">
+          The XLM exchange rate moved since this payment was created. Refresh to
+          see the current amount before sending funds.
+        </p>
+        <button
+          type="button"
+          onClick={onRefresh}
+          disabled={refreshing}
+          aria-label="Refresh payment details"
+          className="mt-2 inline-flex items-center gap-2 px-3 py-1.5 border border-amber-300 rounded-lg text-xs font-medium text-amber-900 bg-white hover:bg-amber-100 transition-colors disabled:opacity-60"
+        >
+          <RefreshCw
+            className={`w-3.5 h-3.5 ${refreshing ? 'animate-spin' : ''}`}
+            aria-hidden="true"
+          />
+          {refreshing ? 'Refreshing…' : 'Refresh'}
+        </button>
       </div>
     </div>
   );
@@ -331,7 +419,10 @@ function Receipt({ payment }: ReceiptProps) {
       'DupDub Payment Receipt',
       '======================',
       `Reference:   ${payment.reference}`,
-      `Amount:      ${formatUsd(payment.amountUsd)}`,
+      `Amount:      ${formatUsdWithCode(payment.amountUsd)}`,
+      payment.amountXlm != null && payment.amountXlm > 0
+        ? `XLM:         ${formatXlmEquivalent(payment.amountXlm)}`
+        : '',
       `Status:      ${payment.status}`,
       payment.description ? `Description: ${payment.description}` : '',
       payment.customerEmail ? `Customer:    ${payment.customerEmail}` : '',
@@ -369,7 +460,12 @@ function Receipt({ payment }: ReceiptProps) {
         <div className="flex justify-between px-4 py-3 bg-white">
           <dt className="text-gray-500">Amount</dt>
           <dd className="font-semibold text-gray-900">
-            {formatUsd(payment.amountUsd)}
+            {formatUsdWithCode(payment.amountUsd)}
+            {payment.amountXlm != null && payment.amountXlm > 0 && (
+              <span className="block text-xs font-normal text-gray-500">
+                {formatXlmEquivalent(payment.amountXlm)}
+              </span>
+            )}
           </dd>
         </div>
         <div className="flex justify-between px-4 py-3 bg-gray-50">
@@ -406,7 +502,25 @@ function Receipt({ payment }: ReceiptProps) {
             <dd className="text-gray-900">{formatDate(payment.updatedAt)}</dd>
           </div>
         )}
+        {(payment.transactionHash || payment.txHash) && (
+          <div className="flex justify-between px-4 py-3 bg-white">
+            <dt className="text-gray-500">Transaction</dt>
+            <dd className="font-mono text-gray-900 text-xs break-all text-right max-w-[60%]">
+              {payment.transactionHash || payment.txHash}
+            </dd>
+          </div>
+        )}
       </dl>
+
+      {/* Permanent receipt link (#774) */}
+      <p className="text-center text-sm print:hidden">
+        <Link
+          href={`/pay/${encodeURIComponent(payment.reference || payment.id)}/receipt`}
+          className="text-brand-700 hover:underline font-medium"
+        >
+          View printable receipt
+        </Link>
+      </p>
 
       {/* Actions */}
       <div className="flex gap-3 print:hidden">
@@ -436,14 +550,52 @@ function Receipt({ payment }: ReceiptProps) {
 // ─── Main page ─────────────────────────────────────────────────────────────
 
 export default function PayPage({ params }: { params: { paymentId: string } }) {
+  return (
+    <ErrorBoundary
+      context={{ paymentId: params.paymentId }}
+      fallback={(reset) => <PayPageErrorFallback onRetry={reset} />}
+    >
+      <PayPageContent paymentId={params.paymentId} />
+    </ErrorBoundary>
+  );
+}
+
+function PayPageErrorFallback({ onRetry }: { onRetry: () => void }) {
+  return (
+    <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
+      <div className="card w-full max-w-[92vw] xs:max-w-sm p-6 text-center">
+        <AlertTriangle className="w-10 h-10 text-amber-500 mx-auto" />
+        <h1 className="text-xl font-bold mt-3">Something went wrong</h1>
+        <p className="text-sm text-gray-600 mt-2">
+          We couldn&apos;t display this payment. Your funds are safe — please try
+          again.
+        </p>
+        <button
+          type="button"
+          onClick={onRetry}
+          className="mt-5 inline-flex items-center justify-center rounded-md bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700"
+        >
+          Try again
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function PayPageContent({ paymentId }: { paymentId: string }) {
   const [payment, setPayment] = useState<Payment | null>(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
   const [now, setNow] = useState(Date.now());
   const [copied, setCopied] = useState<string | null>(null);
+  /** Screen-reader announcement for the most recent copy attempt. */
+  const [copyAnnouncement, setCopyAnnouncement] = useState<string>('');
   const [pollWarning, setPollWarning] = useState<string>('');
   /** True when consecutive poll failures have crossed the degradation threshold. */
   const [networkDegraded, setNetworkDegraded] = useState(false);
+  /** Payment snapshot captured at creation, used to detect XLM rate drift. */
+  const [createdPayment, setCreatedPayment] = useState<Payment | null>(null);
+  const [refreshing, setRefreshing] = useState(false);
   const pollNowRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
@@ -454,7 +606,10 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
 
     paymentsApi
       .getByReference(params.paymentId)
-      .then(({ data }) => setPayment(data))
+      .then(({ data }) => {
+        setPayment(data);
+        setCreatedPayment(data);
+      })
       .catch(() => {
         setLoadError(true);
         // Treat a failed initial load as a degraded network too — the customer
@@ -481,7 +636,7 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
         return;
       }
       paymentsApi
-        .getByReference(params.paymentId)
+        .getByReference(paymentId)
         .then(({ data }) => {
           consecutiveFailures = 0;
           setPollWarning('');
@@ -521,7 +676,7 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
       pollNowRef.current = null;
       if (timeout) clearTimeout(timeout);
     };
-  }, [params.paymentId]);
+  }, [paymentId]);
 
   const explicitExpiresAt = payment?.expiresAt
     ? new Date(payment.expiresAt)
@@ -563,14 +718,44 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
   }, []);
 
   const copy = async (text: string, key: string) => {
+    const label = key === 'address' ? 'Deposit address' : 'Memo';
+    if (!text) {
+      setCopyAnnouncement(`${label} is unavailable to copy.`);
+      return;
+    }
+    if (typeof navigator === 'undefined' || !navigator.clipboard?.writeText) {
+      setCopyAnnouncement(
+        `Copying is not supported in this browser. Please select the ${label.toLowerCase()} and copy it manually.`
+      );
+      return;
+    }
     try {
       await navigator.clipboard.writeText(text);
       setCopied(key);
+      setCopyAnnouncement(`${label} copied to clipboard.`);
       setTimeout(() => setCopied((c) => (c === key ? null : c)), 2000);
     } catch {
-      /* clipboard unavailable */
+      setCopyAnnouncement(
+        `Could not copy the ${label.toLowerCase()}. Please select it and copy manually.`
+      );
     }
   };
+
+  /** Re-fetch the latest payment details (e.g. after the XLM rate moved). */
+  const refreshPayment = useCallback(async () => {
+    setRefreshing(true);
+    try {
+      const { data } = await paymentsApi.getByReference(params.paymentId);
+      setPayment(data);
+      setNetworkDegraded(false);
+    } catch {
+      setNetworkDegraded(true);
+    } finally {
+      setRefreshing(false);
+    }
+  }, [params.paymentId]);
+
+  const rateStale = isRateStale(createdPayment, payment);
 
   // Compute the stellar URI (needed before early returns for the memoized QR subtree).
   const hasCryptoAmount =
@@ -589,12 +774,14 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
     return (
       <QrSubtree
         stellarUri={stellarUri}
-        amountLabel={formatUsd(payment.amountUsd)}
+        amountLabel={formatUsdWithCode(payment.amountUsd)}
         reference={payment.reference}
+        depositAddress={payment.stellarDepositAddress ?? ''}
+        amountXlm={payment.amountXlm ?? 0}
       />
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [stellarUri, payment?.reference]);
+  }, [stellarUri, payment?.reference, payment?.amountXlm]);
 
   if (loading) {
     return (
@@ -639,8 +826,16 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
           <p className="text-sm text-gray-500 font-medium">DupDub</p>
           {!isSettled && (
             <h1 className="text-3xl font-bold mt-1">
-              {formatUsd(payment.amountUsd)}
+              {formatUsdWithCode(payment.amountUsd)}
             </h1>
+          )}
+          {!isSettled && hasCryptoAmount && payment.amountXlm != null && (
+            <p
+              data-testid="xlm-equivalent"
+              className="text-sm text-gray-600 mt-1"
+            >
+              {formatXlmEquivalent(payment.amountXlm)}
+            </p>
           )}
           {payment.description && (
             <p className="text-sm text-gray-500 mt-1 break-words">
@@ -656,6 +851,14 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
             payment.status !== 'expired' && (
               <DegradedBanner visible={networkDegraded} />
             )}
+
+          {isPending && (
+            <StaleRateBanner
+              visible={rateStale}
+              refreshing={refreshing}
+              onRefresh={refreshPayment}
+            />
+          )}
 
           {isSettled ? (
             <>
@@ -732,6 +935,9 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
                     {copied === 'address' && (
                       <p className="text-xs text-green-600 mt-1">Copied!</p>
                     )}
+                    <span className="sr-only" role="status" aria-live="polite">
+                      {copyAnnouncement}
+                    </span>
                   </div>
 
                   {payment.stellarMemo && (

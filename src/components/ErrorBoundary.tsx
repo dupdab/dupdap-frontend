@@ -5,6 +5,10 @@ import * as Sentry from '@sentry/nextjs';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
+  /** Extra Sentry context (e.g. `{ paymentId }`) attached to the reported error. */
+  context?: Record<string, string>;
+  /** Optional custom fallback renderer; receives a reset callback. */
+  fallback?: (reset: () => void) => ReactNode;
 }
 
 interface ErrorBoundaryState {
@@ -28,12 +32,20 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
         react: {
           componentStack: errorInfo.componentStack,
         },
+        ...(this.props.context ? { payment: this.props.context } : {}),
       },
     });
   }
 
+  reset = (): void => {
+    this.setState({ hasError: false, error: undefined });
+  };
+
   render(): ReactNode {
     if (this.state.hasError) {
+      if (this.props.fallback) {
+        return this.props.fallback(this.reset);
+      }
       return (
         <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 px-4 text-center">
           <h1 className="text-2xl font-semibold text-gray-900">Something went wrong</h1>
