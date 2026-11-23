@@ -30,9 +30,18 @@ const STATUS_ICONS: Record<string, React.ReactNode> = {
 
 const DEFAULT_STATUS_ICON = <Clock className="w-8 h-8 text-gray-400" />;
 
-const POLL_INTERVAL_MS = 5000;
-const POLL_MAX_ATTEMPTS = 24;
-const POLL_MAX_BACKOFF_MS = 60_000;
+/** Initial polling cadence: one status check every 3 s. */
+const POLL_INTERVAL_MS = 3000;
+/** After this many attempts the cadence backs off to `POLL_SLOW_INTERVAL_MS`. */
+const POLL_BACKOFF_AFTER_ATTEMPTS = 10;
+/** Cadence once the first backoff tier is reached. */
+const POLL_SLOW_INTERVAL_MS = 10_000;
+/** Cadence once the second backoff tier is reached. */
+const POLL_SLOWEST_INTERVAL_MS = 30_000;
+/** Attempt count at which the cadence drops to `POLL_SLOWEST_INTERVAL_MS`. */
+const POLL_SLOWEST_AFTER_ATTEMPTS = 20;
+/** Hard stop: polling gives up after 15 minutes and shows the timeout state. */
+const POLL_TIMEOUT_MS = 15 * 60_000;
 
 /**
  * Number of consecutive poll failures before we show the network degradation
@@ -444,6 +453,8 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
   const [pollWarning, setPollWarning] = useState<string>('');
   /** True when consecutive poll failures have crossed the degradation threshold. */
   const [networkDegraded, setNetworkDegraded] = useState(false);
+  /** True once polling has been running for `POLL_TIMEOUT_MS` without a terminal status. */
+  const [pollTimedOut, setPollTimedOut] = useState(false);
   const pollNowRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
@@ -451,6 +462,24 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
     let consecutiveFailures = 0;
     let timeout: ReturnType<typeof setTimeout> | null = null;
     let cancelled = false;
+    let stopped = false;
+    const startedAt = Date.now();
+
+    const stopPolling = () => {
+      stopped = true;
+      if (timeout) {
+        clearTimeout(timeout);
+        timeout = null;
+      }
+    };
+
+    const handleTimeout = () => {
+      stopPolling();
+      setPollTimedOut(true);
+      setPollWarning(
+        'We stopped checking automatically after 15 minutes. Refresh the page to check again.'
+      );
+    };
 
     paymentsApi
       .getByReference(params.paymentId)
@@ -465,21 +494,27 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
       .finally(() => setLoading(false));
 
     const scheduleNext = () => {
-      if (cancelled) return;
-      const backoff = Math.min(
-        POLL_INTERVAL_MS * 2 ** consecutiveFailures,
-        POLL_MAX_BACKOFF_MS
-      );
-      timeout = setTimeout(poll, backoff);
+      if (cancelled || stopped) return;
+      if (Date.now() - startedAt >= POLL_TIMEOUT_MS) {
+        handleTimeout();
+        return;
+      }
+      const interval =
+        pollAttempts >= POLL_SLOWEST_AFTER_ATTEMPTS
+          ? POLL_SLOWEST_INTERVAL_MS
+          : pollAttempts >= POLL_BACKOFF_AFTER_ATTEMPTS
+            ? POLL_SLOW_INTERVAL_MS
+            : POLL_INTERVAL_MS;
+      timeout = setTimeout(poll, interval);
     };
 
     const poll = () => {
-      if (cancelled) return;
-      pollAttempts += 1;
-      if (pollAttempts >= POLL_MAX_ATTEMPTS) {
-        setPollWarning('Status checks are taking longer than expected.');
+      if (cancelled || stopped) return;
+      if (Date.now() - startedAt >= POLL_TIMEOUT_MS) {
+        handleTimeout();
         return;
       }
+      pollAttempts += 1;
       paymentsApi
         .getByReference(params.paymentId)
         .then(({ data }) => {
@@ -488,7 +523,10 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
           // Recovery: clear the degradation banner once the network is back.
           setNetworkDegraded(false);
           setPayment(data);
-          if (['settled', 'failed', 'expired'].includes(data.status)) return;
+          if (['settled', 'failed', 'expired'].includes(data.status)) {
+            stopPolling();
+            return;
+          }
           scheduleNext();
         })
         .catch(() => {
@@ -506,7 +544,7 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
     // Expose an immediate poll trigger so visibilitychange can refresh
     // without waiting for the next scheduled interval tick.
     pollNowRef.current = () => {
-      if (cancelled) return;
+      if (cancelled || stopped) return;
       if (timeout) {
         clearTimeout(timeout);
         timeout = null;
@@ -518,6 +556,7 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
 
     return () => {
       cancelled = true;
+      stopped = true;
       pollNowRef.current = null;
       if (timeout) clearTimeout(timeout);
     };
@@ -771,6 +810,16 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
               </p>
               {pollWarning && (
                 <p className="mt-2 text-xs text-amber-600">{pollWarning}</p>
+              )}
+              {pollTimedOut && (
+                <p
+                  role="status"
+                  data-testid="poll-timeout"
+                  className="mt-2 text-xs text-gray-500"
+                >
+                  Automatic status checks have stopped. Refresh the page to
+                  check again.
+                </p>
               )}
             </div>
           )}

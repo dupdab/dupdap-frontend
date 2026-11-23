@@ -13,9 +13,12 @@ import type { Payment } from './types';
  * future consumers (e.g. a WebSocket adapter) can reference them when
  * deciding whether to fall back to polling.
  */
-export const POLL_INTERVAL_MS = 5000;
-export const POLL_MAX_ATTEMPTS = 24;
-export const POLL_MAX_BACKOFF_MS = 60_000;
+export const POLL_INTERVAL_MS = 3000;
+export const POLL_BACKOFF_AFTER_ATTEMPTS = 10;
+export const POLL_SLOW_INTERVAL_MS = 10_000;
+export const POLL_SLOWEST_AFTER_ATTEMPTS = 20;
+export const POLL_SLOWEST_INTERVAL_MS = 30_000;
+export const POLL_TIMEOUT_MS = 15 * 60_000;
 
 /**
  * Number of consecutive poll failures before we show the network degradation
@@ -49,6 +52,8 @@ export interface UsePaymentPollingResult {
   pollWarning: string;
   /** True when consecutive poll failures have crossed the degradation threshold. */
   networkDegraded: boolean;
+  /** True once polling stopped because it exceeded `POLL_TIMEOUT_MS`. */
+  pollTimedOut: boolean;
 }
 
 /**
@@ -75,6 +80,7 @@ export function usePaymentPolling(
   const [loadError, setLoadError] = useState(false);
   const [pollWarning, setPollWarning] = useState('');
   const [networkDegraded, setNetworkDegraded] = useState(false);
+  const [pollTimedOut, setPollTimedOut] = useState(false);
 
   // Keep the latest onTabVisible in a ref so the visibilitychange effect
   // doesn't need to re-subscribe whenever the callback identity changes.
@@ -90,6 +96,24 @@ export function usePaymentPolling(
     let consecutiveFailures = 0;
     let timeout: ReturnType<typeof setTimeout> | null = null;
     let cancelled = false;
+    let stopped = false;
+    const startedAt = Date.now();
+
+    const stopPolling = () => {
+      stopped = true;
+      if (timeout) {
+        clearTimeout(timeout);
+        timeout = null;
+      }
+    };
+
+    const handleTimeout = () => {
+      stopPolling();
+      setPollTimedOut(true);
+      setPollWarning(
+        'We stopped checking automatically after 15 minutes. Refresh the page to check again.'
+      );
+    };
 
     paymentsApi
       .getByReference(paymentId)
@@ -104,21 +128,27 @@ export function usePaymentPolling(
       .finally(() => setLoading(false));
 
     const scheduleNext = () => {
-      if (cancelled) return;
-      const backoff = Math.min(
-        POLL_INTERVAL_MS * 2 ** consecutiveFailures,
-        POLL_MAX_BACKOFF_MS
-      );
-      timeout = setTimeout(poll, backoff);
+      if (cancelled || stopped) return;
+      if (Date.now() - startedAt >= POLL_TIMEOUT_MS) {
+        handleTimeout();
+        return;
+      }
+      const interval =
+        pollAttempts >= POLL_SLOWEST_AFTER_ATTEMPTS
+          ? POLL_SLOWEST_INTERVAL_MS
+          : pollAttempts >= POLL_BACKOFF_AFTER_ATTEMPTS
+            ? POLL_SLOW_INTERVAL_MS
+            : POLL_INTERVAL_MS;
+      timeout = setTimeout(poll, interval);
     };
 
     const poll = () => {
-      if (cancelled) return;
-      pollAttempts += 1;
-      if (pollAttempts >= POLL_MAX_ATTEMPTS) {
-        setPollWarning('Status checks are taking longer than expected.');
+      if (cancelled || stopped) return;
+      if (Date.now() - startedAt >= POLL_TIMEOUT_MS) {
+        handleTimeout();
         return;
       }
+      pollAttempts += 1;
       paymentsApi
         .getByReference(paymentId)
         .then(({ data }) => {
@@ -127,7 +157,10 @@ export function usePaymentPolling(
           // Recovery: clear the degradation banner once the network is back.
           setNetworkDegraded(false);
           setPayment(data);
-          if (TERMINAL_STATUSES.includes(data.status)) return;
+          if (TERMINAL_STATUSES.includes(data.status)) {
+            stopPolling();
+            return;
+          }
           scheduleNext();
         })
         .catch(() => {
@@ -143,7 +176,7 @@ export function usePaymentPolling(
     };
 
     pollNowRef.current = () => {
-      if (cancelled) return;
+      if (cancelled || stopped) return;
       if (timeout) {
         clearTimeout(timeout);
         timeout = null;
@@ -155,6 +188,7 @@ export function usePaymentPolling(
 
     return () => {
       cancelled = true;
+      stopped = true;
       pollNowRef.current = null;
       if (timeout) clearTimeout(timeout);
     };
@@ -175,5 +209,12 @@ export function usePaymentPolling(
       document.removeEventListener('visibilitychange', handleVisibilityChange);
   }, []);
 
-  return { payment, loading, loadError, pollWarning, networkDegraded };
+  return {
+    payment,
+    loading,
+    loadError,
+    pollWarning,
+    networkDegraded,
+    pollTimedOut,
+  };
 }
