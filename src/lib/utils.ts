@@ -34,6 +34,33 @@ export function formatUsd(amount: number, locale?: string): string {
 }
 
 /**
+ * Formats a USD amount with an explicit currency code so the value is
+ * unambiguous for international customers, e.g. "USD 25.00" (#778).
+ */
+export function formatUsdWithCode(amount: number, locale?: string): string {
+  const normalised = amount === 0 ? 0 : amount;
+  const bcp47 = locale === 'pcm' ? 'en-NG' : (locale ?? getBrowserLocale());
+  return new Intl.NumberFormat(bcp47, {
+    style: 'currency',
+    currency: 'USD',
+    currencyDisplay: 'code',
+  }).format(normalised);
+}
+
+/**
+ * Formats an XLM amount with a leading approximation marker, e.g.
+ * "≈ 125.000000 XLM" (#778).
+ */
+export function formatXlmEquivalent(amount: number, locale?: string): string {
+  const bcp47 = locale === 'pcm' ? 'en-NG' : (locale ?? getBrowserLocale());
+  const formatted = new Intl.NumberFormat(bcp47, {
+    minimumFractionDigits: 6,
+    maximumFractionDigits: 6,
+  }).format(amount);
+  return `≈ ${formatted} XLM`;
+}
+
+/**
  * Formats an amount in Nigerian Naira (NGN).
  *
  * DupDub settlements are denominated and paid out in NGN — the merchant

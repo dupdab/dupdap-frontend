@@ -208,7 +208,10 @@ function SettlementsEmptyState() {
         No settlements yet
       </p>
       <p className="mt-1 text-sm text-gray-400">
-        Settlements appear after your first payment
+        A settlement is a batch payout that groups your completed payments and
+        transfers the net amount, after fees, to your bank account. Settlements
+        appear here once your first payments are processed and the payout batch
+        is created.
       </p>
     </div>
   );

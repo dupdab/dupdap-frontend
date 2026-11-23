@@ -222,6 +222,20 @@ describe('SettlementsPage — empty state', () => {
       )
     );
   });
+
+  it('explains what a settlement is and when it appears', async () => {
+    mockList.mockResolvedValue({ data: { settlements: [], total: 0 } });
+    render(<SettlementsPage />);
+
+    await waitFor(() =>
+      expect(
+        screen.getAllByText(/a settlement is a batch payout/i).length
+      ).toBeGreaterThan(0)
+    );
+    expect(
+      screen.getAllByText(/once your first payments are processed/i).length
+    ).toBeGreaterThan(0);
+  });
 });
 
 describe('SettlementsPage — error state', () => {

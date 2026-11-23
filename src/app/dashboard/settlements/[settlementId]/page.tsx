@@ -1,39 +1,44 @@
 'use client';
 
+import Link from 'next/link';
 import { useParams } from 'next/navigation';
 import { useCallback, useEffect, useState } from 'react';
 
+import { Skeleton } from '@/components/Skeleton';
+import { settlementsApi } from '@/lib/api';
 import { getErrorMessage } from '@/lib/errors';
+import type { Settlement, SettlementPayment } from '@/lib/types';
 import {
   formatNgn,
+  formatUsd,
+  formatDate,
+  STATUS_COLORS,
+  STATUS_ICONS,
+  DEFAULT_STATUS_COLOR,
   PENDING_APPROVAL_MESSAGE,
   PENDING_APPROVAL_ETA,
   isPendingApprovalStatus,
 } from '@/lib/utils';
 
-interface AuditEntry {
-  id: string;
-  action: string;
-  actor: string;
-  reason?: string | null;
-  createdAt: string;
+/** Fiat currency label for the settlement payout. */
+function getFiatCurrency(settlement: Settlement): string {
+  return settlement.fiatCurrency ?? 'NGN';
 }
 
-interface Settlement {
-  id: string;
-  merchant: string;
-  amount: number;
-  fee: number;
-  net: number;
-  stellarReference: string;
-  status: string;
-  createdAt: string;
-  auditTrail: AuditEntry[];
+/** Formats the payout amount in the settlement's fiat currency. */
+function formatFiat(amount: number, currency: string): string {
+  if (currency === 'NGN') return formatNgn(amount);
+  try {
+    return new Intl.NumberFormat('en-US', {
+      style: 'currency',
+      currency,
+    }).format(amount);
+  } catch {
+    return `${amount.toFixed(2)} ${currency}`;
+  }
 }
 
-const API_BASE = process.env.NEXT_PUBLIC_API_URL ?? '';
-
-export default function AdminSettlementDetailPage({
+export default function SettlementDetailPage({
   params: paramsProp,
 }: {
   params?: { settlementId: string };
@@ -44,24 +49,18 @@ export default function AdminSettlementDetailPage({
   const [settlement, setSettlement] = useState<Settlement | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [rejectReason, setRejectReason] = useState('');
-  const [showReject, setShowReject] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
+  const [downloading, setDownloading] = useState(false);
+  const [downloadError, setDownloadError] = useState<string | null>(null);
 
   const loadSettlement = useCallback(async () => {
     if (!settlementId) return;
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`${API_BASE}/admin/settlements/${settlementId}`, {
-        credentials: 'include',
-      });
-      if (!res.ok) throw new Error('Failed to load settlement');
-      setSettlement(await res.json());
+      const { data } = await settlementsApi.get(settlementId);
+      setSettlement(data);
     } catch (err) {
-      setError(
-        getErrorMessage(err) ?? 'Failed to load settlement'
-      );
+      setError(getErrorMessage(err) ?? 'Failed to load settlement');
     } finally {
       setLoading(false);
     }
@@ -71,81 +70,98 @@ export default function AdminSettlementDetailPage({
     loadSettlement();
   }, [loadSettlement]);
 
-  const approve = async () => {
+  const downloadReceipt = async () => {
     if (!settlementId) return;
-    setSubmitting(true);
-    setError(null);
+    setDownloading(true);
+    setDownloadError(null);
     try {
-      const res = await fetch(
-        `${API_BASE}/admin/settlements/${settlementId}/approve`,
-        {
-          method: 'POST',
-          credentials: 'include',
-        }
-      );
-      if (!res.ok) throw new Error('Failed to approve settlement');
-      await loadSettlement();
+      const { data } = await settlementsApi.receipt(settlementId);
+      const url = URL.createObjectURL(data);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `settlement-${settlementId}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      URL.revokeObjectURL(url);
     } catch (err) {
-      setError(
-        getErrorMessage(err) ?? 'Failed to approve settlement'
+      setDownloadError(
+        getErrorMessage(err) ?? 'Failed to download receipt'
       );
     } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const reject = async () => {
-    if (!settlementId) return;
-    if (!rejectReason.trim()) {
-      setError('A rejection reason is required');
-      return;
-    }
-    setSubmitting(true);
-    setError(null);
-    try {
-      const res = await fetch(
-        `${API_BASE}/admin/settlements/${settlementId}/reject`,
-        {
-          method: 'POST',
-          credentials: 'include',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ reason: rejectReason.trim() }),
-        }
-      );
-      if (!res.ok) throw new Error('Failed to reject settlement');
-      setShowReject(false);
-      setRejectReason('');
-      await loadSettlement();
-    } catch (err) {
-      setError(
-        getErrorMessage(err) ?? 'Failed to reject settlement'
-      );
-    } finally {
-      setSubmitting(false);
+      setDownloading(false);
     }
   };
 
   if (loading) {
-    return <div className="p-6 text-gray-500">Loading settlement…</div>;
+    return (
+      <div className="p-4 md:p-8 space-y-4">
+        <span role="status" aria-live="polite" className="sr-only">
+          Loading settlement…
+        </span>
+        <Skeleton className="h-8 w-64" />
+        <Skeleton className="h-32 w-full" />
+        <Skeleton className="h-48 w-full" />
+      </div>
+    );
   }
 
   if (error && !settlement) {
-    return <div className="p-6 text-red-600">{error}</div>;
+    return (
+      <div className="p-4 md:p-8 space-y-3">
+        <p className="text-sm text-red-600">{error}</p>
+        <button
+          type="button"
+          onClick={loadSettlement}
+          className="text-sm font-medium text-brand-600 hover:underline"
+        >
+          Try again
+        </button>
+      </div>
+    );
   }
 
   if (!settlement) {
-    return <div className="p-6 text-gray-500">Settlement not found.</div>;
+    return <div className="p-4 md:p-8 text-gray-500">Settlement not found.</div>;
   }
 
-  const isPending = settlement.status === 'pending';
+  const StatusIcon = STATUS_ICONS[settlement.status];
+  const currency = getFiatCurrency(settlement);
+  const payments: SettlementPayment[] = settlement.payments ?? [];
 
   return (
-    <div className="p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-2xl font-semibold">Settlement {settlement.id}</h1>
-        <span className="rounded-full bg-gray-100 px-3 py-1 text-sm capitalize">
-          {settlement.status}
-        </span>
+    <div className="p-4 md:p-8 space-y-6">
+      <div className="flex flex-wrap items-center justify-between gap-3">
+        <div>
+          <Link
+            href="/dashboard/settlements"
+            className="text-sm text-brand-600 hover:underline"
+          >
+            ← Back to settlements
+          </Link>
+          <h1 className="mt-1 text-2xl font-bold text-gray-900 dark:text-gray-100">
+            Settlement {settlement.id.slice(0, 8)}
+          </h1>
+          <p className="mt-1 font-mono text-xs text-gray-500">{settlement.id}</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <span
+            className={`inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-medium capitalize ${STATUS_COLORS[settlement.status] ?? DEFAULT_STATUS_COLOR}`}
+          >
+            {StatusIcon && (
+              <StatusIcon aria-hidden="true" className="h-3 w-3 shrink-0" />
+            )}
+            {settlement.status}
+          </span>
+          <button
+            type="button"
+            onClick={downloadReceipt}
+            disabled={downloading}
+            className="rounded-lg bg-brand-600 px-4 py-2 text-sm font-medium text-white hover:bg-brand-700 disabled:opacity-60"
+          >
+            {downloading ? 'Preparing…' : 'Download PDF receipt'}
+          </button>
+        </div>
       </div>
 
       {isPendingApprovalStatus(settlement.status) && (
@@ -158,42 +174,123 @@ export default function AdminSettlementDetailPage({
         </div>
       )}
 
-      {error && (
-        <div className="rounded bg-red-50 p-3 text-red-600">{error}</div>
+      {downloadError && (
+        <div role="alert" className="rounded bg-red-50 p-3 text-sm text-red-600">
+          {downloadError}
+        </div>
       )}
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="rounded border p-4">
-          <div className="text-sm text-gray-500">Merchant</div>
-          <div className="font-medium">{settlement.merchant}</div>
-        </div>
-        <div className="rounded border p-4">
-          <div className="text-sm text-gray-500">Stellar reference</div>
-          <div className="break-all font-mono text-sm">
-            {settlement.stellarReference}
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <div className="card p-4">
+          <div className="text-sm text-gray-500">Gross amount</div>
+          <div className="mt-1 font-semibold text-gray-900 dark:text-gray-100">
+            {formatFiat(settlement.totalAmountUsd, currency)}
           </div>
         </div>
-        <div className="rounded border p-4">
-          <div className="text-sm text-gray-500">Amount (NGN)</div>
-          <div className="font-medium">{formatNgn(settlement.amount)}</div>
+        <div className="card p-4">
+          <div className="text-sm text-gray-500">Fee</div>
+          <div className="mt-1 font-semibold text-red-600">
+            -{formatFiat(settlement.feeAmountUsd, currency)}
+          </div>
         </div>
-        <div className="rounded border p-4">
-          <div className="text-sm text-gray-500">Fee (NGN)</div>
-          <div className="font-medium">{formatNgn(settlement.fee)}</div>
+        <div className="card p-4">
+          <div className="text-sm text-gray-500">Net amount</div>
+          <div className="mt-1 font-semibold text-green-700">
+            {formatFiat(settlement.netAmountUsd, currency)}
+          </div>
         </div>
-        <div className="rounded border p-4">
-          <div className="text-sm text-gray-500">Net (NGN)</div>
-          <div className="font-medium">{formatNgn(settlement.net)}</div>
+        <div className="card p-4">
+          <div className="text-sm text-gray-500">Fiat currency</div>
+          <div className="mt-1 font-semibold text-gray-900 dark:text-gray-100">
+            {currency}
+          </div>
         </div>
       </div>
 
-      {isPending && (
-        <div className="space-y-3">
-          <div className="flex gap-3">
-            <button
-              type="button"
-              onClick={approve}
-              disabled={submitting}
+      <div className="card p-4 text-sm">
+        <dl className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+          <div>
+            <dt className="text-gray-500">Created</dt>
+            <dd className="text-gray-900 dark:text-gray-100">
+              {formatDate(settlement.createdAt)}
+            </dd>
+          </div>
+          {settlement.completedAt ? (
+            <div>
+              <dt className="text-gray-500">Completed</dt>
+              <dd className="text-gray-900 dark:text-gray-100">
+                {formatDate(settlement.completedAt)}
+              </dd>
+            </div>
+          ) : null}
+          {settlement.bankReference ? (
+            <div>
+              <dt className="text-gray-500">Bank reference</dt>
+              <dd className="break-all font-mono text-xs text-gray-900 dark:text-gray-100">
+                {settlement.bankReference}
+              </dd>
+            </div>
+          ) : null}
+          {settlement.failureReason ? (
+            <div>
+              <dt className="text-gray-500">Failure reason</dt>
+              <dd className="text-red-600">{settlement.failureReason}</dd>
+            </div>
+          ) : null}
+        </dl>
+      </div>
+
+      <section aria-labelledby="linked-payments-heading" className="card">
+        <div className="border-b border-gray-100 px-6 py-4">
+          <h2
+            id="linked-payments-heading"
+            className="text-sm font-semibold text-gray-900 dark:text-gray-100"
+          >
+            Linked payments
+            {typeof settlement.paymentCount === 'number'
+              ? ` (${settlement.paymentCount})`
+              : ''}
+          </h2>
+        </div>
+        {payments.length === 0 ? (
+          <p className="px-6 py-6 text-sm text-gray-500">
+            No linked payments found for this settlement.
+          </p>
+        ) : (
+          <ul className="divide-y divide-gray-50">
+            {payments.map((p) => (
+              <li
+                key={p.id}
+                className="flex items-center justify-between px-6 py-3 text-sm"
+              >
+                <div>
+                  <p className="font-mono text-xs text-gray-700 dark:text-gray-300">
+                    {p.reference ?? p.id.slice(0, 8)}
+                  </p>
+                  {p.createdAt ? (
+                    <p className="text-xs text-gray-400">
+                      {formatDate(p.createdAt)}
+                    </p>
+                  ) : null}
+                </div>
+                <div className="text-right">
+                  {typeof p.amountUsd === 'number' ? (
+                    <p className="font-medium text-gray-900 dark:text-gray-100">
+                      {formatUsd(p.amountUsd)}
+                    </p>
+                  ) : null}
+                  {p.status ? (
+                    <p className="text-xs capitalize text-gray-500">{p.status}</p>
+                  ) : null}
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+    </div>
+  );
+}
               className="rounded bg-green-600 px-4 py-2 text-white disabled:opacity-50"
             >
               Approve

@@ -226,6 +226,9 @@ export const settlementsApi = {
   /** Downloads settlements as CSV. */
   export: (params?: { from?: string; to?: string; status?: string }) =>
     api.get<Blob>('/settlements/export', { params, responseType: 'blob' }),
+  /** Downloads a single settlement's PDF receipt (#783). */
+  receipt: (id: string) =>
+    api.get<Blob>(`/settlements/${id}/receipt`, { responseType: 'blob' }),
 };
 
 /** Merchant profile, API key and notification preference endpoints (#798). */

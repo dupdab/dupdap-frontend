@@ -1,7 +1,7 @@
 'use client';
 
 import dynamic from 'next/dynamic';
-import { useRouter } from 'next/navigation';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { Skeleton, SkeletonTableRows } from '@/components/Skeleton';
@@ -36,13 +36,42 @@ const VolumeBarChart = dynamic(() => import('./VolumeBarChart'), {
   ),
 });
 
-type Period = '7d' | '30d' | '90d';
+type Period = 'today' | '7d' | '30d' | '90d' | 'custom';
 
 const PERIODS: { value: Period; label: string }[] = [
-  { value: '7d', label: '7d' },
-  { value: '30d', label: '30d' },
-  { value: '90d', label: '90d' },
+  { value: 'today', label: 'Today' },
+  { value: '7d', label: '7 days' },
+  { value: '30d', label: '30 days' },
+  { value: '90d', label: '90 days' },
+  { value: 'custom', label: 'Custom' },
 ];
+
+const PRESET_PERIODS = PERIODS.filter((p) => p.value !== 'custom');
+
+const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Parses a `YYYY-MM-DD` URL param, returning '' when absent or malformed. */
+function parseDateParam(value: string | null): string {
+  return value && DATE_RE.test(value) ? value : '';
+}
+
+/** `YYYY-MM-DD` for a Date, in local time. */
+function toDateInput(date: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
+}
+
+/** Start of the local day for a `YYYY-MM-DD` string. */
+function startOfDay(value: string): Date {
+  const [y, m, d] = value.split('-').map(Number);
+  return new Date(y, m - 1, d, 0, 0, 0, 0);
+}
+
+/** End of the local day for a `YYYY-MM-DD` string. */
+function endOfDay(value: string): Date {
+  const [y, m, d] = value.split('-').map(Number);
+  return new Date(y, m - 1, d, 23, 59, 59, 999);
+}
 
 interface TopMerchant {
   merchantId: string;
@@ -52,10 +81,15 @@ interface TopMerchant {
   avgOrderValue: number;
 }
 
-const PERIOD_DAYS: Record<Period, number> = { '7d': 7, '30d': 30, '90d': 90 };
+const PERIOD_DAYS: Record<Exclude<Period, 'custom'>, number> = {
+  today: 1,
+  '7d': 7,
+  '30d': 30,
+  '90d': 90,
+};
 
 /** Date ranges for the selected period and the period before it (#793). */
-function periodRanges(period: Period) {
+function periodRanges(period: Exclude<Period, 'custom'>) {
   const days = PERIOD_DAYS[period];
   const now = Date.now();
   const dayMs = 24 * 60 * 60 * 1000;
@@ -63,6 +97,20 @@ function periodRanges(period: Period) {
   return {
     current: { from: iso(now - days * dayMs), to: iso(now) },
     previous: { from: iso(now - 2 * days * dayMs), to: iso(now - days * dayMs) },
+  };
+}
+
+/** Date ranges for an explicit custom range and the equal-length period before it. */
+function customRanges(from: string, to: string) {
+  const start = startOfDay(from);
+  const end = endOfDay(to);
+  const spanMs = Math.max(end.getTime() - start.getTime(), 0);
+  return {
+    current: { from: start.toISOString(), to: end.toISOString() },
+    previous: {
+      from: new Date(start.getTime() - spanMs).toISOString(),
+      to: start.toISOString(),
+    },
   };
 }
 
@@ -102,15 +150,75 @@ function csvEscape(value: string | number): string {
 
 export default function AnalyticsPage() {
   const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const [stats, setStats] = useState<PaymentStats[]>([]);
   const [prevStats, setPrevStats] = useState<PaymentStats[]>([]);
   const [compare, setCompare] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [period, setPeriod] = useState<Period>('30d');
   const [topMerchants, setTopMerchants] = useState<TopMerchant[]>([]);
   const [topLoading, setTopLoading] = useState(true);
   const [topError, setTopError] = useState('');
+
+  // Range state lives in the URL so a view is shareable (#784).
+  const rangeParam = searchParams.get('range');
+  const fromParam = parseDateParam(searchParams.get('from'));
+  const toParam = parseDateParam(searchParams.get('to'));
+  const period: Period =
+    rangeParam === 'custom' && fromParam && toParam
+      ? 'custom'
+      : rangeParam === 'today' || rangeParam === '7d' || rangeParam === '90d'
+        ? rangeParam
+        : '30d';
+
+  const [customFrom, setCustomFrom] = useState(fromParam);
+  const [customTo, setCustomTo] = useState(toParam);
+
+  // Keep the custom inputs in sync when the URL changes (back/forward, share).
+  useEffect(() => {
+    setCustomFrom(fromParam);
+    setCustomTo(toParam);
+  }, [fromParam, toParam]);
+
+  /** Writes the selected range to the URL. */
+  const updateRange = useCallback(
+    (updates: Record<string, string | null>) => {
+      const params = new URLSearchParams(searchParams.toString());
+      Object.entries(updates).forEach(([key, value]) => {
+        if (value) {
+          params.set(key, value);
+        } else {
+          params.delete(key);
+        }
+      });
+      const query = params.toString();
+      router.push(query ? `${pathname}?${query}` : pathname);
+    },
+    [pathname, router, searchParams]
+  );
+
+  const selectPeriod = useCallback(
+    (next: Period) => {
+      if (next === 'custom') {
+        const today = toDateInput(new Date());
+        const fallbackFrom = toDateInput(new Date(Date.now() - 29 * 86400000));
+        updateRange({
+          range: 'custom',
+          from: fromParam || fallbackFrom,
+          to: toParam || today,
+        });
+        return;
+      }
+      updateRange({ range: next, from: null, to: null });
+    },
+    [fromParam, toParam, updateRange]
+  );
+
+  const applyCustomRange = useCallback(() => {
+    if (!customFrom || !customTo || customFrom > customTo) return;
+    updateRange({ range: 'custom', from: customFrom, to: customTo });
+  }, [customFrom, customTo, updateRange]);
 
   // This page is a client component, so it can't export Next.js `metadata`.
   // Set the document title imperatively so the browser tab and history entry
@@ -120,47 +228,54 @@ export default function AnalyticsPage() {
   }, []);
 
   // Loads stats for the selected period and the previous one (#793).
-  const loadStats = useCallback((range: Period) => {
-    setLoading(true);
-    setError('');
-    const { current, previous } = periodRanges(range);
-    Promise.all([
-      paymentsApi.stats({ params: current }),
-      paymentsApi
-        .stats({ params: previous })
-        .then(({ data }) => data)
-        // Comparison is best-effort: the page still renders without it.
-        .catch(() => [] as PaymentStats[]),
-    ])
-      .then(([{ data }, previousData]) => {
-        setError('');
-        setStats(data);
-        setPrevStats(previousData);
-      })
-      .catch(() => setError("Couldn't load analytics."))
-      .finally(() => setLoading(false));
-  }, []);
+  const loadStats = useCallback(
+    (range: Period, from: string, to: string) => {
+      setLoading(true);
+      setError('');
+      const { current, previous } =
+        range === 'custom' ? customRanges(from, to) : periodRanges(range);
+      Promise.all([
+        paymentsApi.stats({ params: current }),
+        paymentsApi
+          .stats({ params: previous })
+          .then(({ data }) => data)
+          // Comparison is best-effort: the page still renders without it.
+          .catch(() => [] as PaymentStats[]),
+      ])
+        .then(([{ data }, previousData]) => {
+          setError('');
+          setStats(data);
+          setPrevStats(previousData);
+        })
+        .catch(() => setError("Couldn't load analytics."))
+        .finally(() => setLoading(false));
+    },
+    []
+  );
 
-  const loadTopMerchants = useCallback((range: Period) => {
-    setTopLoading(true);
-    setTopError('');
-    analyticsApi
-      .getRevenue(range)
-      .then(({ data }) => {
-        setTopError('');
-        setTopMerchants(data);
-      })
-      .catch(() => setTopError("Couldn't load top merchants."))
-      .finally(() => setTopLoading(false));
-  }, []);
+  const loadTopMerchants = useCallback(
+    (range: Period, from: string, to: string) => {
+      setTopLoading(true);
+      setTopError('');
+      analyticsApi
+        .getRevenue(range === 'custom' ? `custom:${from}:${to}` : range)
+        .then(({ data }) => {
+          setTopError('');
+          setTopMerchants(data);
+        })
+        .catch(() => setTopError("Couldn't load top merchants."))
+        .finally(() => setTopLoading(false));
+    },
+    []
+  );
 
   useEffect(() => {
-    loadStats(period);
-  }, [loadStats, period]);
+    loadStats(period, fromParam, toParam);
+  }, [loadStats, period, fromParam, toParam]);
 
   useEffect(() => {
-    loadTopMerchants(period);
-  }, [loadTopMerchants, period]);
+    loadTopMerchants(period, fromParam, toParam);
+  }, [loadTopMerchants, period, fromParam, toParam]);
 
   const pieData = useMemo(
     () =>
@@ -214,12 +329,12 @@ export default function AnalyticsPage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `top-merchants-${period}.csv`;
+    link.download = `top-merchants-${period === 'custom' ? `${fromParam}_${toParam}` : period}.csv`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
-  }, [rankedMerchants, period]);
+  }, [rankedMerchants, period, fromParam, toParam]);
 
   return (
     <div className="p-4 md:p-8">
@@ -230,6 +345,68 @@ export default function AnalyticsPage() {
         <p className="text-sm text-gray-500 mt-1">
           Payment volume and status breakdown
         </p>
+      </div>
+
+      <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div
+          className="inline-flex flex-wrap rounded-md border border-gray-200 dark:border-gray-700"
+          role="group"
+          aria-label="Date range"
+        >
+          {PERIODS.map((p) => (
+            <button
+              key={p.value}
+              type="button"
+              onClick={() => selectPeriod(p.value)}
+              aria-pressed={period === p.value}
+              className={`px-3 py-1.5 text-sm font-medium ${
+                period === p.value
+                  ? 'bg-gray-900 text-white'
+                  : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+              }`}
+            >
+              {p.label}
+            </button>
+          ))}
+        </div>
+
+        {period === 'custom' && (
+          <form
+            className="flex flex-wrap items-end gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              applyCustomRange();
+            }}
+          >
+            <label className="flex flex-col text-xs text-gray-500">
+              From
+              <input
+                type="date"
+                value={customFrom}
+                max={customTo || undefined}
+                onChange={(e) => setCustomFrom(e.target.value)}
+                className="mt-1 rounded-md border border-gray-200 dark:border-gray-700 bg-transparent px-2 py-1.5 text-sm text-gray-900 dark:text-gray-100"
+              />
+            </label>
+            <label className="flex flex-col text-xs text-gray-500">
+              To
+              <input
+                type="date"
+                value={customTo}
+                min={customFrom || undefined}
+                onChange={(e) => setCustomTo(e.target.value)}
+                className="mt-1 rounded-md border border-gray-200 dark:border-gray-700 bg-transparent px-2 py-1.5 text-sm text-gray-900 dark:text-gray-100"
+              />
+            </label>
+            <button
+              type="submit"
+              disabled={!customFrom || !customTo || customFrom > customTo}
+              className="inline-flex items-center rounded-md bg-gray-900 px-3 py-1.5 text-sm font-medium text-white hover:bg-gray-700 disabled:opacity-50"
+            >
+              Apply
+            </button>
+          </form>
+        )}
       </div>
 
       {loading ? (
@@ -258,7 +435,7 @@ export default function AnalyticsPage() {
           <p>{error}</p>
           <button
             type="button"
-            onClick={() => loadStats(period)}
+            onClick={() => loadStats(period, fromParam, toParam)}
             className="mt-4 inline-flex items-center rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
           >
             Retry
@@ -353,11 +530,11 @@ export default function AnalyticsPage() {
                   role="group"
                   aria-label="Time period"
                 >
-                  {PERIODS.map((p) => (
+                  {PRESET_PERIODS.map((p) => (
                     <button
                       key={p.value}
                       type="button"
-                      onClick={() => setPeriod(p.value)}
+                      onClick={() => selectPeriod(p.value)}
                       aria-pressed={period === p.value}
                       className={`px-3 py-1.5 text-sm font-medium ${
                         period === p.value
@@ -391,14 +568,14 @@ export default function AnalyticsPage() {
                     <th scope="col" className="py-2">Avg Order Value</th>
                   </tr>
                 </thead>
-                <SkeletonTableRows rows={5} columns={5} />
+                <SkeletonTableRows rows={5} cols={5} />
               </table>
             ) : topError ? (
               <div className="text-center py-8 text-red-500">
                 <p>{topError}</p>
                 <button
                   type="button"
-                  onClick={() => loadTopMerchants(period)}
+                  onClick={() => loadTopMerchants(period, fromParam, toParam)}
                   className="mt-4 inline-flex items-center rounded-md bg-gray-900 px-4 py-2 text-sm font-medium text-white hover:bg-gray-700"
                 >
                   Retry

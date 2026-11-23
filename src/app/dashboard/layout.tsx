@@ -132,6 +132,21 @@ export default function DashboardLayout({
   const drawerRef = useFocusTrap<HTMLElement>(mobileNavOpen);
   const tutorialRef = useFocusTrap<HTMLDivElement>(tutorialOpen);
 
+  // Escape closes the mobile drawer while it is open (#787).
+  useEffect(() => {
+    if (!mobileNavOpen) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        setMobileNavOpen(false);
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [mobileNavOpen]);
+
   // Nav items are derived inside the component so labels can be translated.
   const navItems = [
     {
@@ -335,6 +350,7 @@ export default function DashboardLayout({
             />
             <aside
               ref={drawerRef}
+              id="dashboard-mobile-nav"
               role="dialog"
               aria-modal="true"
               aria-label="Navigation"
@@ -361,6 +377,8 @@ export default function DashboardLayout({
                 onClick={() => setMobileNavOpen(true)}
                 className="lg:hidden p-2 rounded-lg text-gray-600 hover:bg-gray-100 dark:text-gray-300 dark:hover:bg-gray-800"
                 aria-label="Open navigation"
+                aria-expanded={mobileNavOpen}
+                aria-controls="dashboard-mobile-nav"
               >
                 <Menu className="w-5 h-5" aria-hidden="true" />
               </button>
