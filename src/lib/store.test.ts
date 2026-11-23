@@ -9,7 +9,7 @@ vi.mock('./api', () => ({
   merchantsApi: { getProfile: vi.fn().mockResolvedValue({ data: null }) },
 }));
 
-import { merchantsApi } from './api';
+import { merchantsApi, authApi } from './api';
 
 const testMerchant: Merchant = {
   id: 'merchant-1',
@@ -57,6 +57,21 @@ describe('useAuthStore', () => {
   });
 
   describe('logout()', () => {
+    it('calls POST /auth/logout before clearing local state (#768)', async () => {
+      useAuthStore.getState().setAuth(testMerchant);
+      await useAuthStore.getState().logout();
+      expect(authApi.logout).toHaveBeenCalledTimes(1);
+    });
+
+    it('still clears local state when the logout request fails (#768)', async () => {
+      vi.mocked(authApi.logout).mockRejectedValueOnce(new Error('network'));
+      useAuthStore.getState().setAuth(testMerchant);
+      await useAuthStore.getState().logout();
+      expect(authApi.logout).toHaveBeenCalledTimes(1);
+      expect(useAuthStore.getState().merchant).toBeNull();
+      expect(useAuthStore.getState().token).toBeNull();
+    });
+
     it('clears the merchant from the store', async () => {
       useAuthStore.getState().setAuth(testMerchant);
       await useAuthStore.getState().logout();

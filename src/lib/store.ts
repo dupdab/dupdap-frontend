@@ -49,12 +49,13 @@ export const useAuthStore = create<AuthState>()(
         }
       },
       logout: async () => {
-        clearLegacyAccessTokenKey();
+        // Blacklist the token server-side before dropping it locally (#768).
         try {
           await authApi.logout();
         } catch {
           // Ignore errors; we still clear local state
         }
+        clearLegacyAccessTokenKey();
         set({ token: null, merchant: null });
       },
       _setHasHydrated: (value) => set({ hasHydrated: value }),
