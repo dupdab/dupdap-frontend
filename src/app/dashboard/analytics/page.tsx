@@ -568,7 +568,7 @@ export default function AnalyticsPage() {
                     <th scope="col" className="py-2">Avg Order Value</th>
                   </tr>
                 </thead>
-                <SkeletonTableRows rows={5} columns={5} />
+                <SkeletonTableRows rows={5} cols={5} />
               </table>
             ) : topError ? (
               <div className="text-center py-8 text-red-500">

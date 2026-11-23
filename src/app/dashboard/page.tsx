@@ -160,7 +160,7 @@ export default function DashboardPage() {
       />
 
       {/* Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8" aria-busy={loading}>
         {statCards.map(({ label, value, icon: Icon, color }) => (
           <div key={label} className="card p-5">
             <div className="flex items-center justify-between mb-3">
@@ -193,9 +193,9 @@ export default function DashboardPage() {
             Compare to previous period
           </button>
         </div>
-        <div className="px-2 py-4">
+        <div className="px-2 py-4" aria-busy={loading}>
           {loading ? (
-            <Skeleton className="h-64 w-full" />
+            <Skeleton className="h-[280px] w-full" />
           ) : (
             <ResponsiveContainer width="100%" height={280}>
               <ComposedChart
@@ -282,7 +282,7 @@ export default function DashboardPage() {
             {t('dashboard.recentPayments')}
           </h2>
         </div>
-        <div className="divide-y divide-gray-50">
+        <div className="divide-y divide-gray-50" aria-busy={loading}>
           {error ? (
             <div
               data-testid="dashboard-error"
@@ -302,7 +302,7 @@ export default function DashboardPage() {
               </button>
             </div>
           ) : loading ? (
-            <SkeletonList rows={5} />
+            <SkeletonList rows={5} className="px-6 py-4" />
           ) : payments.length === 0 ? (
             <div className="px-6 py-8 text-center text-gray-400 text-sm">
               {t('dashboard.noPayments')}

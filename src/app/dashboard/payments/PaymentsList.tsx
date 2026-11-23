@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 
 import { getErrorMessage } from '@/lib/errors';
+import { SkeletonList } from '@/components/Skeleton';
 
 const PAGE_SIZE = 20;
 
@@ -322,7 +323,13 @@ export default function PaymentsList() {
       ) : null}
 
       {loading ? (
-        <p className="text-sm text-gray-500">Loading payments…</p>
+        <ul
+          className="divide-y divide-gray-200"
+          aria-busy="true"
+          data-testid="payments-skeleton"
+        >
+          <SkeletonList rows={PAGE_SIZE} />
+        </ul>
       ) : payments.length === 0 ? (
         <p className="text-sm text-gray-500">
           {hasFilters ? 'No payments match your filters.' : 'No payments found.'}
