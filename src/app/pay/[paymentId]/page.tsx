@@ -89,9 +89,17 @@ interface QrSubtreeProps {
   stellarUri: string;
   amountLabel: string;
   reference: string;
+  depositAddress: string;
+  amountXlm: number;
 }
 
-function QrSubtree({ stellarUri, amountLabel, reference }: QrSubtreeProps) {
+function QrSubtree({
+  stellarUri,
+  amountLabel,
+  reference,
+  depositAddress,
+  amountXlm,
+}: QrSubtreeProps) {
   const qrRef = useRef<HTMLDivElement>(null);
 
   const handleDownload = () => {
@@ -118,11 +126,24 @@ function QrSubtree({ stellarUri, amountLabel, reference }: QrSubtreeProps) {
           ref={qrRef}
           className="bg-white p-3 rounded-xl border border-gray-200"
           role="img"
-          aria-label={`Stellar payment QR code for ${amountLabel}`}
+          aria-label="Stellar payment QR code — scan with your wallet app"
         >
-          <QRCodeSVG value={stellarUri} size={160} />
+          <QRCodeSVG value={stellarUri} size={160} aria-hidden="true" />
         </div>
       </div>
+      <p className="text-center text-xs text-gray-600 mb-4 break-words">
+        <span className="sr-only">
+          Stellar payment QR code — scan with your wallet app. Deposit address:{' '}
+        </span>
+        <span className="font-mono">{depositAddress}</span>
+        <span className="sr-only">, amount: </span>
+        <span className="font-semibold">
+          {amountXlm} XLM ({amountLabel})
+        </span>
+      </p>
+      <p className="sr-only" data-testid="qr-text-alternative">
+        Deposit address {depositAddress}, amount {amountXlm} XLM ({amountLabel})
+      </p>
       <button
         type="button"
         onClick={handleDownload}
@@ -692,6 +713,8 @@ export default function PayPage({ params }: { params: { paymentId: string } }) {
         stellarUri={stellarUri}
         amountLabel={formatUsd(payment.amountUsd)}
         reference={payment.reference}
+        depositAddress={payment.stellarDepositAddress ?? ''}
+        amountXlm={payment.amountXlm ?? 0}
       />
     );
     // eslint-disable-next-line react-hooks/exhaustive-deps
