@@ -80,6 +80,10 @@ export interface Payment {
   expiryMinutes?: number;
   merchantName?: string;
   merchantEmail?: string;
+  /** Stellar transaction hash of the payment that settled this request. */
+  transactionHash?: string;
+  /** Alias some API responses use for `transactionHash`. */
+  txHash?: string;
 }
 
 export interface PaymentStats {

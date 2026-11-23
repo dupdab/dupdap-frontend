@@ -13,6 +13,7 @@ import {
   Download,
   RefreshCw,
 } from 'lucide-react';
+import Link from 'next/link';
 import { QRCodeSVG } from 'qrcode.react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -466,7 +467,25 @@ function Receipt({ payment }: ReceiptProps) {
             <dd className="text-gray-900">{formatDate(payment.updatedAt)}</dd>
           </div>
         )}
+        {(payment.transactionHash || payment.txHash) && (
+          <div className="flex justify-between px-4 py-3 bg-white">
+            <dt className="text-gray-500">Transaction</dt>
+            <dd className="font-mono text-gray-900 text-xs break-all text-right max-w-[60%]">
+              {payment.transactionHash || payment.txHash}
+            </dd>
+          </div>
+        )}
       </dl>
+
+      {/* Permanent receipt link (#774) */}
+      <p className="text-center text-sm print:hidden">
+        <Link
+          href={`/pay/${encodeURIComponent(payment.reference || payment.id)}/receipt`}
+          className="text-brand-700 hover:underline font-medium"
+        >
+          View printable receipt
+        </Link>
+      </p>
 
       {/* Actions */}
       <div className="flex gap-3 print:hidden">
