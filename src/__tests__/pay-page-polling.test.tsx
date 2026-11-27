@@ -269,3 +269,90 @@ describe('PayPage — stellarUri construction', () => {
     );
   });
 });
+
+describe('PayPage — polling backoff, timeout, and visibility resumption', () => {
+  it('increases polling interval exponentially upon consecutive failures', async () => {
+    mockGetByReference
+      .mockResolvedValueOnce({ data: PENDING_PAYMENT } as never)
+      .mockRejectedValue(new Error('Network error'));
+
+    render(<PayPage params={defaultParams} />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const mountCalls = mockGetByReference.mock.calls.length;
+
+    // Advance 5000ms: first failure occurs
+    await act(async () => {
+      vi.advanceTimersByTime(5000);
+      await Promise.resolve();
+    });
+    expect(mockGetByReference.mock.calls.length).toBe(mountCalls + 1);
+
+    // After 1 failure, backoff is 5000 * 2^1 = 10000ms.
+    // Advancing 5000ms should NOT trigger another poll yet.
+    await act(async () => {
+      vi.advanceTimersByTime(5000);
+      await Promise.resolve();
+    });
+    expect(mockGetByReference.mock.calls.length).toBe(mountCalls + 1);
+
+    // Advancing another 5000ms (total 10000ms since last poll) triggers the next poll.
+    await act(async () => {
+      vi.advanceTimersByTime(5000);
+      await Promise.resolve();
+    });
+    expect(mockGetByReference.mock.calls.length).toBe(mountCalls + 2);
+  });
+
+  it('stops polling when maximum polling attempts are reached', async () => {
+    mockGetByReference.mockResolvedValue({ data: PENDING_PAYMENT } as never);
+
+    render(<PayPage params={defaultParams} />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    // Advance through 30 polling cycles to exhaust POLL_MAX_ATTEMPTS (24)
+    for (let i = 0; i < 30; i++) {
+      await act(async () => {
+        vi.advanceTimersByTime(5000);
+        await Promise.resolve();
+      });
+    }
+
+    const callsAfterExhaustion = mockGetByReference.mock.calls.length;
+
+    // Advance further — no additional polls should occur
+    await act(async () => {
+      vi.advanceTimersByTime(60000);
+      await Promise.resolve();
+    });
+
+    expect(mockGetByReference.mock.calls.length).toBe(callsAfterExhaustion);
+  });
+
+  it('resumes polling immediately when tab visibility changes from hidden to visible', async () => {
+    mockGetByReference.mockResolvedValue({ data: PENDING_PAYMENT } as never);
+
+    render(<PayPage params={defaultParams} />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    const callsBefore = mockGetByReference.mock.calls.length;
+
+    await act(async () => {
+      setVisibility('hidden');
+      await Promise.resolve();
+    });
+
+    await act(async () => {
+      setVisibility('visible');
+      await Promise.resolve();
+    });
+
+    expect(mockGetByReference.mock.calls.length).toBe(callsBefore + 1);
+  });
+});
