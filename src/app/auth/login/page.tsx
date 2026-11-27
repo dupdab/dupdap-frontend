@@ -8,6 +8,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import toast from '@/lib/toast';
 import { authApi } from '@/lib/api';
+import { resolveNextPath } from '@/lib/auth-redirect';
 import { useAuthStore } from '@/lib/store';
 import { getErrorMessage, isAxiosError } from '@/lib/errors';
 import { isAuthResponse } from '@/lib/types';
@@ -26,7 +27,7 @@ function LoginForm() {
   const searchParams = useSearchParams();
   const { t } = useLocale();
   const setAuth = useAuthStore((state) => state.setAuth);
-  const next = searchParams.get('next') ?? '/dashboard';
+  const next = resolveNextPath(searchParams.get('next'));
 
   const [showPassword, setShowPassword] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
@@ -152,6 +153,7 @@ function LoginForm() {
               <input
                 id="email"
                 type="email"
+                autoComplete="email"
                 {...register('email')}
                 aria-invalid={!!errors.email}
                 aria-describedby={errors.email ? 'email-error' : undefined}
@@ -172,6 +174,7 @@ function LoginForm() {
                 <input
                   id="password"
                   type={showPassword ? 'text' : 'password'}
+                  autoComplete="current-password"
                   {...register('password')}
                   aria-invalid={!!errors.password}
                   aria-describedby={errors.password ? 'password-error' : undefined}

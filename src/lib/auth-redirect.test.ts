@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
-import { redirectToLogin, setAuthRedirectHandler } from './auth-redirect';
+import { redirectToLogin, resolveNextPath, setAuthRedirectHandler } from './auth-redirect';
 
 describe('redirectToLogin', () => {
   beforeEach(() => {
@@ -67,5 +67,36 @@ describe('redirectToLogin', () => {
     expect(assign).toHaveBeenCalledWith(
       '/auth/login?next=%2Fdashboard%2Fsettlements%3Fstatus%3Dpending'
     );
+  });
+});
+
+describe('resolveNextPath (#761)', () => {
+  it('accepts same-origin relative paths including query strings', () => {
+    expect(resolveNextPath('/dashboard/webhooks?tab=1')).toBe('/dashboard/webhooks?tab=1');
+  });
+
+  it('falls back when next is missing or empty', () => {
+    expect(resolveNextPath(null)).toBe('/dashboard');
+    expect(resolveNextPath(undefined)).toBe('/dashboard');
+    expect(resolveNextPath('')).toBe('/dashboard');
+  });
+
+  it('rejects absolute and protocol-relative URLs', () => {
+    expect(resolveNextPath('https://evil.example/phish')).toBe('/dashboard');
+    expect(resolveNextPath('//evil.example')).toBe('/dashboard');
+    expect(resolveNextPath('javascript:alert(1)')).toBe('/dashboard');
+  });
+
+  it('rejects backslash and control-character tricks', () => {
+    expect(resolveNextPath('/\\evil.example')).toBe('/dashboard');
+    expect(resolveNextPath('/\tevil')).toBe('/dashboard');
+  });
+
+  it('rejects a loop back to the login page', () => {
+    expect(resolveNextPath('/auth/login?next=%2Fdashboard')).toBe('/dashboard');
+  });
+
+  it('honours a custom fallback', () => {
+    expect(resolveNextPath('https://evil.example', '/home')).toBe('/home');
   });
 });

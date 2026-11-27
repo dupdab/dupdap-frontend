@@ -312,3 +312,18 @@ describe('LoginPage', () => {
     });
   });
 });
+
+describe('LoginPage autocomplete attributes (#762)', () => {
+  afterEach(() => {
+    cleanup();
+  });
+
+  it('sets autocomplete hints for password managers', () => {
+    render(React.createElement(LoginPage));
+    expect(document.querySelector('#email')).toHaveAttribute('autocomplete', 'email');
+    expect(document.querySelector('#password')).toHaveAttribute(
+      'autocomplete',
+      'current-password'
+    );
+  });
+});
