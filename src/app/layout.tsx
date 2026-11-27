@@ -4,6 +4,7 @@ import { I18nextProvider } from 'react-i18next';
 import CookieConsent from '@/components/CookieConsent';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import { QueryProvider } from '@/components/QueryProvider';
+import { SessionExpiryBanner } from '@/components/SessionExpiryBanner';
 import { ThemeProvider } from '@/components/ThemeProvider';
 import { ThemeScript } from '@/components/ThemeScript';
 import { LocaleProvider } from '@/lib/locale';
@@ -43,6 +44,7 @@ export default function RootLayout({
                   <ErrorBoundary>{children}</ErrorBoundary>
                   <Toaster position="top-right" />
                   <CookieConsent />
+                  <SessionExpiryBanner />
                 </ThemeProvider>
               </LocaleProvider>
             </QueryProvider>

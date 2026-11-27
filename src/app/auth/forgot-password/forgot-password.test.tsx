@@ -176,3 +176,25 @@ describe('ForgotPasswordPage — error flow', () => {
     expect(screen.queryByText(/check your email/i)).not.toBeInTheDocument();
   });
 });
+
+describe('ForgotPasswordPage — email format validation', () => {
+  it('uses a required email-typed input', () => {
+    render(<ForgotPasswordPage />);
+    const input = screen.getByRole('textbox');
+    expect(input).toHaveAttribute('type', 'email');
+    expect(input).toBeRequired();
+  });
+
+  it('does not call the API when the email format is invalid', async () => {
+    render(<ForgotPasswordPage />);
+
+    fireEvent.change(screen.getByRole('textbox'), {
+      target: { value: 'not-an-email' },
+    });
+    fireEvent.click(screen.getByRole('button', { name: /send reset link/i }));
+
+    // Native constraint validation blocks the submit event for malformed emails.
+    expect(mockForgotPassword).not.toHaveBeenCalled();
+    expect(screen.queryByText(/check your email/i)).not.toBeInTheDocument();
+  });
+});

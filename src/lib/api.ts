@@ -1,6 +1,7 @@
 import axios, { type AxiosRequestConfig } from 'axios';
 
 import { redirectToLogin } from './auth-redirect';
+import { getCsrfToken, isMutationMethod } from './csrf';
 import { getApiUrl } from './env';
 import { normalizeError, type NormalizedError } from './errors';
 import { useAuthStore } from './store';
@@ -109,6 +110,14 @@ function waitForOnline(): Promise<void> {
 }
 
 // Request interceptor omitted: auth token is sent automatically via httpOnly cookie (withCredentials: true).
+// Double-submit CSRF: echo the csrf_token cookie in X-CSRF-Token on state-mutating requests (#767).
+api.interceptors.request.use((config) => {
+  if (isMutationMethod(config.method)) {
+    const csrfToken = getCsrfToken();
+    if (csrfToken) config.headers.set('X-CSRF-Token', csrfToken);
+  }
+  return config;
+});
 
 api.interceptors.response.use(
   (res) => res,
